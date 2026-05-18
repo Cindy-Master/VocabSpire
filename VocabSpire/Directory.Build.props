@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      修改为你的杀戮尖塔2安装路径
+      Steam 默认路径示例:
+        C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2
+      自定义 Steam 库路径示例:
+        D:\SteamLibrary\steamapps\common\Slay the Spire 2
+    -->
+    <STS2GamePath>D:\SteamLibrary\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64</STS2GamePath>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,11 @@
+{
+  "id": "VocabSpire",
+  "name": "VocabSpire - 背单词",
+  "author": "VocabSpire",
+  "version": "1.0.0",
+  "description": "在杀戮尖塔2中背单词！每次打出卡牌时进行英语单词测验，答对继续出牌，答错扣费但不执行效果。",
+  "has_pck": false,
+  "has_dll": true,
+  "affects_gameplay": true,
+  "dependencies": []
+}

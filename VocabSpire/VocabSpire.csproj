@@ -1,0 +1,29 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>VocabSpire</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Directory.Build.props is auto-imported by SDK -->
+
+  <ItemGroup>
+    <Reference Include="sts2" Condition="Exists('$(STS2GamePath)\sts2.dll')">
+      <HintPath>$(STS2GamePath)\sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony" Condition="Exists('$(STS2GamePath)\0Harmony.dll')">
+      <HintPath>$(STS2GamePath)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="VocabSpire.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Resources\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,52 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+
+# IDE
+.vs/
+.idea/
+*.DotSettings.user
+.vscode/
+
+# Godot
+.godot/
+*.import
+
+# Build output
+publish/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Mod output
+*.pck
+
+# 反编译源码（不公开）
+sts2_decompiled/
+
+# 测试/临时文件
+*.mp3
+*.pdf
+*.tar.gz
+*.zip
+dict_resp.json
+test_tts*.py
+
+# 发布包
+release/
+
+# Claude Code
+.claude/
+
+# 运行时数据
+_word_progress.json
+_run_history.json
+vocabspire_config.json
+word_progress.json
+run_history.json
+error_book_*.json
+error_book_*.csv
