@@ -6,6 +6,22 @@ using VocabSpire.Models;
 
 namespace VocabSpire.Services;
 
+/// <summary>奖励类型。0=无；1-5 基础；6+ 第二期。</summary>
+public enum RewardType
+{
+    None      = 0,
+    Hp        = 1,
+    Energy    = 2,
+    Gold      = 3,
+    Strength  = 4,
+    Dexterity = 5,
+    Block     = 6,  // 覆甲
+    Draw      = 7,  // 抽牌
+    Thorns    = 8,  // 荆棘
+    Focus     = 9,  // 集中
+    Artifact  = 10  // 人工制品
+}
+
 public sealed class VocabConfig
 {
     public static VocabConfig Instance { get; } = new();
@@ -42,6 +58,35 @@ public sealed class VocabConfig
 
     /// <summary>篝火复习最大题数（0=全部错题）。</summary>
     public int ReviewMaxCount { get; set; }
+
+    // ── 战斗惩罚/奖励设置 ──
+    /// <summary>启用每回合容错。</summary>
+    public bool ToleranceEnabled { get; set; }
+
+    /// <summary>每回合容错次数：前 X 张牌答错不扣费且不进弃牌堆。</summary>
+    public int ToleranceCount { get; set; } = 1;
+
+    /// <summary>答错时（容错用完后）将卡牌返回手牌而非弃牌堆。</summary>
+    public bool WrongCardReturnToHand { get; set; }
+
+    /// <summary>实际是否应使用容错次数（开关 + 次数 &gt; 0）。</summary>
+    public bool IsToleranceActive => ToleranceEnabled && ToleranceCount > 0;
+
+    /// <summary>启用连续答对奖励总开关。</summary>
+    public bool RewardEnabled { get; set; }
+
+    /// <summary>奖励规则列表（原子化搭配）。</summary>
+    public List<RewardRule> RewardRules { get; set; } = new();
+
+    // ── 免错券机制 ──
+    /// <summary>启用免错券。</summary>
+    public bool FreePassEnabled { get; set; }
+
+    /// <summary>累积一张券所需的连对次数。</summary>
+    public int FreePassStreakCost { get; set; } = 3;
+
+    /// <summary>最大持有数（防止过强）。</summary>
+    public int FreePassMaxStock { get; set; } = 5;
 
     public int TotalAnswered { get; set; }
     public int TotalCorrect { get; set; }
@@ -104,6 +149,37 @@ public sealed class VocabConfig
             if (data.MasteryStreak > 0) MasteryStreak = data.MasteryStreak;
             if (data.TtsVolume >= 0) TtsVolume = Math.Clamp(data.TtsVolume, 0, 100);
 
+            ToleranceEnabled = data.ToleranceEnabled;
+            if (data.ToleranceCount > 0) ToleranceCount = data.ToleranceCount;
+            WrongCardReturnToHand = data.WrongCardReturnToHand;
+            RewardEnabled = data.RewardEnabled;
+
+            // 多规则
+            if (data.RewardRules is { Count: > 0 })
+            {
+                RewardRules = data.RewardRules;
+            }
+            else if (data.RewardKind > 0 && data.RewardAmount > 0)
+            {
+                // 旧配置迁移：单规则 → 多规则
+                RewardRules = new List<RewardRule>
+                {
+                    new()
+                    {
+                        Enabled = true,
+                        Kind = (RewardType)data.RewardKind,
+                        Streak = data.RewardStreak > 0 ? data.RewardStreak : 5,
+                        Amount = data.RewardAmount,
+                        Mode = RewardTriggerMode.Once
+                    }
+                };
+            }
+
+            FreePassEnabled = data.FreePassEnabled;
+            if (data.FreePassStreakCost > 0) FreePassStreakCost = data.FreePassStreakCost;
+            if (data.FreePassMaxStock > 0) FreePassMaxStock = data.FreePassMaxStock;
+            // FreePassStock 不在 config 中持久化——由 RunBattleState 按 Run 管理
+
             // 迁移旧配置：quiz_mode (单选) → quiz_mode_flags (多选)
             if (data.QuizModeFlags > 0)
             {
@@ -153,6 +229,14 @@ public sealed class VocabConfig
                 ReviewMaxCount = ReviewMaxCount,
                 MasteryStreak = MasteryStreak,
                 TtsVolume = TtsVolume,
+                ToleranceEnabled = ToleranceEnabled,
+                ToleranceCount = ToleranceCount,
+                WrongCardReturnToHand = WrongCardReturnToHand,
+                RewardEnabled = RewardEnabled,
+                RewardRules = RewardRules,
+                FreePassEnabled = FreePassEnabled,
+                FreePassStreakCost = FreePassStreakCost,
+                FreePassMaxStock = FreePassMaxStock,
                 TotalAnswered = TotalAnswered,
                 TotalCorrect = TotalCorrect
             };
@@ -222,6 +306,40 @@ public sealed class VocabConfig
 
         [JsonPropertyName("tts_volume")]
         public int TtsVolume { get; set; } = 80;
+
+        [JsonPropertyName("tolerance_enabled")]
+        public bool ToleranceEnabled { get; set; }
+
+        [JsonPropertyName("tolerance_count")]
+        public int ToleranceCount { get; set; }
+
+        [JsonPropertyName("wrong_card_return_to_hand")]
+        public bool WrongCardReturnToHand { get; set; }
+
+        [JsonPropertyName("reward_enabled")]
+        public bool RewardEnabled { get; set; }
+
+        [JsonPropertyName("reward_rules")]
+        public List<RewardRule>? RewardRules { get; set; }
+
+        // ── 旧版兼容字段（迁移后弃用）──
+        [JsonPropertyName("reward_streak")]
+        public int RewardStreak { get; set; }
+
+        [JsonPropertyName("reward_kind")]
+        public int RewardKind { get; set; } = -1;
+
+        [JsonPropertyName("reward_amount")]
+        public int RewardAmount { get; set; }
+
+        [JsonPropertyName("free_pass_enabled")]
+        public bool FreePassEnabled { get; set; }
+
+        [JsonPropertyName("free_pass_streak_cost")]
+        public int FreePassStreakCost { get; set; }
+
+        [JsonPropertyName("free_pass_max_stock")]
+        public int FreePassMaxStock { get; set; }
 
         [JsonPropertyName("total_answered")]
         public int TotalAnswered { get; set; }

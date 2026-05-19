@@ -38,6 +38,8 @@ test_tts*.py
 
 # 发布包
 release/
+release_v*/
+VocabSpire-v*.zip
 
 # Claude Code
 .claude/
@@ -45,6 +47,7 @@ release/
 # 运行时数据
 _word_progress.json
 _run_history.json
+_free_pass.json
 vocabspire_config.json
 word_progress.json
 run_history.json

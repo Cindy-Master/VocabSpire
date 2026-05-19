@@ -181,11 +181,19 @@ public sealed class QuizGenerator
         WordEntry target, WordBank bank, QuizModeFlags mode, int optionCount, int tier)
     {
         var definitions = target.Definitions;
-        var correctCount = definitions.Count;
 
-        // 干扰项数量 = 总选项数 - 正确答案数
-        var distractorCount = Math.Min(optionCount + correctCount - 1, bank.Words.Count - 1);
-        distractorCount = Math.Max(distractorCount - correctCount, 1);
+        // 严格遵守用户设置的选项数（optionCount），不超过它
+        // correctCount 至多 optionCount - 1（至少留 1 个干扰位）
+        var correctCount = Math.Min(definitions.Count, optionCount - 1);
+
+        // 不足 2 个正确释义 → 回退到单选
+        if (correctCount < 2)
+            return GenerateMultipleChoiceQuestion(target, bank, mode, optionCount, tier);
+
+        // 总选项数 = 用户设置的 optionCount；distractor = 剩余
+        var distractorCount = Math.Max(optionCount - correctCount, 1);
+        distractorCount = Math.Min(distractorCount, bank.Words.Count - 1);
+
         var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, true, tier);
 
         // 正确释义集合（用于排除重复的干扰项）
@@ -196,10 +204,11 @@ public sealed class QuizGenerator
             .Select(w => (option: w.Chinese, detail: w.English, isCorrect: false))
             .ToList();
 
-        // 加入所有正确释义（去重）
+        // 加入所有正确释义（去重，但不超过 correctCount 上限以适配 UI 按钮数量）
         var addedCorrect = new HashSet<string>();
         foreach (var def in definitions)
         {
+            if (addedCorrect.Count >= correctCount) break;
             if (addedCorrect.Add(def)) // 重复的释义不重复添加
                 pairs.Add((option: def, detail: target.English, isCorrect: true));
         }

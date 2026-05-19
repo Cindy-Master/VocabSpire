@@ -62,9 +62,12 @@ public partial class InputListener : Node
     {
         QuizPanel.Create();
         VocabSettingsPanel.Create();
+        WordBankEditorPanel.Create();
         WrongAnswerSummaryPanel.Create();
         RestSiteReviewPanel.Create();
         RunSummaryPanel.Create();
+        FreePassButton.Create();
+        FreePassPopup.Create();
         // VocabCollectionPanel 由 CompendiumPatch 按需创建（原生注入）
         Log.Info("[VocabSpire] UI panels created.");
     }
