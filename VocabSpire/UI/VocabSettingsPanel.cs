@@ -21,7 +21,6 @@ public partial class VocabSettingsPanel : Control
     private OptionButton _optionCountSelector = null!;
     private CheckButton _combatSummaryToggle = null!;
     private CheckButton _restReviewToggle = null!;
-    private CheckButton _difficultyToggle = null!;
     private Label _bankAnalysisLabel = null!;
     private Label _sampleWordsLabel = null!;
     private Label _statsLabel = null!;
@@ -325,14 +324,14 @@ public partial class VocabSettingsPanel : Control
         _optionCountSelector = new OptionButton { CustomMinimumSize = new Vector2(100, 0) };
         for (var i = 2; i <= 6; i++)
             _optionCountSelector.AddItem($"{i}", i);
-        _optionCountSelector.Selected = cfg.OptionCount - 2;
+        _optionCountSelector.Selected = Math.Clamp(cfg.OptionCount, 2, 6) - 2;
         _optionCountSelector.ItemSelected += idx =>
         {
             VocabConfig.Instance.OptionCount = (int)idx + 2;
             VocabConfig.Instance.Save();
         };
         countRow.AddChild(_optionCountSelector);
-        countRow.AddChild(GameTheme.MakeLabel("  (2=简单, 6=困难)", 12, DimGrey));
+        countRow.AddChild(GameTheme.MakeLabel("  (2=简单, 6=困难；启用选项递增后 Act3 自动 +2，最多 8)", 12, DimGrey));
     }
 
     private void BuildBattleSection(VBoxContainer vbox)
@@ -625,21 +624,7 @@ public partial class VocabSettingsPanel : Control
         };
         vbox.AddChild(_restReviewToggle);
 
-        _difficultyToggle = new CheckButton { Text = " 按层数递增难度 (基础→进阶→挑战)", ButtonPressed = cfg.EnableDifficultyScaling };
-        _difficultyToggle.Toggled += on =>
-        {
-            VocabConfig.Instance.EnableDifficultyScaling = on;
-            VocabConfig.Instance.Save();
-        };
-        vbox.AddChild(_difficultyToggle);
-
-        var diffDesc = GameTheme.MakeLabel(
-            "第一层：随机干扰项，显示音标\n" +
-            "第二层：相似混淆干扰项，+1选项，隐藏音标，40%强制拼写\n" +
-            "第三层：高混淆度干扰项，+2选项，70%强制拼写，随机反转模式",
-            11, DimGrey);
-        diffDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        vbox.AddChild(diffDesc);
+        BuildDifficultySubSection(vbox, cfg);
 
         // ── 篝火复习设置 ──
         vbox.AddChild(new HSeparator());
@@ -742,6 +727,130 @@ public partial class VocabSettingsPanel : Control
         var volLabel = GameTheme.MakeLabel($"{cfg.TtsVolume}%", 16, Grey);
         volRow.AddChild(volLabel);
         volSlider.ValueChanged += val => volLabel.Text = $"{(int)val}%";
+    }
+
+    /// <summary>5 个独立难度开关 + 2 个概率 SpinBox + 始终显示音标 toggle。</summary>
+    private void BuildDifficultySubSection(VBoxContainer vbox, VocabConfig cfg)
+    {
+        vbox.AddChild(GameTheme.MakeLabel("• 难度递增 (可独立开关)", 14, Gold));
+
+        // 1. 启用混淆度干扰项
+        var confusionTg = new CheckButton
+        {
+            Text = " 启用混淆度干扰项（Act2+ 用近形/近义/近音词作干扰）",
+            ButtonPressed = cfg.EnableConfusionDistractor
+        };
+        confusionTg.Toggled += on =>
+        {
+            VocabConfig.Instance.EnableConfusionDistractor = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(confusionTg);
+
+        // 2. 启用选项数量递增
+        var optScaleTg = new CheckButton
+        {
+            Text = " 启用选项数量递增（Act2 +1、Act3 +2，最多 8）",
+            ButtonPressed = cfg.EnableOptionCountScaling
+        };
+        optScaleTg.Toggled += on =>
+        {
+            VocabConfig.Instance.EnableOptionCountScaling = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(optScaleTg);
+
+        // 3. 启用强制拼写（Act2 / Act3 概率 SpinBox）
+        var spellTg = new CheckButton
+        {
+            Text = " 启用强制拼写（Act2/Act3 概率把选择题变拼写题；需在「题型」里勾选拼写）",
+            ButtonPressed = cfg.EnableForceSpelling
+        };
+        vbox.AddChild(spellTg);
+
+        var spellRow = new HBoxContainer();
+        spellRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(spellRow);
+        spellRow.AddChild(GameTheme.MakeLabel("    Act2 强制率(%)：", 13, White));
+        var spell2 = new SpinBox
+        {
+            MinValue = 0, MaxValue = 100, Step = 5,
+            Value = cfg.ForceSpellingChanceAct2Percent,
+            CustomMinimumSize = new Vector2(80, 0),
+            Editable = cfg.EnableForceSpelling
+        };
+        spell2.GetLineEdit().AddThemeFontSizeOverride("font_size", 13);
+        spell2.ValueChanged += v => { VocabConfig.Instance.ForceSpellingChanceAct2Percent = (int)v; VocabConfig.Instance.Save(); };
+        spellRow.AddChild(spell2);
+        spellRow.AddChild(GameTheme.MakeLabel("    Act3 强制率(%)：", 13, White));
+        var spell3 = new SpinBox
+        {
+            MinValue = 0, MaxValue = 100, Step = 5,
+            Value = cfg.ForceSpellingChanceAct3Percent,
+            CustomMinimumSize = new Vector2(80, 0),
+            Editable = cfg.EnableForceSpelling
+        };
+        spell3.GetLineEdit().AddThemeFontSizeOverride("font_size", 13);
+        spell3.ValueChanged += v => { VocabConfig.Instance.ForceSpellingChanceAct3Percent = (int)v; VocabConfig.Instance.Save(); };
+        spellRow.AddChild(spell3);
+        spellTg.Toggled += on =>
+        {
+            VocabConfig.Instance.EnableForceSpelling = on;
+            VocabConfig.Instance.Save();
+            spell2.Editable = on;
+            spell3.Editable = on;
+        };
+
+        // 4. 启用反转模式（Act3 概率 SpinBox）
+        var reverseTg = new CheckButton
+        {
+            Text = " 启用反转模式（Act3 概率把英↔中互换；需要两个方向都已勾选）",
+            ButtonPressed = cfg.EnableReverseMode
+        };
+        vbox.AddChild(reverseTg);
+
+        var revRow = new HBoxContainer();
+        revRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(revRow);
+        revRow.AddChild(GameTheme.MakeLabel("    Act3 反转率(%)：", 13, White));
+        var revSb = new SpinBox
+        {
+            MinValue = 0, MaxValue = 100, Step = 5,
+            Value = cfg.ReverseModeChancePercent,
+            CustomMinimumSize = new Vector2(80, 0),
+            Editable = cfg.EnableReverseMode
+        };
+        revSb.GetLineEdit().AddThemeFontSizeOverride("font_size", 13);
+        revSb.ValueChanged += v => { VocabConfig.Instance.ReverseModeChancePercent = (int)v; VocabConfig.Instance.Save(); };
+        revRow.AddChild(revSb);
+        reverseTg.Toggled += on =>
+        {
+            VocabConfig.Instance.EnableReverseMode = on;
+            VocabConfig.Instance.Save();
+            revSb.Editable = on;
+        };
+
+        // 5. 始终显示音标（独立 toggle，与 Act 无关）
+        var phoneticTg = new CheckButton
+        {
+            Text = " 始终显示音标（默认仅 Act1 显示，开启后所有层都显示）",
+            ButtonPressed = cfg.AlwaysShowPhonetic
+        };
+        phoneticTg.Toggled += on =>
+        {
+            VocabConfig.Instance.AlwaysShowPhonetic = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(phoneticTg);
+
+        var diffDesc = GameTheme.MakeLabel(
+            "提示：所有开关独立生效。即使全部关闭，第 1/2/3 层仍按基础规则出题。\n" +
+            "强制拼写：已掌握的词（答对 >2 次 + 正确率 >70%）额外 +20% 概率；\n" +
+            "         但若你把概率设为 0%，则严格 0%，加成不生效。\n" +
+            "反转模式：严格按概率，无额外加成。",
+            11, DimGrey);
+        diffDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        vbox.AddChild(diffDesc);
     }
 
     private void BuildStatsSection(VBoxContainer vbox)

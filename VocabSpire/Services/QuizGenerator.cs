@@ -4,6 +4,9 @@ namespace VocabSpire.Services;
 
 public sealed class QuizGenerator
 {
+    /// <summary>选项按钮硬上限（QuizPanel UI 渲染上限保持一致）。</summary>
+    public const int MaxOptionCount = 8;
+
     private readonly Random _random = new();
 
     /// <summary>最近出过的单词队列，用于防止短期内重复出题。</summary>
@@ -69,26 +72,40 @@ public sealed class QuizGenerator
         if (flags.HasFlag(QuizModeFlags.SpellEnglish)) modes.Add(QuizModeFlags.SpellEnglish);
 
         var chosen = modes[_random.Next(modes.Count)];
+        var cfg = VocabConfig.Instance;
 
-        // 难度递增：高层级有概率强制拼写
-        if (tier >= 2 && chosen != QuizModeFlags.SpellEnglish)
+        // 强制拼写：仅当用户已勾选「拼写」题型时才允许把题改成拼写
+        // —— 题型勾选范围 是 上界，强制拼写不能扩大用户的题型范围。
+        if (cfg.EnableForceSpelling
+            && flags.HasFlag(QuizModeFlags.SpellEnglish)
+            && tier >= 2 && chosen != QuizModeFlags.SpellEnglish)
         {
-            var spellChance = tier >= 3 ? 0.70 : 0.40;
+            var pct = tier >= 3 ? cfg.ForceSpellingChanceAct3Percent : cfg.ForceSpellingChanceAct2Percent;
 
-            // 已掌握的词更容易被强制拼写
-            if (target.CorrectCount > 2 && target.Accuracy > 0.7f)
-                spellChance += 0.20;
-
-            if (_random.NextDouble() < spellChance)
-                chosen = QuizModeFlags.SpellEnglish;
+            // 用户显式设为 0% → 严格 0%，不再叠加任何隐藏加成。
+            if (pct > 0)
+            {
+                var spellChance = pct / 100.0;
+                // 已掌握的词额外 +20%（用户基础概率 > 0 时才叠加）
+                if (target.CorrectCount > 2 && target.Accuracy > 0.7f)
+                    spellChance += 0.20;
+                if (_random.NextDouble() < spellChance)
+                    chosen = QuizModeFlags.SpellEnglish;
+            }
         }
 
-        // Tier 3: 有概率反转模式（英→中 变 中→英）
-        if (tier >= 3 && chosen != QuizModeFlags.SpellEnglish && _random.NextDouble() < 0.30)
+        // 反转模式：仅当反转后的题型也在用户勾选范围内时才生效
+        // —— 例如 chosen=英→中，反转目标=中→英；只在用户勾了"中→英"时才反。
+        if (cfg.EnableReverseMode && tier >= 3 && chosen != QuizModeFlags.SpellEnglish
+            && _random.NextDouble() < cfg.ReverseModeChancePercent / 100.0)
         {
-            chosen = chosen == QuizModeFlags.EnglishToChinese
+            var reversed = chosen == QuizModeFlags.EnglishToChinese
                 ? QuizModeFlags.ChineseToEnglish
-                : QuizModeFlags.EnglishToChinese;
+                : chosen == QuizModeFlags.ChineseToEnglish
+                    ? QuizModeFlags.EnglishToChinese
+                    : chosen;
+            if (reversed != chosen && flags.HasFlag(reversed))
+                chosen = reversed;
         }
 
         return chosen;
@@ -96,8 +113,9 @@ public sealed class QuizGenerator
 
     private int GetEffectiveOptionCount(int baseCount, int tier)
     {
+        if (!VocabConfig.Instance.EnableOptionCountScaling) return Math.Min(MaxOptionCount, baseCount);
         var extra = tier >= 3 ? 2 : tier >= 2 ? 1 : 0;
-        return Math.Min(6, baseCount + extra);
+        return Math.Min(MaxOptionCount, baseCount + extra);
     }
 
     // ── 拼写题生成 ──
@@ -109,8 +127,9 @@ public sealed class QuizGenerator
             ? string.Join("\n", target.Definitions)
             : target.Chinese;
 
-        // Tier 1 提示音标，Tier 2+ 不提示
-        if (tier <= 1 && !string.IsNullOrWhiteSpace(target.Phonetic))
+        // Tier 1 默认显示音标，Tier 2+ 隐藏；AlwaysShowPhonetic 强制全部显示。
+        var showPhonetic = VocabConfig.Instance.AlwaysShowPhonetic || tier <= 1;
+        if (showPhonetic && !string.IsNullOrWhiteSpace(target.Phonetic))
             prompt += $"\n{target.Phonetic}";
 
         return new QuizQuestion
@@ -249,8 +268,9 @@ public sealed class QuizGenerator
     private static string FormatPrompt(WordEntry word, int tier)
     {
         var prompt = word.English;
-        // Tier 1 显示音标，Tier 2+ 隐藏
-        if (tier <= 1 && !string.IsNullOrWhiteSpace(word.Phonetic))
+        // Tier 1 默认显示音标，Tier 2+ 隐藏；AlwaysShowPhonetic 强制全部显示。
+        var showPhonetic = VocabConfig.Instance.AlwaysShowPhonetic || tier <= 1;
+        if (showPhonetic && !string.IsNullOrWhiteSpace(word.Phonetic))
             prompt += $"  {word.Phonetic}";
         return prompt;
     }
@@ -262,9 +282,9 @@ public sealed class QuizGenerator
     {
         var candidates = allWords.Where(w => w != target).ToList();
 
-        if (tier <= 1)
+        // tier=1 或 关闭混淆度开关 → 完全随机选择
+        if (tier <= 1 || !VocabConfig.Instance.EnableConfusionDistractor)
         {
-            // Tier 1: 完全随机，按选项文本去重
             return candidates
                 .OrderBy(_ => _random.Next())
                 .GroupBy(w => isEnToCn ? w.Chinese : w.English)

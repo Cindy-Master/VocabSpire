@@ -13,27 +13,39 @@ namespace VocabSpire.UI;
 /// </summary>
 public partial class FreePassButton : Control
 {
-    public static FreePassButton? Instance { get; private set; }
+    private static FreePassButton? _instance;
+    public static FreePassButton? Instance
+    {
+        get
+        {
+            if (_instance is null) return null;
+            if (!GodotObject.IsInstanceValid(_instance))
+            {
+                _instance = null;
+                return null;
+            }
+            return _instance;
+        }
+        private set => _instance = value;
+    }
+
+    /// <summary>当被检测到实例失效时由外部调用，触发 Plugin 在下个 tick 重建。</summary>
+    public static void ClearInstance() => _instance = null;
 
     private const string TicketIconPath = "res://images/atlases/relic_atlas.sprites/meal_ticket.tres";
     private const float SlotWidth = 64f;
     private const float Spacing = 6f;
-    /// <summary>需要向右推开的总宽度（含间距）。</summary>
-    private const float ShiftPixels = SlotWidth + Spacing;
 
     private TextureRect _icon = null!;
     private Label _stockLabel = null!;
     private Panel _highlight = null!;
     private Godot.Timer _refreshTimer = null!;
 
-    /// <summary>记录被推移的右侧节点和它们的原始 X 坐标，便于恢复。</summary>
-    private readonly System.Collections.Generic.Dictionary<Control, float> _shiftedNodes = new();
-    private bool _isShifted;
-
     public override void _Ready()
     {
         Instance = this;
         ProcessMode = ProcessModeEnum.Always;
+        TopLevel = true;  // 永远基于全局坐标定位，避免父节点 transform 干扰
         CustomMinimumSize = new Vector2(SlotWidth, SlotWidth);
         Size = new Vector2(SlotWidth, SlotWidth);
         MouseFilter = MouseFilterEnum.Stop;
@@ -132,20 +144,19 @@ public partial class FreePassButton : Control
     private void UpdateLayoutAndVisibility()
     {
         var cfg = VocabConfig.Instance;
-        var pc = FindPotionContainer();
-
-        if (!cfg.FreePassEnabled || pc is null || !GodotObject.IsInstanceValid(pc))
+        if (!cfg.FreePassEnabled)
         {
             Visible = false;
-            RestoreShifts();
-            ResetToRoot();
             return;
         }
 
-        // 第一次进入时撤销之前可能存在的图标推移
-        if (_isShifted) RestoreShifts();
+        var pc = FindPotionContainer();
+        if (pc is null || !GodotObject.IsInstanceValid(pc))
+        {
+            Visible = false;
+            return;
+        }
 
-        // 定位 + reparent：与 BossIcon 同父，跟随 NTopBar 一起渲染/隐藏
         var topBar = FindAncestor<NTopBar>(pc);
         var boss = topBar?.BossIcon;
         if (boss is null || !GodotObject.IsInstanceValid(boss))
@@ -154,89 +165,38 @@ public partial class FreePassButton : Control
             return;
         }
 
-        var bossParent = boss.GetParent();
-        if (bossParent is not null && GetParent() != bossParent)
-        {
-            // reparent 到 BossIcon 的父节点 → 与图标同步可见
-            GetParent()?.RemoveChild(this);
-            bossParent.AddChild(this);
-        }
+        // 关键修复：不再 reparent —— 保持挂在 UI Root 下，避免被游戏场景切换释放。
+        // 使用 TopLevel + GlobalPosition 跟踪 BossIcon 位置。
+        EnsureRootedAtUiRoot();
 
         // 用 BossIcon 的尺寸作为奖券尺寸，保持视觉一致
         var slotSize = boss.Size.X > 0 ? boss.Size : new Vector2(SlotWidth, SlotWidth);
         Size = slotSize;
         CustomMinimumSize = slotSize;
-        // Position 是相对父节点的，参考 BossIcon.Position
-        Position = boss.Position + new Vector2(boss.Size.X + Spacing, 0);
+        // 全局坐标紧贴 BossIcon 右侧
+        GlobalPosition = boss.GlobalPosition + new Vector2(boss.Size.X + Spacing, 0);
 
-        Visible = true;
-        Refresh();
+        // 与 BossIcon 的可见性同步（NTopBar 在主菜单等场景会隐藏）
+        Visible = boss.IsVisibleInTree();
+        try { Refresh(); } catch (System.Exception ex) { Log.Warn($"[VocabSpire] FreePassButton Refresh in tick failed: {ex.Message}"); }
     }
 
-    /// <summary>关闭时把按钮重新挂回 UI 根，避免残留在 NTopBar 影响游戏。</summary>
-    private void ResetToRoot()
+    private void EnsureRootedAtUiRoot()
     {
         var root = GameBridge.GetUIRoot();
         if (root is null) return;
-        if (GetParent() != root)
+        var parent = GetParent();
+        if (parent == root) return;
+        // 已经在别处（例如老版本 reparent 留下来的）→ 移回 UI Root
+        try
         {
-            GetParent()?.RemoveChild(this);
+            parent?.RemoveChild(this);
             root.AddChild(this);
         }
-    }
-
-    /// <summary>把 NTopBar 内 PotionContainer 右侧的图标整体向右推移。
-    /// 进入战斗等场景切换时游戏会重置图标位置，所以每次检查都对齐到正确位置。</summary>
-    private void ApplyShiftsIfNeeded(NPotionContainer pc)
-    {
-        var topBar = FindAncestor<NTopBar>(pc);
-        if (topBar is null) return;
-
-        var pcRight = pc.GlobalPosition.X + pc.Size.X;
-        TryShift(topBar.RoomIcon, pcRight);
-        TryShift(topBar.FloorIcon, pcRight);
-        TryShift(topBar.BossIcon, pcRight);
-        // Map/Deck/Pause 在屏幕右侧 anchor 锚定，但万一在 pc 右侧也推
-        TryShift(topBar.Map, pcRight);
-        TryShift(topBar.Deck, pcRight);
-        TryShift(topBar.Pause, pcRight);
-        _isShifted = true;
-    }
-
-    private void TryShift(Control? node, float pcRight)
-    {
-        if (node is null || !GodotObject.IsInstanceValid(node)) return;
-
-        if (_shiftedNodes.TryGetValue(node, out var origX))
+        catch (System.Exception ex)
         {
-            // 已记录：检查是否被游戏重置回原位，如果是则重新推
-            var expectedX = origX + ShiftPixels;
-            if (System.Math.Abs(node.Position.X - expectedX) > 1f)
-            {
-                node.Position = new Vector2(expectedX, node.Position.Y);
-            }
-            return;
+            Log.Warn($"[VocabSpire] reparent-to-root failed: {ex.Message}");
         }
-
-        // 首次：只推位于 PotionContainer 右侧的节点
-        if (node.GlobalPosition.X < pcRight - 5) return;
-
-        _shiftedNodes[node] = node.Position.X;
-        node.Position = new Vector2(node.Position.X + ShiftPixels, node.Position.Y);
-    }
-
-    private void RestoreShifts()
-    {
-        if (!_isShifted) return;
-        foreach (var (node, origX) in _shiftedNodes)
-        {
-            if (GodotObject.IsInstanceValid(node))
-            {
-                node.Position = new Vector2(origX, node.Position.Y);
-            }
-        }
-        _shiftedNodes.Clear();
-        _isShifted = false;
     }
 
     private static NPotionContainer? _cachedContainer;

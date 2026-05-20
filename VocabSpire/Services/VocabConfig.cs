@@ -35,7 +35,39 @@ public sealed class VocabConfig
     public int OptionCount { get; set; } = 4;
     public bool ShowCombatSummary { get; set; } = true;
     public bool ShowRestSiteReview { get; set; } = true;
-    public bool EnableDifficultyScaling { get; set; } = true;
+
+    // ── 难度递增（5 个独立开关 + 概率可调）──
+    /// <summary>启用混淆度干扰项（Act 越高干扰项越像目标词）。</summary>
+    public bool EnableConfusionDistractor { get; set; } = true;
+
+    /// <summary>启用选项数量递增（Act2 +1、Act3 +2，cap 到 MaxOptionCount=8）。</summary>
+    public bool EnableOptionCountScaling { get; set; } = true;
+
+    /// <summary>启用强制拼写（Act2/Act3 概率把选择题改为拼写题）。</summary>
+    public bool EnableForceSpelling { get; set; } = true;
+
+    /// <summary>Act2 强制拼写概率（0-100 整数百分比）。</summary>
+    public int ForceSpellingChanceAct2Percent { get; set; } = 40;
+
+    /// <summary>Act3 强制拼写概率（0-100 整数百分比）。</summary>
+    public int ForceSpellingChanceAct3Percent { get; set; } = 70;
+
+    /// <summary>启用反转模式（Act3 概率把英→中变中→英，反之亦然）。</summary>
+    public bool EnableReverseMode { get; set; } = true;
+
+    /// <summary>Act3 反转模式概率（0-100 整数百分比）。</summary>
+    public int ReverseModeChancePercent { get; set; } = 30;
+
+    /// <summary>始终显示音标（与 Act 层级无关）。</summary>
+    public bool AlwaysShowPhonetic { get; set; }
+
+    /// <summary>
+    /// 旧版兼容：只要任一难度子开关启用就视为"难度递增"启用。
+    /// 用于 QuizPanel 标题栏的 [基础/进阶/挑战] 标签。
+    /// </summary>
+    public bool EnableDifficultyScaling =>
+        EnableConfusionDistractor || EnableOptionCountScaling
+        || EnableForceSpelling || EnableReverseMode;
 
     // ── 分层模式配置 ──
     public bool UsePerActModes { get; set; }
@@ -137,7 +169,19 @@ public sealed class VocabConfig
             TotalCorrect = data.TotalCorrect;
             ShowCombatSummary = data.ShowCombatSummary;
             ShowRestSiteReview = data.ShowRestSiteReview;
-            EnableDifficultyScaling = data.EnableDifficultyScaling;
+
+            // 旧配置迁移：单一 enable_difficulty_scaling 拆成 5 个独立开关。
+            // 5 个新开关分别 fallback 到旧 legacy 字段（默认 true）。
+            var legacy = data.EnableDifficultyScaling;
+            EnableConfusionDistractor = data.EnableConfusionDistractor ?? legacy;
+            EnableOptionCountScaling  = data.EnableOptionCountScaling  ?? legacy;
+            EnableForceSpelling       = data.EnableForceSpelling       ?? legacy;
+            EnableReverseMode         = data.EnableReverseMode         ?? legacy;
+
+            if (data.ForceSpellingChanceAct2Percent is { } a2 && a2 >= 0) ForceSpellingChanceAct2Percent = Math.Clamp(a2, 0, 100);
+            if (data.ForceSpellingChanceAct3Percent is { } a3 && a3 >= 0) ForceSpellingChanceAct3Percent = Math.Clamp(a3, 0, 100);
+            if (data.ReverseModeChancePercent is { } rv && rv >= 0)       ReverseModeChancePercent       = Math.Clamp(rv, 0, 100);
+            AlwaysShowPhonetic = data.AlwaysShowPhonetic ?? false;
 
             UsePerActModes = data.UsePerActModes;
             if (data.Act1Modes > 0) Act1Modes = (QuizModeFlags)data.Act1Modes;
@@ -219,7 +263,14 @@ public sealed class VocabConfig
                 OptionCount = OptionCount,
                 ShowCombatSummary = ShowCombatSummary,
                 ShowRestSiteReview = ShowRestSiteReview,
-                EnableDifficultyScaling = EnableDifficultyScaling,
+                EnableConfusionDistractor = EnableConfusionDistractor,
+                EnableOptionCountScaling = EnableOptionCountScaling,
+                EnableForceSpelling = EnableForceSpelling,
+                ForceSpellingChanceAct2Percent = ForceSpellingChanceAct2Percent,
+                ForceSpellingChanceAct3Percent = ForceSpellingChanceAct3Percent,
+                EnableReverseMode = EnableReverseMode,
+                ReverseModeChancePercent = ReverseModeChancePercent,
+                AlwaysShowPhonetic = AlwaysShowPhonetic,
                 UsePerActModes = UsePerActModes,
                 Act1Modes = (int)Act1Modes,
                 Act2Modes = (int)Act2Modes,
@@ -277,8 +328,34 @@ public sealed class VocabConfig
         [JsonPropertyName("show_rest_site_review")]
         public bool ShowRestSiteReview { get; set; } = true;
 
+        /// <summary>旧字段（v2.0 之前）：单一难度递增开关。仅用于 v2.0→v2.1 迁移。</summary>
         [JsonPropertyName("enable_difficulty_scaling")]
         public bool EnableDifficultyScaling { get; set; } = true;
+
+        // ── 新增（v2.1）：5 个独立开关 + 2 个概率 + 音标 toggle ──
+        [JsonPropertyName("enable_confusion_distractor")]
+        public bool? EnableConfusionDistractor { get; set; }
+
+        [JsonPropertyName("enable_option_count_scaling")]
+        public bool? EnableOptionCountScaling { get; set; }
+
+        [JsonPropertyName("enable_force_spelling")]
+        public bool? EnableForceSpelling { get; set; }
+
+        [JsonPropertyName("force_spelling_chance_act2_pct")]
+        public int? ForceSpellingChanceAct2Percent { get; set; }
+
+        [JsonPropertyName("force_spelling_chance_act3_pct")]
+        public int? ForceSpellingChanceAct3Percent { get; set; }
+
+        [JsonPropertyName("enable_reverse_mode")]
+        public bool? EnableReverseMode { get; set; }
+
+        [JsonPropertyName("reverse_mode_chance_pct")]
+        public int? ReverseModeChancePercent { get; set; }
+
+        [JsonPropertyName("always_show_phonetic")]
+        public bool? AlwaysShowPhonetic { get; set; }
 
         [JsonPropertyName("use_per_act_modes")]
         public bool UsePerActModes { get; set; }

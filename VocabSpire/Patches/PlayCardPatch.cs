@@ -68,7 +68,7 @@ public static class SinglePlayerPatch
         if (BattleStateTracker.Instance.FreePassArmed)
         {
             BattleStateTracker.Instance.ConsumeArmedFreePass();
-            FreePassButton.Instance?.Refresh();
+            SafeRefreshFreePassButton();
             Log.Info("[VocabSpire] Free pass consumed — skipping quiz.");
             return true;
         }
@@ -103,25 +103,37 @@ public static class SinglePlayerPatch
 
         quiz.ShowQuiz(question, correct =>
         {
-            GameBridge.SetGamePaused(false);
-            ApplyAnswerEffects(card, question, correct);
-            QuizState.Bypass = true;
-
-            var task = card.OnPlayWrapper(
-                choiceContext, target, isAutoPlay, resources, skipCardPileVisuals);
-            task.ContinueWith(t =>
+            // 包整个 callback 在 try/catch 里，避免任何异常导致 tcs 永不结算（游戏卡死）。
+            try
             {
-                if (t.IsFaulted)
-                    Log.Error($"[VocabSpire] OnPlayWrapper faulted: {t.Exception?.GetBaseException()}");
-                tcs.SetResult();
-            }, TaskScheduler.FromCurrentSynchronizationContext());
+                GameBridge.SetGamePaused(false);
+                ApplyAnswerEffects(card, question, correct, resources);
+                QuizState.Bypass = true;
+
+                var task = card.OnPlayWrapper(
+                    choiceContext, target, isAutoPlay, resources, skipCardPileVisuals);
+                task.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        Log.Error($"[VocabSpire] OnPlayWrapper faulted: {t.Exception?.GetBaseException()}");
+                    tcs.SetResult();
+                }, TaskScheduler.FromCurrentSynchronizationContext());
+            }
+            catch (System.Exception ex)
+            {
+                Log.Error($"[VocabSpire] Answer callback failed: {ex}");
+                try { GameBridge.SetGamePaused(false); } catch { }
+                QuizState.ResetCardLevel();
+                QuizState.Bypass = false;
+                tcs.SetResult(); // 保底：保证游戏继续，不卡死
+            }
         });
 
         await tcs.Task;
     }
 
     /// <summary>核心：根据答题结果设置所有打牌标志（容错/回手/扣费/奖励）。</summary>
-    internal static void ApplyAnswerEffects(CardModel card, Models.QuizQuestion question, bool correct)
+    internal static void ApplyAnswerEffects(CardModel card, Models.QuizQuestion question, bool correct, ResourceInfo resources = default)
     {
         var cfg = VocabConfig.Instance;
         QuizState.ResetCardLevel();
@@ -139,7 +151,7 @@ public static class SinglePlayerPatch
             {
                 QuizState.PendingRewardTarget = card.Owner;
             }
-            FreePassButton.Instance?.Refresh();
+            SafeRefreshFreePassButton();
             return;
         }
 
@@ -158,11 +170,46 @@ public static class SinglePlayerPatch
             QuizState.NoCost = true;
             QuizState.ReturnToHand = true;
             BattleStateTracker.Instance.ConsumeTolerance();
-            Log.Info($"[VocabSpire] Tolerance used ({BattleStateTracker.Instance.ToleranceUsedThisTurn}/{cfg.ToleranceCount}).");
+            // 关键：能量已在 PlayCardAction.ExecuteAction 中扣过（SpendResources 在 OnPlayWrapper 之前），
+            // 这里要把实际花费的能量+星费补回。
+            RefundCardCost(card, resources);
+            Log.Info($"[VocabSpire] Tolerance used ({BattleStateTracker.Instance.ToleranceUsedThisTurn}/{cfg.ToleranceCount}); refunded energy={resources.EnergySpent} stars={resources.StarsSpent}.");
         }
         else if (cfg.WrongCardReturnToHand)
         {
             QuizState.ReturnToHand = true;
+        }
+    }
+
+    /// <summary>退还本次 SpendResources 已扣的能量和星费。</summary>
+    private static void RefundCardCost(CardModel card, ResourceInfo resources)
+    {
+        try
+        {
+            var pcs = card.Owner?.PlayerCombatState;
+            if (pcs is null) return;
+            if (resources.EnergySpent > 0) pcs.GainEnergy(resources.EnergySpent);
+            if (resources.StarsSpent > 0) pcs.GainStars(resources.StarsSpent);
+        }
+        catch (System.Exception ex)
+        {
+            Log.Error($"[VocabSpire] Refund failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>安全刷新免错券按钮 UI —— 防止 stale Godot 引用导致异常。</summary>
+    internal static void SafeRefreshFreePassButton()
+    {
+        try
+        {
+            var btn = FreePassButton.Instance;
+            if (btn is null || !Godot.GodotObject.IsInstanceValid(btn)) return;
+            btn.Refresh();
+        }
+        catch (System.Exception ex)
+        {
+            Log.Error($"[VocabSpire] FreePassButton.Refresh failed (stale ref?): {ex.Message}");
+            FreePassButton.ClearInstance();
         }
     }
 }
@@ -186,7 +233,7 @@ public static class MultiPlayerPatch
         if (BattleStateTracker.Instance.FreePassArmed)
         {
             BattleStateTracker.Instance.ConsumeArmedFreePass();
-            FreePassButton.Instance?.Refresh();
+            SinglePlayerPatch.SafeRefreshFreePassButton();
             Log.Info("[VocabSpire] Free pass consumed (MP) — skipping quiz.");
             return true;
         }
@@ -202,10 +249,20 @@ public static class MultiPlayerPatch
 
         quiz.ShowQuiz(question, correct =>
         {
-            QuizState.QuizActive = false;
-            SinglePlayerPatch.ApplyAnswerEffects(__instance, question, correct);
-            QuizState.Bypass = true;
-            __instance.TryManualPlay(target);
+            try
+            {
+                QuizState.QuizActive = false;
+                SinglePlayerPatch.ApplyAnswerEffects(__instance, question, correct);
+                QuizState.Bypass = true;
+                __instance.TryManualPlay(target);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Error($"[VocabSpire] MP answer callback failed: {ex}");
+                QuizState.QuizActive = false;
+                QuizState.ResetCardLevel();
+                QuizState.Bypass = false;
+            }
         });
 
         return false;

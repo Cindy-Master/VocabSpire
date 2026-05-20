@@ -121,7 +121,7 @@ public partial class QuizPanel : Control
         _optionsContainer.AddThemeConstantOverride("separation", 10);
         mainVBox.AddChild(_optionsContainer);
 
-        for (var i = 0; i < 6; i++)
+        for (var i = 0; i < QuizGenerator.MaxOptionCount; i++)
         {
             var btn = CreateOptionButton(i);
             _optionsContainer.AddChild(btn);
@@ -238,7 +238,7 @@ public partial class QuizPanel : Control
             // 选择题 / 听力题 —— 统一设置选项按钮
             _optionsContainer.Visible = true;
 
-            var prefixes = new[] { "A", "B", "C", "D", "E", "F" };
+            var prefixes = new[] { "A", "B", "C", "D", "E", "F", "G", "H" };
             for (var i = 0; i < _optionButtons.Count; i++)
             {
                 if (i < question.Options.Count)
@@ -559,6 +559,8 @@ public partial class QuizPanel : Control
             Key.D or Key.Key4 => 3,
             Key.E or Key.Key5 => 4,
             Key.F or Key.Key6 => 5,
+            Key.G or Key.Key7 => 6,
+            Key.H or Key.Key8 => 7,
             _ => -1
         };
         if (idx >= 0 && idx < _currentQuestion.Options.Count)
