@@ -18,7 +18,7 @@
 ## 下载
 
 - **GitHub Releases**：[最新版本](https://github.com/Cindy-Master/VocabSpire/releases/latest)
-- **夸克网盘**：https://pan.quark.cn/s/9945d1aacda0
+- **夸克网盘**：https://pan.quark.cn/s/d29f52ae5be8
 - **QQ 交流群**：`750809524`（反馈 bug / 索取词库 / 玩法讨论）
 
 ## 安装
