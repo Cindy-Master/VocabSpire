@@ -52,6 +52,7 @@ public sealed class QuizGenerator
 
     /// <summary>
     /// 为指定单词生成一道题（用于错题复习），支持选择和拼写模式。
+    /// 复习也允许多选题（多义词），调用方需正确处理 IsMultiSelect。
     /// </summary>
     public QuizQuestion? GenerateForWord(WordEntry target, WordBank bank, QuizModeFlags mode, int optionCount = 4)
     {

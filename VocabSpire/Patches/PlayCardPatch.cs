@@ -64,6 +64,15 @@ public static class SinglePlayerPatch
         if (!CombatManager.Instance.IsInProgress) return true;
         if (!VocabManager.Instance.HasActiveBank) return true;
 
+        // 横祸/嵌套触发：第 1 张牌的 quiz 还在显示时，第 2 张牌（横祸触发的额外打牌）
+        // 进入 OnPlayWrapper —— 此时若再开一个 quiz 会覆盖 callback，导致第 1 张
+        // 的 tcs 永不结算 → 游戏卡死。让这种"嵌套牌"跳过答题、按原版正常打出。
+        if (QuizState.QuizActive)
+        {
+            Log.Info($"[VocabSpire] Quiz active — skip nested card '{__instance.GetType().Name}' (no quiz, normal play).");
+            return true;
+        }
+
         // 免错券激活 → 跳过答题，直接正常打出
         if (BattleStateTracker.Instance.FreePassArmed)
         {
@@ -99,6 +108,10 @@ public static class SinglePlayerPatch
         ResourceInfo resources,
         bool skipCardPileVisuals)
     {
+        // 标记：quiz 已激活。任何嵌套触发的牌（横祸/横扫/任何会引发额外 OnPlayWrapper
+        // 的卡牌效果，跨所有角色）进入 SinglePlayerPatch.Prefix 时检测到这个标志会
+        // 直接跳过答题让原版执行，不会覆盖当前 quiz 的 callback。
+        QuizState.QuizActive = true;
         GameBridge.SetGamePaused(true);
 
         quiz.ShowQuiz(question, correct =>
@@ -109,6 +122,11 @@ public static class SinglePlayerPatch
                 GameBridge.SetGamePaused(false);
                 ApplyAnswerEffects(card, question, correct, resources);
                 QuizState.Bypass = true;
+                // 注意：QuizActive 不在这里复位 —— 二次 OnPlayWrapper 内部如果触发
+                // 嵌套牌（横祸/横扫/任何角色任何会引发额外打牌的卡），
+                // 嵌套牌进 Prefix 时检测 QuizActive=true → 直接跳过答题让原版执行，
+                // 不会覆盖当前 callback 导致 tcs 永不结算。QuizActive 等到本张牌的
+                // OnPlayWrapper 完全结束后再复位。
 
                 var task = card.OnPlayWrapper(
                     choiceContext, target, isAutoPlay, resources, skipCardPileVisuals);
@@ -116,6 +134,7 @@ public static class SinglePlayerPatch
                 {
                     if (t.IsFaulted)
                         Log.Error($"[VocabSpire] OnPlayWrapper faulted: {t.Exception?.GetBaseException()}");
+                    QuizState.QuizActive = false; // 二次 OnPlayWrapper 完全结束后才复位
                     tcs.SetResult();
                 }, TaskScheduler.FromCurrentSynchronizationContext());
             }
@@ -125,6 +144,7 @@ public static class SinglePlayerPatch
                 try { GameBridge.SetGamePaused(false); } catch { }
                 QuizState.ResetCardLevel();
                 QuizState.Bypass = false;
+                QuizState.QuizActive = false;
                 tcs.SetResult(); // 保底：保证游戏继续，不卡死
             }
         });
