@@ -53,3 +53,4 @@ word_progress.json
 run_history.json
 error_book_*.json
 error_book_*.csv
+sts2_decompiled_beta/

@@ -357,24 +357,40 @@ public static class SpendResourcesPatch
 }
 
 /// <summary>
-/// 拦截 GetResultPileType —— 答错回手时强制返回 Hand。
+/// 拦截"决定打完后归到哪个牌堆"的方法 —— 答错回手时强制返回 Hand。
+/// 兼容 release (GetResultPileType) 和 beta v0.105+ (GetResultPileTypeForCardPlay)。
 /// </summary>
 [HarmonyPatch]
 public static class GetResultPileTypePatch
 {
+    /// <summary>release 旧名 + beta 新名都试一遍。</summary>
+    private static readonly string[] CandidateMethodNames =
+    {
+        "GetResultPileTypeForCardPlay", // beta v0.105.1+
+        "GetResultPileType"             // release / 旧版
+    };
+
     static IEnumerable<MethodBase> TargetMethods()
     {
         var baseType = typeof(CardModel);
         var flags = BindingFlags.Instance | BindingFlags.NonPublic
                   | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        var count = 0;
 
         foreach (var type in baseType.Assembly.GetTypes())
         {
             if (!baseType.IsAssignableFrom(type)) continue;
-            var method = type.GetMethod("GetResultPileType", flags, null, System.Type.EmptyTypes, null);
-            if (method is null) continue;
-            yield return method;
+            foreach (var name in CandidateMethodNames)
+            {
+                var method = type.GetMethod(name, flags, null, System.Type.EmptyTypes, null);
+                if (method is null) continue;
+                count++;
+                yield return method;
+                break; // 同一类型同时存在新旧名时只 patch 一个
+            }
         }
+
+        Log.Info($"[VocabSpire] Patched {count} GetResultPileType(ForCardPlay) methods.");
     }
 
     public static void Postfix(ref PileType __result)
