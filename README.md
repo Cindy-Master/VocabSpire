@@ -15,9 +15,15 @@
 - **游戏原生UI**：复用游戏字体(Noto Sans CJK)、配色(StsColors)、图标、音效、动画
 - **自定义词库**：支持 JSON/CSV 格式导入，可多词库切换
 
+## 下载
+
+- **GitHub Releases**：[最新版本](https://github.com/Cindy-Master/VocabSpire/releases/latest)
+- **夸克网盘**：https://pan.quark.cn/s/9945d1aacda0
+- **QQ 交流群**：`750809524`（反馈 bug / 索取词库 / 玩法讨论）
+
 ## 安装
 
-1. 下载 [VocabSpire_v1.0.0.zip](https://github.com/Cindy-Master/VocabSpire/releases)
+1. 下载最新版 `VocabSpire-vX.Y.Z.zip`
 2. 解压到游戏 `mods/` 目录：
    - Windows: `Steam\steamapps\common\Slay the Spire 2\mods\VocabSpire\`
    - macOS: `SlayTheSpire2.app/Contents/MacOS/mods/VocabSpire/`
