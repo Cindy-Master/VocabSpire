@@ -6,10 +6,12 @@ namespace VocabSpire.Models;
 /// <summary>奖励触发模式。</summary>
 public enum RewardTriggerMode
 {
-    /// <summary>达到阈值触发一次后重置（连对 3 触发 → 重新从 0 计）。</summary>
+    /// <summary>达标一次：连胜恰好等于阈值时触发一次，之后不再触发，直到答错重置后重新累到阈值。</summary>
     Once = 0,
-    /// <summary>达到阈值后，之后每次答对都触发（连对 3 后每张牌都+1费）。</summary>
-    Recurring = 1
+    /// <summary>持续生效：连胜 ≥ 阈值时每次答对都触发。阈值 1 = 每次答对都给。</summary>
+    Recurring = 1,
+    /// <summary>每 N 次：连胜达到阈值的整数倍时触发（阈值 5 → 5/10/15…）。</summary>
+    EveryN = 2
 }
 
 /// <summary>
@@ -30,7 +32,7 @@ public sealed class RewardRule
     public int Amount { get; set; } = 5;
 
     [JsonPropertyName("mode")]
-    public RewardTriggerMode Mode { get; set; } = RewardTriggerMode.Once;
+    public RewardTriggerMode Mode { get; set; } = RewardTriggerMode.Recurring;
 
     /// <summary>多释义题答对时奖励翻倍。</summary>
     [JsonPropertyName("multi_def_double")]

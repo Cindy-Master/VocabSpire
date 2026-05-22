@@ -99,6 +99,7 @@ public sealed class BattleStateTracker
         var outcome = new AnswerOutcome();
         if (!correct)
         {
+            MegaCrit.Sts2.Core.Logging.Log.Info($"[VocabSpire][Reward] RecordAnswer: WRONG → streak reset (was {CorrectStreak} → 0)");
             CorrectStreak = 0;
             return outcome;
         }
@@ -106,29 +107,47 @@ public sealed class BattleStateTracker
         CorrectStreak++;
         var cfg = VocabConfig.Instance;
 
+        MegaCrit.Sts2.Core.Logging.Log.Info(
+            $"[VocabSpire][Reward] RecordAnswer: CORRECT streak={CorrectStreak} " +
+            $"RewardEnabled={cfg.RewardEnabled} RewardRules.Count={cfg.RewardRules.Count}");
+
         // 奖励规则
         if (cfg.RewardEnabled)
         {
-            foreach (var rule in cfg.RewardRules)
+            for (var idx = 0; idx < cfg.RewardRules.Count; idx++)
             {
-                if (!rule.Enabled || rule.Kind == RewardType.None || rule.Amount <= 0) continue;
-                if (rule.Streak <= 0) continue;
+                var rule = cfg.RewardRules[idx];
+                var preLog = $"[VocabSpire][Reward]   rule[{idx}] Kind={rule.Kind}({(int)rule.Kind}) Enabled={rule.Enabled} Streak={rule.Streak} Amount={rule.Amount} Mode={rule.Mode}";
+
+                if (!rule.Enabled) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (disabled)"); continue; }
+                if (rule.Kind == RewardType.None) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (kind=None)"); continue; }
+                if (rule.Amount <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (amount<=0)"); continue; }
+                if (rule.Streak <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (streak<=0)"); continue; }
 
                 bool triggered = rule.Mode switch
                 {
                     RewardTriggerMode.Once      => CorrectStreak == rule.Streak,
                     RewardTriggerMode.Recurring => CorrectStreak >= rule.Streak,
+                    RewardTriggerMode.EveryN    => CorrectStreak >= rule.Streak && CorrectStreak % rule.Streak == 0,
                     _ => false
                 };
-                if (!triggered) continue;
+                if (!triggered)
+                {
+                    MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (triggered=false: streak={CorrectStreak} vs threshold={rule.Streak} mode={rule.Mode})");
+                    continue;
+                }
 
                 var scale = DifficultyScale.Compute(question, rule);
                 var amount = DifficultyScale.Scale(rule.Amount, scale);
-                if (amount <= 0) continue;
+                if (amount <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (scaled amount={amount} <=0)"); continue; }
 
+                MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → ✓ TRIGGERED (scaled={amount} via scale={scale:F2})");
                 outcome.Rewards.Add((rule.Kind, amount));
             }
-            // streak 不重置：Once 用 ==，Recurring 用 >=；玩家可配置 5/10/15... 多档奖励
+        }
+        else
+        {
+            MegaCrit.Sts2.Core.Logging.Log.Info("[VocabSpire][Reward] RewardEnabled=false, no rules processed.");
         }
 
         // 免错券累积

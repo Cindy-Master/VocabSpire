@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Combat;
@@ -31,30 +32,51 @@ public static class RewardService
     /// </summary>
     private static MethodInfo? FindApplyMethodOpenGeneric()
     {
-        foreach (var m in typeof(PowerCmd).GetMethods(BindingFlags.Public | BindingFlags.Static))
+        MethodInfo? chosen = null;
+        var allApply = typeof(PowerCmd).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => m.Name == "Apply").ToList();
+        Log.Info($"[VocabSpire][Reward] FindApplyMethodOpenGeneric: total Apply overloads={allApply.Count}");
+
+        foreach (var m in allApply)
         {
-            if (m.Name != "Apply" || !m.IsGenericMethodDefinition) continue;
             var ps = m.GetParameters();
-            // 排除批量 IEnumerable<Creature> 那个重载
-            var hasSingleCreature = false;
-            foreach (var p in ps)
-                if (p.ParameterType == typeof(Creature)) { hasSingleCreature = true; break; }
-            if (!hasSingleCreature) continue;
-            // 排除返回 IReadOnlyList<T>（这通常对应 IEnumerable<Creature> 那版）
+            var paramSig = string.Join(", ", ps.Select(p => $"{p.ParameterType.Name} {p.Name}"));
+            var retName = m.ReturnType.IsGenericType
+                ? $"{m.ReturnType.GetGenericTypeDefinition().Name}<{string.Join(",", m.ReturnType.GetGenericArguments().Select(t => t.Name))}>"
+                : m.ReturnType.Name;
+            Log.Info($"[VocabSpire][Reward]   candidate: Apply<{(m.IsGenericMethodDefinition ? "T" : "_")}>({paramSig}) → {retName}");
+
+            if (!m.IsGenericMethodDefinition) { Log.Info("[VocabSpire][Reward]     ✗ skipped: not generic"); continue; }
+
+            var hasSingleCreature = ps.Any(p => p.ParameterType == typeof(Creature));
+            if (!hasSingleCreature) { Log.Info("[VocabSpire][Reward]     ✗ skipped: no single Creature param"); continue; }
+
+            // 排除返回 Task<IReadOnlyList<T>> 等批量返回
             if (m.ReturnType.IsGenericType &&
                 m.ReturnType.GetGenericTypeDefinition().Name.StartsWith("Task`") &&
                 m.ReturnType.GetGenericArguments()[0].IsGenericType)
             {
+                Log.Info("[VocabSpire][Reward]     ✗ skipped: return type is Task<generic> (batch)");
                 continue;
             }
-            return m;
+
+            if (chosen is null)
+            {
+                chosen = m;
+                Log.Info($"[VocabSpire][Reward]     ✓ CHOSEN as PowerCmd.Apply<T> single-target overload");
+            }
+            else
+            {
+                Log.Warn($"[VocabSpire][Reward]     ⚠ AMBIGUOUS: another candidate passed all filters! Sticking with first.");
+            }
         }
-        return null;
+        return chosen;
     }
 
     private static async Task ApplyPowerAsync<T>(Creature target, decimal amount, Creature? applier, CardModel? cardSource)
         where T : PowerModel
     {
+        var typeName = typeof(T).Name;
         MethodInfo? open;
         lock (_applyCacheLock)
         {
@@ -63,11 +85,12 @@ public static class RewardService
                 var baseOpen = FindApplyMethodOpenGeneric();
                 open = baseOpen?.MakeGenericMethod(typeof(T));
                 _applyCache[typeof(T)] = open;
+                Log.Info($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: method resolved (params={open?.GetParameters().Length})");
             }
         }
         if (open is null)
         {
-            Log.Warn($"[VocabSpire] PowerCmd.Apply<{typeof(T).Name}> not found on this game version.");
+            Log.Warn($"[VocabSpire][Reward] PowerCmd.Apply<{typeName}> not found on this game version.");
             return;
         }
 
@@ -75,22 +98,46 @@ public static class RewardService
         object?[] args;
         if (ps.Length == 6 && ps[0].ParameterType.Name == "PlayerChoiceContext")
         {
-            // beta：PlayerChoiceContext, Creature, decimal, Creature?, CardModel?, bool
             args = new object?[] { new ThrowingPlayerChoiceContext(), target, amount, applier, cardSource, false };
         }
         else if (ps.Length == 5)
         {
-            // release：Creature, decimal, Creature?, CardModel?, bool
             args = new object?[] { target, amount, applier, cardSource, false };
         }
         else
         {
-            Log.Warn($"[VocabSpire] PowerCmd.Apply<{typeof(T).Name}> has unexpected signature ({ps.Length} params); skipping.");
+            Log.Warn($"[VocabSpire][Reward] PowerCmd.Apply<{typeName}> unexpected signature ({ps.Length} params); skipping.");
             return;
         }
 
-        var task = (Task?)open.Invoke(null, args);
-        if (task != null) await task;
+        Log.Info($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: invoking (target={target?.GetType().Name} amount={amount} applier={applier?.GetType().Name} cardSource={cardSource?.GetType().Name ?? "null"})");
+        Task? task;
+        try
+        {
+            task = (Task?)open.Invoke(null, args);
+        }
+        catch (Exception ex)
+        {
+            // 反射调用本身抛（如 TargetInvocationException 包装游戏内部异常）
+            var inner = ex.InnerException ?? ex;
+            Log.Error($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: Invoke threw {inner.GetType().Name}: {inner.Message}\n{inner.StackTrace}");
+            throw; // 让 ApplyAllAsync 的外层 catch 接住，不影响后续 reward
+        }
+        if (task is null)
+        {
+            Log.Warn($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: invoke returned null Task");
+            return;
+        }
+        try
+        {
+            await task;
+            Log.Info($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: task awaited OK");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: await threw {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            throw; // 同上：让外层 catch 决定是否继续
+        }
     }
 
     /// <summary>批量应用奖励列表（按顺序 await）。</summary>
@@ -99,20 +146,42 @@ public static class RewardService
         if (owner is null || rewards.Count == 0) return;
         if (!CombatManager.Instance.IsInProgress) return;
 
-        foreach (var (kind, amount) in rewards)
+        Log.Info($"[VocabSpire][Reward] ApplyAllAsync start: count={rewards.Count} list=[{string.Join(",", rewards.Select(r => $"{r.kind}x{r.amount}"))}]");
+        for (var i = 0; i < rewards.Count; i++)
         {
-            await ApplyOneAsync(owner, kind, amount);
+            var (kind, amount) = rewards[i];
+            Log.Info($"[VocabSpire][Reward] [{i + 1}/{rewards.Count}] -> ApplyOneAsync(kind={kind} amount={amount})");
+            try
+            {
+                await ApplyOneAsync(owner, kind, amount);
+                Log.Info($"[VocabSpire][Reward] [{i + 1}/{rewards.Count}] <- ApplyOneAsync returned (kind={kind})");
+            }
+            catch (Exception ex)
+            {
+                // 兜底：单条 reward 抛异常不阻塞后面其余 reward
+                Log.Error($"[VocabSpire][Reward] [{i + 1}/{rewards.Count}] EXCEPTION at ApplyOneAsync(kind={kind} amount={amount}): {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            }
         }
+        Log.Info($"[VocabSpire][Reward] ApplyAllAsync end (all {rewards.Count} processed)");
     }
 
     /// <summary>单条奖励。</summary>
     public static async Task ApplyOneAsync(Player owner, RewardType kind, int amount)
     {
-        if (owner is null || amount <= 0 || kind == RewardType.None) return;
-        if (!CombatManager.Instance.IsInProgress && kind != RewardType.Hp) return;
+        if (owner is null || amount <= 0 || kind == RewardType.None)
+        {
+            Log.Info($"[VocabSpire][Reward] skip {kind} x{amount} (owner null / amount<=0 / kind=None)");
+            return;
+        }
+        if (!CombatManager.Instance.IsInProgress && kind != RewardType.Hp)
+        {
+            Log.Info($"[VocabSpire][Reward] skip {kind} x{amount} (combat not in progress)");
+            return;
+        }
 
         try
         {
+            Log.Info($"[VocabSpire][Reward] enter switch: kind={kind} amount={amount}");
             switch (kind)
             {
                 case RewardType.Hp:

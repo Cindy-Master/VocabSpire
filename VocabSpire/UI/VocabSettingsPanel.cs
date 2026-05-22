@@ -428,8 +428,15 @@ public partial class VocabSettingsPanel : Control
         vbox.AddChild(enableToggle);
 
         var hint = GameTheme.MakeLabel(
-            "可添加多条规则，每条独立配置。模式：「一次性」仅 streak=阈值 时触发；「累积」streak≥阈值时每次答对都触发。\n" +
-            "答错会重置 streak。例：5个+5HP / 10个+1能量 / 累积3之后每次+1费",
+            "可添加多条规则，每条独立配置。模式说明：\n" +
+            "• 达标一次：连胜恰好达到阈值那一刻触发一次。之后再答对不再触发，要等答错重置后重新累到阈值。\n" +
+            "    例：阈值 5 → 第 5 次答对给一次，第 6/7… 都不给，直到答错重新连胜到 5。\n" +
+            "• 持续生效：连胜达到阈值后，之后每次答对都触发。\n" +
+            "    例：阈值 1 → 每次答对都给（最常用，等价于「每次答对都奖励」）。\n" +
+            "    例：阈值 3 → 连胜到 3 之后每次答对都给。\n" +
+            "• 每 N 次：连胜达到阈值的整数倍时触发。\n" +
+            "    例：阈值 5 → 第 5、10、15、20… 次答对各给一次。\n" +
+            "答错会重置连胜计数。",
             11, DimGrey);
         hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         vbox.AddChild(hint);
@@ -566,10 +573,15 @@ public partial class VocabSettingsPanel : Control
         amt.ValueChanged += v => { rule.Amount = (int)v; VocabConfig.Instance.Save(); };
         r1.AddChild(amt);
 
-        var modeSel = new OptionButton { CustomMinimumSize = new Vector2(90, 0) };
-        modeSel.AddItem("一次性", 0);
-        modeSel.AddItem("累积", 1);
+        var modeSel = new OptionButton { CustomMinimumSize = new Vector2(130, 0) };
+        modeSel.AddItem("达标一次", 0);
+        modeSel.AddItem("持续生效", 1);
+        modeSel.AddItem("每 N 次", 2);
         modeSel.Selected = (int)rule.Mode;
+        modeSel.TooltipText =
+            "达标一次：连胜恰好等于阈值那一刻触发一次（之后不再触发，直到答错重置后重新累到阈值）。\n" +
+            "持续生效：连胜 ≥ 阈值时每次答对都触发。阈值 1 = 每次答对都给奖励。\n" +
+            "每 N 次：连胜达到阈值的整数倍时触发（阈值 5 → 5/10/15… 各给一次）。";
         modeSel.ItemSelected += i => { rule.Mode = (Models.RewardTriggerMode)(int)i; VocabConfig.Instance.Save(); };
         r1.AddChild(modeSel);
 
