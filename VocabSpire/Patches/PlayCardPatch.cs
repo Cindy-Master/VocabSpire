@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using HarmonyLib;
@@ -58,18 +59,24 @@ public static class SinglePlayerPatch
         ResourceInfo resources,
         bool skipCardPileVisuals)
     {
-        if (!VocabConfig.Instance.Enabled) return true;
-        if (GameBridge.IsMultiplayer()) return true;
-        if (QuizState.Bypass) { QuizState.Bypass = false; return true; }
-        if (!CombatManager.Instance.IsInProgress) return true;
-        if (!VocabManager.Instance.HasActiveBank) return true;
+        var cardName = __instance.GetType().Name;
+        var isMp = GameBridge.IsMultiplayer();
+        Log.Info($"[VocabSpire][SP] OnPlayWrapper Prefix ENTER: card={cardName} isMp={isMp} " +
+                 $"Bypass={QuizState.Bypass} QuizActive={QuizState.QuizActive} " +
+                 $"CombatInProgress={CombatManager.Instance.IsInProgress} Enabled={VocabConfig.Instance.Enabled}");
+
+        if (!VocabConfig.Instance.Enabled) { Log.Info("[VocabSpire][SP] → SKIP: Enabled=false"); return true; }
+        if (isMp) { Log.Info("[VocabSpire][SP] → SKIP: IsMultiplayer=true (走 MP 路径)"); return true; }
+        if (QuizState.Bypass) { Log.Info("[VocabSpire][SP] → BYPASS consumed"); QuizState.Bypass = false; return true; }
+        if (!CombatManager.Instance.IsInProgress) { Log.Info("[VocabSpire][SP] → SKIP: combat not in progress"); return true; }
+        if (!VocabManager.Instance.HasActiveBank) { Log.Info("[VocabSpire][SP] → SKIP: no active wordbank"); return true; }
 
         // 横祸/嵌套触发：第 1 张牌的 quiz 还在显示时，第 2 张牌（横祸触发的额外打牌）
         // 进入 OnPlayWrapper —— 此时若再开一个 quiz 会覆盖 callback，导致第 1 张
         // 的 tcs 永不结算 → 游戏卡死。让这种"嵌套牌"跳过答题、按原版正常打出。
         if (QuizState.QuizActive)
         {
-            Log.Info($"[VocabSpire] Quiz active — skip nested card '{__instance.GetType().Name}' (no quiz, normal play).");
+            Log.Info($"[VocabSpire][SP] Quiz active — skip nested card '{cardName}' (no quiz, normal play).");
             return true;
         }
 
@@ -242,28 +249,39 @@ public static class MultiPlayerPatch
 {
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
-        if (!VocabConfig.Instance.Enabled) return true;
-        if (!GameBridge.IsMultiplayer()) return true;
-        if (QuizState.Bypass) { QuizState.Bypass = false; return true; }
-        if (QuizState.QuizActive) { __result = false; return false; }
-        if (!CombatManager.Instance.IsInProgress) return true;
-        if (!VocabManager.Instance.HasActiveBank) return true;
+        // 入口诊断：让我们一眼看到 TryManualPlay 是否被触发，以及被各种条件 short-circuit
+        var cardName = __instance.GetType().Name;
+        var isMp = GameBridge.IsMultiplayer();
+        Log.Info($"[VocabSpire][MP] TryManualPlay Prefix ENTER: card={cardName} isMp={isMp} " +
+                 $"Bypass={QuizState.Bypass} QuizActive={QuizState.QuizActive} " +
+                 $"CombatInProgress={CombatManager.Instance.IsInProgress} " +
+                 $"HasBank={VocabManager.Instance.HasActiveBank} " +
+                 $"FreePassArmed={BattleStateTracker.Instance.FreePassArmed} " +
+                 $"Enabled={VocabConfig.Instance.Enabled}");
+
+        if (!VocabConfig.Instance.Enabled) { Log.Info("[VocabSpire][MP] → SKIP: VocabConfig.Enabled=false"); return true; }
+        if (!isMp) { Log.Info("[VocabSpire][MP] → SKIP: IsMultiplayer()=false (走 SinglePlayer 路径)"); return true; }
+        if (QuizState.Bypass) { Log.Info("[VocabSpire][MP] → BYPASS consumed"); QuizState.Bypass = false; return true; }
+        if (QuizState.QuizActive) { Log.Info("[VocabSpire][MP] → BLOCKED: QuizActive=true (其它 quiz 进行中)"); __result = false; return false; }
+        if (!CombatManager.Instance.IsInProgress) { Log.Info("[VocabSpire][MP] → SKIP: combat not in progress"); return true; }
+        if (!VocabManager.Instance.HasActiveBank) { Log.Info("[VocabSpire][MP] → SKIP: no active wordbank"); return true; }
 
         // 免错券（联机）：跳过题目直接正常打出（联机透明：其他端看到无标志位）
         if (BattleStateTracker.Instance.FreePassArmed)
         {
             BattleStateTracker.Instance.ConsumeArmedFreePass();
             SinglePlayerPatch.SafeRefreshFreePassButton();
-            Log.Info("[VocabSpire] Free pass consumed (MP) — skipping quiz.");
+            Log.Info("[VocabSpire][MP] → Free pass consumed — skipping quiz.");
             return true;
         }
 
         var quiz = QuizPanel.Instance;
-        if (quiz is null) return true;
+        if (quiz is null) { Log.Warn("[VocabSpire][MP] → SKIP: QuizPanel.Instance is null"); return true; }
 
         var question = VocabManager.Instance.GenerateQuiz();
-        if (question is null) return true;
+        if (question is null) { Log.Warn("[VocabSpire][MP] → SKIP: GenerateQuiz returned null"); return true; }
 
+        Log.Info($"[VocabSpire][MP] → ✓ SHOWING quiz: word='{question.TargetWord.English}' mode={question.Mode}");
         __result = false;
         QuizState.QuizActive = true;
 
@@ -271,6 +289,7 @@ public static class MultiPlayerPatch
         {
             try
             {
+                Log.Info($"[VocabSpire][MP] quiz callback: correct={correct}");
                 QuizState.QuizActive = false;
                 SinglePlayerPatch.ApplyAnswerEffects(__instance, question, correct);
                 QuizState.Bypass = true;
@@ -278,7 +297,7 @@ public static class MultiPlayerPatch
             }
             catch (System.Exception ex)
             {
-                Log.Error($"[VocabSpire] MP answer callback failed: {ex}");
+                Log.Error($"[VocabSpire][MP] answer callback failed: {ex}");
                 QuizState.QuizActive = false;
                 QuizState.ResetCardLevel();
                 QuizState.Bypass = false;
@@ -310,6 +329,13 @@ public static class NetPlayCardSerializePatch
             writer.WriteUInt(kind, 4);
             writer.WriteInt(amount, 16);
         }
+
+        // 诊断：把这次发出去的状态都打出来。其他端 Deserialize 时打对应行，对比即可。
+        var rewardsDesc = count == 0
+            ? "none"
+            : string.Join(",", QuizState.PendingRewards.Take(count).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
+        Log.Info($"[VocabSpire][Net SEND] skip={QuizState.SkipEffect} nocost={QuizState.NoCost} " +
+                 $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}]");
     }
 }
 
@@ -333,6 +359,12 @@ public static class NetPlayCardDeserializePatch
                 QuizState.PendingRewards.Add((kind, amount));
             }
             // PendingRewardTarget 由 OnPlay Postfix 从 __instance.Owner 推断
+
+            var rewardsDesc = count == 0
+                ? "none"
+                : string.Join(",", QuizState.PendingRewards.Take(count).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
+            Log.Info($"[VocabSpire][Net RECV] skip={QuizState.SkipEffect} nocost={QuizState.NoCost} " +
+                     $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}]");
         }
         catch (System.Exception ex)
         {

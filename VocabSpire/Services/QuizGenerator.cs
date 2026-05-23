@@ -156,15 +156,24 @@ public sealed class QuizGenerator
         if (isEnToCn && target.HasMultipleDefinitions && _random.NextDouble() < 0.4)
             return GenerateMultiSelectQuestion(target, bank, mode, optionCount, tier);
 
-        var distractorCount = Math.Min(optionCount - 1, bank.Words.Count - 1);
-        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, isEnToCn, tier);
-
-        // 多义词单选时随机取其中一个释义，不用合并的全文
+        // 先决定本题的"正确答案显示文本"
         var correctChinese = (isEnToCn && target.HasMultipleDefinitions)
             ? target.Definitions[_random.Next(target.Definitions.Count)]
             : target.Chinese;
         var correctAnswer = isEnToCn ? correctChinese : target.English;
         var correctDetail = isEnToCn ? target.English : target.Chinese;
+
+        // 排除文本集合：用来阻止 distractor 的 option 文字跟 correctAnswer 撞车。
+        // 多义词时把 target 所有 definitions 也一并排除，避免 distractor 任一定义跟某条正确释义一样。
+        var excluded = new HashSet<string> { correctAnswer };
+        if (isEnToCn)
+        {
+            excluded.Add(target.Chinese);
+            foreach (var def in target.Definitions) excluded.Add(def);
+        }
+
+        var distractorCount = Math.Min(optionCount - 1, bank.Words.Count - 1);
+        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, isEnToCn, tier, excluded);
 
         var pairs = distractorWords
             .Select(w => (
@@ -214,10 +223,12 @@ public sealed class QuizGenerator
         var distractorCount = Math.Max(optionCount - correctCount, 1);
         distractorCount = Math.Min(distractorCount, bank.Words.Count - 1);
 
-        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, true, tier);
-
-        // 正确释义集合（用于排除重复的干扰项）
+        // 正确释义集合（用于排除重复的干扰项）—— 这里既给 SelectDistractorWords 做过滤，
+        // 也用于下方 pairs 再次防御性 Where。
         var correctSet = new HashSet<string>(definitions);
+        correctSet.Add(target.Chinese);
+
+        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, true, tier, correctSet);
 
         var pairs = distractorWords
             .Where(w => !correctSet.Contains(w.Chinese)) // 干扰项不能跟正确答案重复
@@ -279,9 +290,31 @@ public sealed class QuizGenerator
     // ── 干扰项选择（核心难度差异）──
 
     private List<WordEntry> SelectDistractorWords(
-        List<WordEntry> allWords, WordEntry target, int count, bool isEnToCn, int tier)
+        List<WordEntry> allWords, WordEntry target, int count, bool isEnToCn, int tier,
+        HashSet<string>? excludedOptionTexts = null)
     {
-        var candidates = allWords.Where(w => w != target).ToList();
+        // 候选过滤：排除目标本身 + 排除"显示文本"会跟正确答案撞车的词。
+        // 撞车判定：
+        //   英→中：候选的 Chinese 或任一 Definition 落在 excluded 集合里
+        //   中→英：候选的 English 落在 excluded 集合里
+        bool ShouldExclude(WordEntry w)
+        {
+            if (w == target) return true;
+            if (excludedOptionTexts is null) return false;
+            if (isEnToCn)
+            {
+                if (excludedOptionTexts.Contains(w.Chinese)) return true;
+                foreach (var def in w.Definitions)
+                    if (excludedOptionTexts.Contains(def)) return true;
+            }
+            else
+            {
+                if (excludedOptionTexts.Contains(w.English)) return true;
+            }
+            return false;
+        }
+
+        var candidates = allWords.Where(w => !ShouldExclude(w)).ToList();
 
         // tier=1 或 关闭混淆度开关 → 完全随机选择
         if (tier <= 1 || !VocabConfig.Instance.EnableConfusionDistractor)
