@@ -8,17 +8,24 @@ namespace VocabSpire.Services;
 /// </summary>
 public static class DifficultyScale
 {
-    /// <summary>根据题目模式与多释义计算系数。</summary>
+    /// <summary>根据题目模式与多释义计算系数（奖励）。</summary>
     public static float Compute(QuizQuestion question, RewardRule rule)
+        => ComputeCore(question, rule.Mode, rule.DifficultyScaling, rule.MultiDefDouble);
+
+    /// <summary>根据题目模式与多释义计算系数（惩罚）—— 同奖励逻辑。</summary>
+    public static float Compute(QuizQuestion question, PunishmentRule rule)
+        => ComputeCore(question, rule.Mode, rule.DifficultyScaling, rule.MultiDefDouble);
+
+    private static float ComputeCore(QuizQuestion question, RewardTriggerMode mode, bool difficultyScaling, bool multiDefDouble)
     {
         var scale = 1.0f;
-        if (rule.DifficultyScaling)
+        if (difficultyScaling)
         {
-            scale *= rule.Mode == RewardTriggerMode.Recurring
+            scale *= mode == RewardTriggerMode.Recurring
                 ? RecurringByMode(question.Mode)
                 : OnceByMode(question.Mode);
         }
-        if (rule.MultiDefDouble && question.IsMultiSelect)
+        if (multiDefDouble && question.IsMultiSelect)
         {
             scale *= 2f;
         }

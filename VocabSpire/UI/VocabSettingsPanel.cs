@@ -112,6 +112,7 @@ public partial class VocabSettingsPanel : Control
         BuildQuizSettingsSection(vbox);
         BuildBattleSection(vbox);
         BuildRewardSection(vbox);
+        BuildPunishmentSection(vbox);
         BuildFeatureSection(vbox);
         BuildStatsSection(vbox);
         BuildHelpSection(vbox);
@@ -314,6 +315,38 @@ public partial class VocabSettingsPanel : Control
             "开启后 Act 2+ 的拼写题只从本局已出过的词中选取", 16, DimGrey);
         _perActContainer.AddChild(reviewDesc);
 
+        // 拼写设置（始终可见，不随分层开关变化）
+        vbox.AddChild(GameTheme.MakeLabel("-- 拼写设置 --", 22, SectionColor));
+
+        var spellAudioToggle = new CheckButton
+        {
+            Text = " 🔊 拼写题显示朗读按钮（点击播放发音）",
+            ButtonPressed = cfg.SpellingPlayAudio
+        };
+        spellAudioToggle.AddThemeFontSizeOverride("font_size", 13);
+        spellAudioToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.SpellingPlayAudio = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(spellAudioToggle);
+
+        var spellEasyToggle = new CheckButton
+        {
+            Text = " 拼写简单模式（中间挖空填字，挖空数按字母数）",
+            ButtonPressed = cfg.SpellingEasyMode
+        };
+        spellEasyToggle.AddThemeFontSizeOverride("font_size", 13);
+        spellEasyToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.SpellingEasyMode = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(spellEasyToggle);
+
+        vbox.AddChild(GameTheme.MakeLabel(
+            "简单模式：显示如 \"c _ _ e\" 的提示，仍需输入完整单词；困难模式：仅给中文释义从零拼写", 16, DimGrey));
+
         // 难度设置
         vbox.AddChild(new HSeparator());
         vbox.AddChild(GameTheme.MakeLabel("-- 难度设置 --", 22, SectionColor));
@@ -341,6 +374,18 @@ public partial class VocabSettingsPanel : Control
 
         var cfg = VocabConfig.Instance;
 
+        // ── 总开关：答错跳过卡牌效果 ──
+        var skipEffectToggle = new CheckButton
+        {
+            Text = " 答错跳过卡牌效果（同时影响下面的容错和回手互斥选项）",
+            ButtonPressed = cfg.WrongAnswerSkipEffect
+        };
+        skipEffectToggle.AddThemeFontSizeOverride("font_size", 14);
+        skipEffectToggle.TooltipText =
+            "开启（默认）：答错时该卡牌效果跳过，能量照扣，按下方互斥选项进弃牌堆或回手；容错可生效。\n" +
+            "关闭：答错时卡牌照常生效，不强制 NoCost/回手，容错也不触发。答错的代价改靠下方「答错惩罚」承担。";
+        vbox.AddChild(skipEffectToggle);
+
         // 容错总开关
         var tolEnableToggle = new CheckButton
         {
@@ -348,6 +393,7 @@ public partial class VocabSettingsPanel : Control
             ButtonPressed = cfg.ToleranceEnabled
         };
         tolEnableToggle.AddThemeFontSizeOverride("font_size", 14);
+        tolEnableToggle.Disabled = !cfg.WrongAnswerSkipEffect;
         vbox.AddChild(tolEnableToggle);
 
         // 容错次数（受开关控制）
@@ -363,7 +409,7 @@ public partial class VocabSettingsPanel : Control
             Step = 1,
             Value = Math.Max(1, cfg.ToleranceCount),
             CustomMinimumSize = new Vector2(100, 0),
-            Editable = cfg.ToleranceEnabled
+            Editable = cfg.ToleranceEnabled && cfg.WrongAnswerSkipEffect
         };
         tolInput.GetLineEdit().AddThemeFontSizeOverride("font_size", 14);
         tolInput.ValueChanged += val =>
@@ -378,7 +424,7 @@ public partial class VocabSettingsPanel : Control
         {
             VocabConfig.Instance.ToleranceEnabled = on;
             VocabConfig.Instance.Save();
-            tolInput.Editable = on;
+            tolInput.Editable = on && VocabConfig.Instance.WrongAnswerSkipEffect;
         };
 
         // 答错处理（互斥选项）
@@ -387,7 +433,11 @@ public partial class VocabSettingsPanel : Control
         vbox.AddChild(actionRow);
         actionRow.AddChild(GameTheme.MakeLabel("答错时卡牌：", 18, White));
 
-        var actionSelector = new OptionButton { CustomMinimumSize = new Vector2(220, 0) };
+        var actionSelector = new OptionButton
+        {
+            CustomMinimumSize = new Vector2(220, 0),
+            Disabled = !cfg.WrongAnswerSkipEffect
+        };
         actionSelector.AddItem("扣费 + 进弃牌堆 (默认)", 0);
         actionSelector.AddItem("扣费 + 返回手牌", 1);
         actionSelector.Selected = cfg.WrongCardReturnToHand ? 1 : 0;
@@ -398,8 +448,19 @@ public partial class VocabSettingsPanel : Control
         };
         actionRow.AddChild(actionSelector);
 
+        // 总开关 toggle 联动其余 UI 置灰
+        skipEffectToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.WrongAnswerSkipEffect = on;
+            VocabConfig.Instance.Save();
+            tolEnableToggle.Disabled = !on;
+            tolInput.Editable = on && VocabConfig.Instance.ToleranceEnabled;
+            actionSelector.Disabled = !on;
+        };
+
         var battleDesc = GameTheme.MakeLabel(
-            "说明：容错开启时优先生效（不扣费 + 回手）；超出容错次数后按上方选项处理。",
+            "说明：容错开启时优先生效（不扣费 + 回手）；超出容错次数后按上方选项处理。\n" +
+            "若关闭「答错跳过卡牌效果」，以上容错和互斥选项失效，答错时卡牌正常生效，靠下方「答错惩罚」体现代价。",
             11, DimGrey);
         battleDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         vbox.AddChild(battleDesc);
@@ -596,6 +657,170 @@ public partial class VocabSettingsPanel : Control
         r1.AddChild(delBtn);
 
         // 行 2：难度加成 + 多义翻倍
+        var r2 = new HBoxContainer();
+        r2.AddThemeConstantOverride("separation", 16);
+        v.AddChild(r2);
+
+        var diffCb = new CheckBox { ButtonPressed = rule.DifficultyScaling, Text = " 难度加成（拼写×2/听力×1.5）" };
+        diffCb.AddThemeFontSizeOverride("font_size", 12);
+        diffCb.Toggled += on => { rule.DifficultyScaling = on; VocabConfig.Instance.Save(); };
+        r2.AddChild(diffCb);
+
+        var multiCb = new CheckBox { ButtonPressed = rule.MultiDefDouble, Text = " 多释义题翻倍" };
+        multiCb.AddThemeFontSizeOverride("font_size", 12);
+        multiCb.Toggled += on => { rule.MultiDefDouble = on; VocabConfig.Instance.Save(); };
+        r2.AddChild(multiCb);
+
+        return box;
+    }
+
+    // ──────────────────────── 惩罚 section（跟奖励对称）────────────────────────
+    private VBoxContainer _punishmentRulesContainer = null!;
+
+    private void BuildPunishmentSection(VBoxContainer vbox)
+    {
+        vbox.AddChild(new HSeparator());
+        vbox.AddChild(GameTheme.MakeLabel("-- 答错惩罚设置 --", 22, SectionColor));
+
+        var cfg = VocabConfig.Instance;
+
+        var enableToggle = new CheckButton
+        {
+            Text = " 启用答错惩罚（总开关）",
+            ButtonPressed = cfg.PunishmentEnabled
+        };
+        enableToggle.AddThemeFontSizeOverride("font_size", 14);
+        enableToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.PunishmentEnabled = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(enableToggle);
+
+        var hint = GameTheme.MakeLabel(
+            "按「连错」次数（WrongStreak）触发，答对会重置连错。规则字段、模式跟奖励完全对称。\n" +
+            "效果反向：回血→直接掉血（无视格挡）；能量/金币→扣；力量/敏捷/荆棘/集中/人工→扣层数；覆甲→扣格挡；抽牌→随机弃手中 N 张。",
+            11, DimGrey);
+        hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        vbox.AddChild(hint);
+
+        _punishmentRulesContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _punishmentRulesContainer.AddThemeConstantOverride("separation", 6);
+        vbox.AddChild(_punishmentRulesContainer);
+
+        RebuildPunishmentRules();
+
+        var addBtn = GameTheme.MakeButton("  + 添加惩罚规则  ", 14);
+        addBtn.Pressed += () =>
+        {
+            VocabConfig.Instance.PunishmentRules.Add(new Models.PunishmentRule());
+            VocabConfig.Instance.Save();
+            RebuildPunishmentRules();
+        };
+        vbox.AddChild(addBtn);
+    }
+
+    private void RebuildPunishmentRules()
+    {
+        foreach (var c in _punishmentRulesContainer.GetChildren()) c.QueueFree();
+        var rules = VocabConfig.Instance.PunishmentRules;
+        for (var i = 0; i < rules.Count; i++)
+        {
+            var rule = rules[i];
+            _punishmentRulesContainer.AddChild(BuildPunishmentRuleRow(rule, i));
+        }
+        GameTheme.ApplyFontRecursive(_punishmentRulesContainer);
+    }
+
+    private Control BuildPunishmentRuleRow(Models.PunishmentRule rule, int idx)
+    {
+        var box = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var style = new StyleBoxFlat
+        {
+            BgColor = new Color(0.1f, 0.07f, 0.07f),
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+            BorderColor = new Color(0.4f, 0.3f, 0.3f),
+            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
+            ContentMarginTop = 6, ContentMarginBottom = 6, ContentMarginLeft = 10, ContentMarginRight = 10
+        };
+        box.AddThemeStyleboxOverride("panel", style);
+
+        var v = new VBoxContainer();
+        v.AddThemeConstantOverride("separation", 4);
+        box.AddChild(v);
+
+        var r1 = new HBoxContainer();
+        r1.AddThemeConstantOverride("separation", 6);
+        v.AddChild(r1);
+
+        var enableCb = new CheckBox { ButtonPressed = rule.Enabled };
+        enableCb.Toggled += on => { rule.Enabled = on; VocabConfig.Instance.Save(); };
+        r1.AddChild(enableCb);
+
+        var kindSel = new OptionButton { CustomMinimumSize = new Vector2(120, 0) };
+        // 惩罚名称强调反向语义
+        var kinds = new (RewardType, string)[]
+        {
+            (RewardType.Hp, "掉血"),
+            (RewardType.Energy, "扣能量"),
+            (RewardType.Gold, "扣金币"),
+            (RewardType.Strength, "-力量"),
+            (RewardType.Dexterity, "-敏捷"),
+            (RewardType.Block, "扣格挡"),
+            (RewardType.Draw, "随机弃牌"),
+            (RewardType.Thorns, "-荆棘"),
+            (RewardType.Focus, "-集中"),
+            (RewardType.Artifact, "-人工制品")
+        };
+        var selIdx = 0;
+        for (var i = 0; i < kinds.Length; i++)
+        {
+            kindSel.AddItem(kinds[i].Item2, (int)kinds[i].Item1);
+            if (kinds[i].Item1 == rule.Kind) selIdx = i;
+        }
+        kindSel.Selected = selIdx;
+        kindSel.ItemSelected += i =>
+        {
+            rule.Kind = (RewardType)kindSel.GetItemId((int)i);
+            VocabConfig.Instance.Save();
+        };
+        r1.AddChild(kindSel);
+
+        r1.AddChild(GameTheme.MakeLabel("阈值", 13, Grey));
+        var streak = new SpinBox { MinValue = 1, MaxValue = 99, Step = 1, Value = rule.Streak, CustomMinimumSize = new Vector2(70, 0) };
+        streak.GetLineEdit().AddThemeFontSizeOverride("font_size", 13);
+        streak.ValueChanged += val => { rule.Streak = (int)val; VocabConfig.Instance.Save(); };
+        r1.AddChild(streak);
+
+        r1.AddChild(GameTheme.MakeLabel("数量", 13, Grey));
+        var amt = new SpinBox { MinValue = 1, MaxValue = 999, Step = 1, Value = rule.Amount, CustomMinimumSize = new Vector2(80, 0) };
+        amt.GetLineEdit().AddThemeFontSizeOverride("font_size", 13);
+        amt.ValueChanged += val => { rule.Amount = (int)val; VocabConfig.Instance.Save(); };
+        r1.AddChild(amt);
+
+        var modeSel = new OptionButton { CustomMinimumSize = new Vector2(130, 0) };
+        modeSel.AddItem("达标一次", 0);
+        modeSel.AddItem("持续生效", 1);
+        modeSel.AddItem("每 N 次", 2);
+        modeSel.Selected = (int)rule.Mode;
+        modeSel.TooltipText =
+            "达标一次：连错恰好等于阈值那一刻触发一次。\n" +
+            "持续生效：连错 ≥ 阈值时每次答错都触发。阈值 1 = 每次答错都惩罚。\n" +
+            "每 N 次：连错达到阈值的整数倍时触发。";
+        modeSel.ItemSelected += i => { rule.Mode = (Models.RewardTriggerMode)(int)i; VocabConfig.Instance.Save(); };
+        r1.AddChild(modeSel);
+
+        var delBtn = new Button { Text = " ✕ ", CustomMinimumSize = new Vector2(36, 0) };
+        delBtn.AddThemeFontSizeOverride("font_size", 13);
+        delBtn.Pressed += () =>
+        {
+            VocabConfig.Instance.PunishmentRules.RemoveAt(idx);
+            VocabConfig.Instance.Save();
+            RebuildPunishmentRules();
+        };
+        r1.AddChild(delBtn);
+
         var r2 = new HBoxContainer();
         r2.AddThemeConstantOverride("separation", 16);
         v.AddChild(r2);

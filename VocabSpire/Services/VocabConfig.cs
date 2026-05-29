@@ -78,6 +78,12 @@ public sealed class VocabConfig
     /// <summary>拼写模式(Act2+)仅从本局已出过的词中选取。</summary>
     public bool SpellingReviewOnly { get; set; }
 
+    /// <summary>拼写题显示朗读按钮（点击播放单词发音，复用听力模式 TTS）。</summary>
+    public bool SpellingPlayAudio { get; set; }
+
+    /// <summary>拼写简单模式：在单词中间挖空让玩家填（挖空数量按字母数）。false=困难模式（从零拼写）。</summary>
+    public bool SpellingEasyMode { get; set; }
+
     // ── 篝火复习设置 ──
     /// <summary>掌握判定：连续答对次数阈值（默认3）。</summary>
     public int MasteryStreak { get; set; } = 3;
@@ -92,23 +98,33 @@ public sealed class VocabConfig
     public int ReviewMaxCount { get; set; }
 
     // ── 战斗惩罚/奖励设置 ──
-    /// <summary>启用每回合容错。</summary>
+    /// <summary>答错时跳过卡牌效果（同时影响容错和"扣费+回手/弃牌堆"互斥选项）。
+    /// 关闭后答错卡牌照常生效，惩罚靠 PunishmentRules 体现。</summary>
+    public bool WrongAnswerSkipEffect { get; set; } = true;
+
+    /// <summary>启用每回合容错。仅在 WrongAnswerSkipEffect=true 时有意义。</summary>
     public bool ToleranceEnabled { get; set; }
 
     /// <summary>每回合容错次数：前 X 张牌答错不扣费且不进弃牌堆。</summary>
     public int ToleranceCount { get; set; } = 1;
 
-    /// <summary>答错时（容错用完后）将卡牌返回手牌而非弃牌堆。</summary>
+    /// <summary>答错时（容错用完后）将卡牌返回手牌而非弃牌堆。仅在 WrongAnswerSkipEffect=true 时有意义。</summary>
     public bool WrongCardReturnToHand { get; set; }
 
-    /// <summary>实际是否应使用容错次数（开关 + 次数 &gt; 0）。</summary>
-    public bool IsToleranceActive => ToleranceEnabled && ToleranceCount > 0;
+    /// <summary>实际是否应使用容错次数（开关 + 次数 &gt; 0 + SkipEffect 开启）。</summary>
+    public bool IsToleranceActive => WrongAnswerSkipEffect && ToleranceEnabled && ToleranceCount > 0;
 
     /// <summary>启用连续答对奖励总开关。</summary>
     public bool RewardEnabled { get; set; }
 
     /// <summary>奖励规则列表（原子化搭配）。</summary>
     public List<RewardRule> RewardRules { get; set; } = new();
+
+    /// <summary>启用答错惩罚总开关。</summary>
+    public bool PunishmentEnabled { get; set; }
+
+    /// <summary>惩罚规则列表（跟奖励对称，按 WrongStreak 触发，效果反向）。</summary>
+    public List<PunishmentRule> PunishmentRules { get; set; } = new();
 
     // ── 免错券机制 ──
     /// <summary>启用免错券。</summary>
@@ -188,15 +204,23 @@ public sealed class VocabConfig
             if (data.Act2Modes > 0) Act2Modes = (QuizModeFlags)data.Act2Modes;
             if (data.Act3Modes > 0) Act3Modes = (QuizModeFlags)data.Act3Modes;
             SpellingReviewOnly = data.SpellingReviewOnly;
+            SpellingPlayAudio = data.SpellingPlayAudio;
+            SpellingEasyMode = data.SpellingEasyMode;
             if (data.ReviewQuizMode > 0) ReviewQuizMode = (QuizModeFlags)data.ReviewQuizMode;
             ReviewMaxCount = Math.Max(0, data.ReviewMaxCount);
             if (data.MasteryStreak > 0) MasteryStreak = data.MasteryStreak;
             if (data.TtsVolume >= 0) TtsVolume = Math.Clamp(data.TtsVolume, 0, 100);
 
+            WrongAnswerSkipEffect = data.WrongAnswerSkipEffect ?? true;
             ToleranceEnabled = data.ToleranceEnabled;
             if (data.ToleranceCount > 0) ToleranceCount = data.ToleranceCount;
             WrongCardReturnToHand = data.WrongCardReturnToHand;
             RewardEnabled = data.RewardEnabled;
+            PunishmentEnabled = data.PunishmentEnabled;
+            if (data.PunishmentRules is { Count: > 0 })
+            {
+                PunishmentRules = data.PunishmentRules;
+            }
 
             // 多规则
             if (data.RewardRules is { Count: > 0 })
@@ -276,15 +300,20 @@ public sealed class VocabConfig
                 Act2Modes = (int)Act2Modes,
                 Act3Modes = (int)Act3Modes,
                 SpellingReviewOnly = SpellingReviewOnly,
+                SpellingPlayAudio = SpellingPlayAudio,
+                SpellingEasyMode = SpellingEasyMode,
                 ReviewQuizMode = (int)ReviewQuizMode,
                 ReviewMaxCount = ReviewMaxCount,
                 MasteryStreak = MasteryStreak,
                 TtsVolume = TtsVolume,
+                WrongAnswerSkipEffect = WrongAnswerSkipEffect,
                 ToleranceEnabled = ToleranceEnabled,
                 ToleranceCount = ToleranceCount,
                 WrongCardReturnToHand = WrongCardReturnToHand,
                 RewardEnabled = RewardEnabled,
                 RewardRules = RewardRules,
+                PunishmentEnabled = PunishmentEnabled,
+                PunishmentRules = PunishmentRules,
                 FreePassEnabled = FreePassEnabled,
                 FreePassStreakCost = FreePassStreakCost,
                 FreePassMaxStock = FreePassMaxStock,
@@ -372,6 +401,12 @@ public sealed class VocabConfig
         [JsonPropertyName("spelling_review_only")]
         public bool SpellingReviewOnly { get; set; }
 
+        [JsonPropertyName("spelling_play_audio")]
+        public bool SpellingPlayAudio { get; set; }
+
+        [JsonPropertyName("spelling_easy_mode")]
+        public bool SpellingEasyMode { get; set; }
+
         [JsonPropertyName("review_quiz_mode")]
         public int ReviewQuizMode { get; set; }
 
@@ -383,6 +418,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("tts_volume")]
         public int TtsVolume { get; set; } = 80;
+
+        [JsonPropertyName("wrong_answer_skip_effect")]
+        public bool? WrongAnswerSkipEffect { get; set; }
 
         [JsonPropertyName("tolerance_enabled")]
         public bool ToleranceEnabled { get; set; }
@@ -398,6 +436,12 @@ public sealed class VocabConfig
 
         [JsonPropertyName("reward_rules")]
         public List<RewardRule>? RewardRules { get; set; }
+
+        [JsonPropertyName("punishment_enabled")]
+        public bool PunishmentEnabled { get; set; }
+
+        [JsonPropertyName("punishment_rules")]
+        public List<PunishmentRule>? PunishmentRules { get; set; }
 
         // ── 旧版兼容字段（迁移后弃用）──
         [JsonPropertyName("reward_streak")]

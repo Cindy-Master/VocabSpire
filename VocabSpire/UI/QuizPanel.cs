@@ -19,6 +19,7 @@ public partial class QuizPanel : Control
     private Label _statsLabel = null!;
     private ChoiceAnswerWidget _choiceWidget = null!;
     private HBoxContainer _spellingContainer = null!;
+    private Label _spellingHintLabel = null!;
     private LineEdit _spellingInput = null!;
     private Button _spellingSubmitBtn = null!;
     private Button _confirmButton = null!;
@@ -114,6 +115,12 @@ public partial class QuizPanel : Control
         _choiceWidget = new ChoiceAnswerWidget { Visible = false };
         mainVBox.AddChild(_choiceWidget);
 
+        // 拼写简单模式掩码提示（如 "c _ _ e"）
+        _spellingHintLabel = GameTheme.MakeLabel("", 32, AccentGold, HorizontalAlignment.Center);
+        _spellingHintLabel.AddThemeConstantOverride("outline_size", 0);
+        _spellingHintLabel.Visible = false;
+        mainVBox.AddChild(_spellingHintLabel);
+
         // 拼写输入区
         _spellingContainer = new HBoxContainer { Visible = false };
         _spellingContainer.AddThemeConstantOverride("separation", 10);
@@ -200,8 +207,16 @@ public partial class QuizPanel : Control
         {
             _choiceWidget.Hide();
             _listenContainer.Visible = false;
-            _listenPlayTop.Visible = false;
             _promptLabel.Visible = true;
+
+            // 简单模式：显示中间挖空的掩码提示
+            var hasHint = !string.IsNullOrEmpty(question.SpellingHint);
+            _spellingHintLabel.Visible = hasHint;
+            if (hasHint) _spellingHintLabel.Text = question.SpellingHint;
+
+            // 朗读按钮（复用听力模式 TTS）：可选开关，不自动播放，由玩家点击
+            _listenPlayTop.Visible = VocabConfig.Instance.SpellingPlayAudio;
+
             _spellingInput.Text = "";
             _spellingInput.Editable = true;
             _spellingSubmitBtn.Disabled = false;
@@ -210,6 +225,7 @@ public partial class QuizPanel : Control
         else
         {
             // 选择题 / 听力题 —— 选项区交给共享组件
+            _spellingHintLabel.Visible = false;
             _choiceWidget.ShowQuestion(question, OnChoiceAnswered);
 
             if (question.IsListening)
@@ -308,6 +324,8 @@ public partial class QuizPanel : Control
 
         _spellingInput.Editable = false;
         _spellingSubmitBtn.Disabled = true;
+        _spellingHintLabel.Visible = false;
+        _listenPlayTop.Visible = false;
 
         if (_lastCorrect)
         {

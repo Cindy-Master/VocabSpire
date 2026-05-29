@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
@@ -18,6 +19,8 @@ namespace VocabSpire.Services;
 /// 单条 = ApplyOneAsync；批量 = ApplyAllAsync(list)。
 /// PowerCmd.Apply 在不同游戏版本签名不同 (release 5 参数 / beta v0.105+ 6 参数带
 /// PlayerChoiceContext) —— 用反射动态适配两版，源代码同时兼容两边。
+/// 全链路接收 OnPlay 的真实 PlayerChoiceContext，避免 ThrowingPlayerChoiceContext
+/// 在 Hook 触发 player choice 时静默失败。
 /// </summary>
 public static class RewardService
 {
@@ -25,11 +28,6 @@ public static class RewardService
     private static readonly System.Collections.Generic.Dictionary<System.Type, MethodInfo?> _applyCache = new();
     private static readonly object _applyCacheLock = new();
 
-    /// <summary>
-    /// 找到 PowerCmd.Apply&lt;T&gt;(... Creature target, decimal amount, ...) 单目标重载。
-    /// release: Apply&lt;T&gt;(Creature, decimal, Creature?, CardModel?, bool)
-    /// beta:    Apply&lt;T&gt;(PlayerChoiceContext, Creature, decimal, Creature?, CardModel?, bool)
-    /// </summary>
     private static MethodInfo? FindApplyMethodOpenGeneric()
     {
         MethodInfo? chosen = null;
@@ -51,7 +49,6 @@ public static class RewardService
             var hasSingleCreature = ps.Any(p => p.ParameterType == typeof(Creature));
             if (!hasSingleCreature) { Log.Info("[VocabSpire][Reward]     ✗ skipped: no single Creature param"); continue; }
 
-            // 排除返回 Task<IReadOnlyList<T>> 等批量返回
             if (m.ReturnType.IsGenericType &&
                 m.ReturnType.GetGenericTypeDefinition().Name.StartsWith("Task`") &&
                 m.ReturnType.GetGenericArguments()[0].IsGenericType)
@@ -73,7 +70,14 @@ public static class RewardService
         return chosen;
     }
 
-    private static async Task ApplyPowerAsync<T>(Creature target, decimal amount, Creature? applier, CardModel? cardSource)
+    /// <summary>
+    /// 反射调用 PowerCmd.Apply&lt;T&gt;，自动适配 release（5 参）/ beta（6 参带 PlayerChoiceContext）签名。
+    /// 优先使用调用方传入的真实 PlayerChoiceContext，避免 ThrowingPlayerChoiceContext
+    /// 在游戏内 Hook 链路里调 SignalPlayerChoiceBegun 时抛 NotImplementedException。
+    /// </summary>
+    internal static async Task ApplyPowerAsync<T>(
+        PlayerChoiceContext choiceContext, Creature target, decimal amount,
+        Creature? applier, CardModel? cardSource)
         where T : PowerModel
     {
         var typeName = typeof(T).Name;
@@ -98,7 +102,7 @@ public static class RewardService
         object?[] args;
         if (ps.Length == 6 && ps[0].ParameterType.Name == "PlayerChoiceContext")
         {
-            args = new object?[] { new ThrowingPlayerChoiceContext(), target, amount, applier, cardSource, false };
+            args = new object?[] { choiceContext, target, amount, applier, cardSource, false };
         }
         else if (ps.Length == 5)
         {
@@ -118,10 +122,9 @@ public static class RewardService
         }
         catch (Exception ex)
         {
-            // 反射调用本身抛（如 TargetInvocationException 包装游戏内部异常）
             var inner = ex.InnerException ?? ex;
             Log.Error($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: Invoke threw {inner.GetType().Name}: {inner.Message}\n{inner.StackTrace}");
-            throw; // 让 ApplyAllAsync 的外层 catch 接住，不影响后续 reward
+            throw;
         }
         if (task is null)
         {
@@ -136,12 +139,15 @@ public static class RewardService
         catch (Exception ex)
         {
             Log.Error($"[VocabSpire][Reward] ApplyPowerAsync<{typeName}>: await threw {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-            throw; // 同上：让外层 catch 决定是否继续
+            throw;
         }
     }
 
-    /// <summary>批量应用奖励列表（按顺序 await）。</summary>
-    public static async Task ApplyAllAsync(Player owner, System.Collections.Generic.IReadOnlyList<(RewardType kind, int amount)> rewards)
+    /// <summary>批量应用奖励列表（按顺序 await）。choiceContext 来自 OnPlay。</summary>
+    public static async Task ApplyAllAsync(
+        Player owner,
+        System.Collections.Generic.IReadOnlyList<(RewardType kind, int amount)> rewards,
+        PlayerChoiceContext choiceContext)
     {
         if (owner is null || rewards.Count == 0) return;
         if (!CombatManager.Instance.IsInProgress) return;
@@ -153,20 +159,19 @@ public static class RewardService
             Log.Info($"[VocabSpire][Reward] [{i + 1}/{rewards.Count}] -> ApplyOneAsync(kind={kind} amount={amount})");
             try
             {
-                await ApplyOneAsync(owner, kind, amount);
+                await ApplyOneAsync(owner, kind, amount, choiceContext);
                 Log.Info($"[VocabSpire][Reward] [{i + 1}/{rewards.Count}] <- ApplyOneAsync returned (kind={kind})");
             }
             catch (Exception ex)
             {
-                // 兜底：单条 reward 抛异常不阻塞后面其余 reward
                 Log.Error($"[VocabSpire][Reward] [{i + 1}/{rewards.Count}] EXCEPTION at ApplyOneAsync(kind={kind} amount={amount}): {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
         Log.Info($"[VocabSpire][Reward] ApplyAllAsync end (all {rewards.Count} processed)");
     }
 
-    /// <summary>单条奖励。</summary>
-    public static async Task ApplyOneAsync(Player owner, RewardType kind, int amount)
+    /// <summary>单条奖励。choiceContext 透传给需要它的 API（PowerCmd.Apply / CardPileCmd.Draw）。</summary>
+    public static async Task ApplyOneAsync(Player owner, RewardType kind, int amount, PlayerChoiceContext choiceContext)
     {
         if (owner is null || amount <= 0 || kind == RewardType.None)
         {
@@ -194,31 +199,27 @@ public static class RewardService
                     await PlayerCmd.GainGold(amount, owner);
                     break;
                 case RewardType.Strength:
-                    await ApplyPowerAsync<StrengthPower>(owner.Creature, amount, owner.Creature, null);
+                    await ApplyPowerAsync<StrengthPower>(choiceContext, owner.Creature, amount, owner.Creature, null);
                     break;
                 case RewardType.Dexterity:
-                    await ApplyPowerAsync<DexterityPower>(owner.Creature, amount, owner.Creature, null);
+                    await ApplyPowerAsync<DexterityPower>(choiceContext, owner.Creature, amount, owner.Creature, null);
                     break;
                 case RewardType.Block:
                     await CreatureCmd.GainBlock(owner.Creature, amount, default, null);
                     break;
                 case RewardType.Draw:
-                    // 联机风险：抽牌走 Hook，会触发 ActionQueueSynchronizer。
-                    if (GameBridge.IsMultiplayer())
-                    {
-                        Log.Warn("[VocabSpire] Draw reward skipped in multiplayer (sync risk).");
-                        break;
-                    }
-                    await CardPileCmd.Draw(new ThrowingPlayerChoiceContext(), amount, owner);
+                    // 之前禁了 MP 是误判（CardPileCmd.Draw 内部不触发 ActionQueueSynchronizer，
+                    // 双端确定性 RNG 同步），现在用真 choiceContext 调，跟游戏内置抽牌牌一样的语义。
+                    await CardPileCmd.Draw(choiceContext, amount, owner);
                     break;
                 case RewardType.Thorns:
-                    await ApplyPowerAsync<ThornsPower>(owner.Creature, amount, owner.Creature, null);
+                    await ApplyPowerAsync<ThornsPower>(choiceContext, owner.Creature, amount, owner.Creature, null);
                     break;
                 case RewardType.Focus:
-                    await ApplyPowerAsync<FocusPower>(owner.Creature, amount, owner.Creature, null);
+                    await ApplyPowerAsync<FocusPower>(choiceContext, owner.Creature, amount, owner.Creature, null);
                     break;
                 case RewardType.Artifact:
-                    await ApplyPowerAsync<ArtifactPower>(owner.Creature, amount, owner.Creature, null);
+                    await ApplyPowerAsync<ArtifactPower>(choiceContext, owner.Creature, amount, owner.Creature, null);
                     break;
             }
             Log.Info($"[VocabSpire] Reward applied: {kind} x{amount} to {owner.NetId}");

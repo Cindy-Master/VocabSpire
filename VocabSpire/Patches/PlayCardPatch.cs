@@ -31,7 +31,10 @@ public static class QuizState
     /// <summary>本次打牌完成后需要触发的奖励列表（联机通过 NetPlayCardAction 同步）。</summary>
     internal static readonly List<(byte Kind, int Amount)> PendingRewards = new();
 
-    /// <summary>本次打牌的卡主（用于 OnPlay 完成后施加奖励）。</summary>
+    /// <summary>本次打牌完成后需要触发的惩罚列表（联机通过 NetPlayCardAction 同步）。</summary>
+    internal static readonly List<(byte Kind, int Amount)> PendingPunishments = new();
+
+    /// <summary>本次打牌的卡主（用于 OnPlay 完成后施加奖励 / 惩罚）。</summary>
     internal static Player? PendingRewardTarget;
 
     public static void ResetCardLevel()
@@ -40,6 +43,7 @@ public static class QuizState
         NoCost = false;
         ReturnToHand = false;
         PendingRewards.Clear();
+        PendingPunishments.Clear();
         PendingRewardTarget = null;
     }
 }
@@ -190,6 +194,23 @@ public static class SinglePlayerPatch
         }
         catch { }
 
+        // 把惩罚写入 PendingPunishments（不论 SkipEffect 开关，惩罚都生效——是独立维度）
+        foreach (var p in outcome.Punishments)
+        {
+            QuizState.PendingPunishments.Add(((byte)p.Kind, p.Amount));
+        }
+        if (QuizState.PendingPunishments.Count > 0 && QuizState.PendingRewardTarget is null)
+        {
+            QuizState.PendingRewardTarget = card.Owner;
+        }
+
+        // "答错跳过卡牌效果" 总开关：关闭则牌正常生效，不强制 NoCost/ReturnToHand，容错也不触发。
+        if (!cfg.WrongAnswerSkipEffect)
+        {
+            Log.Info("[VocabSpire] Wrong answer: SkipEffect disabled by config — card plays normally; punishment(s) only.");
+            return;
+        }
+
         QuizState.SkipEffect = true;
 
         if (BattleStateTracker.Instance.CanUseTolerance())
@@ -321,21 +342,32 @@ public static class NetPlayCardSerializePatch
         writer.WriteBool(QuizState.NoCost);
         writer.WriteBool(QuizState.ReturnToHand);
 
-        var count = System.Math.Min(QuizState.PendingRewards.Count, 15);
-        writer.WriteUInt((uint)count, 4);
-        for (var i = 0; i < count; i++)
+        var rCount = System.Math.Min(QuizState.PendingRewards.Count, 15);
+        writer.WriteUInt((uint)rCount, 4);
+        for (var i = 0; i < rCount; i++)
         {
             var (kind, amount) = QuizState.PendingRewards[i];
             writer.WriteUInt(kind, 4);
             writer.WriteInt(amount, 16);
         }
 
-        // 诊断：把这次发出去的状态都打出来。其他端 Deserialize 时打对应行，对比即可。
-        var rewardsDesc = count == 0
-            ? "none"
-            : string.Join(",", QuizState.PendingRewards.Take(count).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
+        // v2.5+ 新增：惩罚列表（旧版 mod 无此字段，跨版本联机协议会读偏 → 强制版本匹配）
+        var pCount = System.Math.Min(QuizState.PendingPunishments.Count, 15);
+        writer.WriteUInt((uint)pCount, 4);
+        for (var i = 0; i < pCount; i++)
+        {
+            var (kind, amount) = QuizState.PendingPunishments[i];
+            writer.WriteUInt(kind, 4);
+            writer.WriteInt(amount, 16);
+        }
+
+        // 诊断
+        var rewardsDesc = rCount == 0 ? "none"
+            : string.Join(",", QuizState.PendingRewards.Take(rCount).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
+        var punishDesc = pCount == 0 ? "none"
+            : string.Join(",", QuizState.PendingPunishments.Take(pCount).Select(p => $"{(RewardType)p.Kind}x{p.Amount}"));
         Log.Info($"[VocabSpire][Net SEND] skip={QuizState.SkipEffect} nocost={QuizState.NoCost} " +
-                 $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}]");
+                 $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}] punishments=[{punishDesc}]");
     }
 }
 
@@ -351,20 +383,30 @@ public static class NetPlayCardDeserializePatch
             if (reader.ReadBool()) QuizState.NoCost = true;
             if (reader.ReadBool()) QuizState.ReturnToHand = true;
 
-            var count = (int)reader.ReadUInt(4);
-            for (var i = 0; i < count; i++)
+            var rCount = (int)reader.ReadUInt(4);
+            for (var i = 0; i < rCount; i++)
             {
                 var kind = (byte)reader.ReadUInt(4);
                 var amount = (int)reader.ReadInt(16);
                 QuizState.PendingRewards.Add((kind, amount));
             }
+
+            // v2.5+ 惩罚列表
+            var pCount = (int)reader.ReadUInt(4);
+            for (var i = 0; i < pCount; i++)
+            {
+                var kind = (byte)reader.ReadUInt(4);
+                var amount = (int)reader.ReadInt(16);
+                QuizState.PendingPunishments.Add((kind, amount));
+            }
             // PendingRewardTarget 由 OnPlay Postfix 从 __instance.Owner 推断
 
-            var rewardsDesc = count == 0
-                ? "none"
-                : string.Join(",", QuizState.PendingRewards.Take(count).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
+            var rewardsDesc = rCount == 0 ? "none"
+                : string.Join(",", QuizState.PendingRewards.Take(rCount).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
+            var punishDesc = pCount == 0 ? "none"
+                : string.Join(",", QuizState.PendingPunishments.Take(pCount).Select(p => $"{(RewardType)p.Kind}x{p.Amount}"));
             Log.Info($"[VocabSpire][Net RECV] skip={QuizState.SkipEffect} nocost={QuizState.NoCost} " +
-                     $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}]");
+                     $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}] punishments=[{punishDesc}]");
         }
         catch (System.Exception ex)
         {
@@ -469,11 +511,14 @@ public static class OnPlaySkipPatch
         return false;
     }
 
-    /// <summary>Postfix 用于在 OnPlay 完成（或被跳过）后触发批量奖励。</summary>
-    public static void Postfix(object __instance, ref Task __result)
+    /// <summary>Postfix 用于在 OnPlay 完成（或被跳过）后触发批量奖励 / 惩罚。
+    /// 通过 Harmony 按参数名注入 PlayerChoiceContext —— 它是 OnPlay 的第 1 个参数，
+    /// 双端确定性的真 choice context，传给后续 reward / draw / power apply / discard 使用。</summary>
+    public static void Postfix(object __instance, ref Task __result, PlayerChoiceContext choiceContext)
     {
         var hasReward = QuizState.PendingRewards.Count > 0;
-        if (!hasReward)
+        var hasPunishment = QuizState.PendingPunishments.Count > 0;
+        if (!hasReward && !hasPunishment)
         {
             QuizState.SkipEffect = false;
             QuizState.NoCost = false;
@@ -481,9 +526,12 @@ public static class OnPlaySkipPatch
             return;
         }
 
-        // 取出快照（PendingRewards 是共享 List，下一次打牌前可能被重置）
+        // 取出快照（共享 List 下一次打牌前可能被重置）
         var rewards = new List<(RewardType, int)>(QuizState.PendingRewards.Count);
         foreach (var (k, a) in QuizState.PendingRewards) rewards.Add(((RewardType)k, a));
+
+        var punishments = new List<(RewardType, int)>(QuizState.PendingPunishments.Count);
+        foreach (var (k, a) in QuizState.PendingPunishments) punishments.Add(((RewardType)k, a));
 
         var target = QuizState.PendingRewardTarget
             ?? (__instance is CardModel cm ? cm.Owner : null);
@@ -492,16 +540,23 @@ public static class OnPlaySkipPatch
         QuizState.NoCost = false;
         QuizState.ReturnToHand = false;
         QuizState.PendingRewards.Clear();
+        QuizState.PendingPunishments.Clear();
         QuizState.PendingRewardTarget = null;
 
         var original = __result;
-        __result = ChainRewards(original, target, rewards);
+        __result = ChainEffects(original, target, rewards, punishments, choiceContext);
     }
 
-    private static async Task ChainRewards(Task original, Player? target, List<(RewardType Kind, int Amount)> rewards)
+    private static async Task ChainEffects(Task original, Player? target,
+        List<(RewardType Kind, int Amount)> rewards,
+        List<(RewardType Kind, int Amount)> punishments,
+        PlayerChoiceContext choiceContext)
     {
         try { await original; } catch { }
-        if (target is null || rewards.Count == 0) return;
-        await RewardService.ApplyAllAsync(target, rewards);
+        if (target is null) return;
+        if (rewards.Count > 0)
+            await RewardService.ApplyAllAsync(target, rewards, choiceContext);
+        if (punishments.Count > 0)
+            await PunishmentService.ApplyAllAsync(target, punishments, choiceContext);
     }
 }

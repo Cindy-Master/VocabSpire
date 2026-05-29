@@ -133,6 +133,11 @@ public sealed class QuizGenerator
         if (showPhonetic && !string.IsNullOrWhiteSpace(target.Phonetic))
             prompt += $"\n{target.Phonetic}";
 
+        // 简单模式：在单词中间挖空，挖空数量按字母数而定。困难模式不给提示。
+        var hint = VocabConfig.Instance.SpellingEasyMode
+            ? BuildSpellingHint(target.English)
+            : "";
+
         return new QuizQuestion
         {
             TargetWord = target,
@@ -140,8 +145,45 @@ public sealed class QuizGenerator
             Prompt = prompt,
             Options = Array.Empty<string>(),
             CorrectIndex = -1,
-            CorrectText = target.English
+            CorrectText = target.English,
+            SpellingHint = hint
         };
+    }
+
+    /// <summary>
+    /// 构造简单模式掩码提示：保留首尾字母，随机挖掉中间的若干个字母位（用 "_" 表示）。
+    /// 挖空数量约为字母数的 35%，至少 1 个，且不超过可挖的中间字母数。
+    /// 非字母字符（空格、连字符）始终保留可见、不计入挖空。
+    /// 例: cat→"c _ t"  cake→"c _ _ e"  beautiful→"b _ a _ t _ f u l"（位置随机）
+    /// </summary>
+    private string BuildSpellingHint(string word)
+    {
+        if (string.IsNullOrEmpty(word)) return "";
+        var chars = word.ToCharArray();
+        var n = chars.Length;
+        if (n <= 2) return string.Join(" ", chars); // 太短无可挖位，原样显示
+
+        // 可挖位置 = 中间区间 [1, n-2] 内的字母位
+        var eligible = new List<int>();
+        for (var i = 1; i < n - 1; i++)
+            if (char.IsLetter(chars[i])) eligible.Add(i);
+        if (eligible.Count == 0) return string.Join(" ", chars);
+
+        var letterCount = chars.Count(char.IsLetter);
+        var blankCount = Math.Clamp((int)Math.Round(letterCount * 0.35), 1, eligible.Count);
+
+        // 随机选 blankCount 个可挖位
+        for (var i = eligible.Count - 1; i > 0; i--)
+        {
+            var j = _random.Next(i + 1);
+            (eligible[i], eligible[j]) = (eligible[j], eligible[i]);
+        }
+        var blanks = new HashSet<int>(eligible.Take(blankCount));
+
+        var parts = new string[n];
+        for (var i = 0; i < n; i++)
+            parts[i] = blanks.Contains(i) ? "_" : chars[i].ToString();
+        return string.Join(" ", parts);
     }
 
     // ── 选择题生成 ──

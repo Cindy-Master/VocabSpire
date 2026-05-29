@@ -21,6 +21,9 @@ public sealed class QuizQuestion
     /// <summary>拼写模式的正确答案文本。</summary>
     public string CorrectText { get; init; } = "";
 
+    /// <summary>拼写简单模式的掩码提示（如 "c _ _ e"）。为空表示困难模式（从零拼写，无提示）。</summary>
+    public string SpellingHint { get; init; } = "";
+
     /// <summary>每个选项对应的补充信息（英→中时为英文单词，中→英时为中文释义）。</summary>
     public IReadOnlyList<string> OptionDetails { get; init; } = Array.Empty<string>();
 
