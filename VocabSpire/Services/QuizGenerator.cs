@@ -215,7 +215,7 @@ public sealed class QuizGenerator
         }
 
         var distractorCount = Math.Min(optionCount - 1, bank.Words.Count - 1);
-        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, isEnToCn, tier, excluded);
+        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, isEnToCn, tier, excluded, correctAnswer);
 
         var pairs = distractorWords
             .Select(w => (
@@ -270,7 +270,7 @@ public sealed class QuizGenerator
         var correctSet = new HashSet<string>(definitions);
         correctSet.Add(target.Chinese);
 
-        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, true, tier, correctSet);
+        var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, true, tier, correctSet, target.Chinese);
 
         var pairs = distractorWords
             .Where(w => !correctSet.Contains(w.Chinese)) // 干扰项不能跟正确答案重复
@@ -333,7 +333,7 @@ public sealed class QuizGenerator
 
     private List<WordEntry> SelectDistractorWords(
         List<WordEntry> allWords, WordEntry target, int count, bool isEnToCn, int tier,
-        HashSet<string>? excludedOptionTexts = null)
+        HashSet<string>? excludedOptionTexts = null, string? lengthAnchor = null)
     {
         // 候选过滤：排除目标本身 + 排除"显示文本"会跟正确答案撞车的词。
         // 撞车判定：
@@ -342,6 +342,19 @@ public sealed class QuizGenerator
         bool ShouldExclude(WordEntry w)
         {
             if (w == target) return true;
+
+            // B：候选是目标词的屈折变形（run/running、try/tried）→ 排除，玩家眼里是同一个词。
+            //    对所有模式生效（比较的是词条英文本身）。派生词（act/active）不命中，保留为难干扰。
+            if (IsInflection(w.English, target.English)) return true;
+
+            // A：英→中/听力，候选中文释义与正确释义字面高度重叠 → 疑似同义，排除。
+            if (isEnToCn && lengthAnchor is { Length: > 0 })
+            {
+                if (IsSemanticOverlap(w.Chinese, lengthAnchor)) return true;
+                foreach (var def in w.Definitions)
+                    if (IsSemanticOverlap(def, lengthAnchor)) return true;
+            }
+
             if (excludedOptionTexts is null) return false;
             if (isEnToCn)
             {
@@ -358,13 +371,27 @@ public sealed class QuizGenerator
 
         var candidates = allWords.Where(w => !ShouldExclude(w)).ToList();
 
-        // tier=1 或 关闭混淆度开关 → 完全随机选择
+        // tier=1 或 关闭混淆度开关 → 随机选择
         if (tier <= 1 || !VocabConfig.Instance.EnableConfusionDistractor)
         {
-            return candidates
-                .OrderBy(_ => _random.Next())
+            var deduped = candidates
                 .GroupBy(w => isEnToCn ? w.Chinese : w.English)
-                .Select(g => g.First())
+                .Select(g => g.First());
+
+            // 英→中 / 听力：干扰项释义长度贴近正确答案，消除"选最短/最长 = 正确"的线索。
+            // （高频词正确释义往往最短，纯随机会让正确答案在选项里一眼可辨。）
+            if (isEnToCn && lengthAnchor is { Length: > 0 })
+            {
+                var anchorLen = lengthAnchor.Length;
+                return deduped
+                    .OrderBy(w => Math.Abs(w.Chinese.Length - anchorLen)) // 长度近的优先
+                    .ThenBy(_ => _random.Next())                          // 同长度差档内随机
+                    .Take(count)
+                    .ToList();
+            }
+
+            return deduped
+                .OrderBy(_ => _random.Next())
                 .Take(count)
                 .ToList();
         }
@@ -450,6 +477,72 @@ public sealed class QuizGenerator
         }
 
         return score;
+    }
+
+    // ── 同义 / 变形干扰过滤（问题③ A+B）──
+
+    private static readonly string[] InflectDirectSuffixes = { "s", "es", "ed", "d", "ing", "er", "est", "ly" };
+    private static readonly string[] InflectDoubleSuffixes = { "ing", "ed", "er", "est" };
+    private static readonly string[] InflectYSuffixes = { "ed", "es", "er", "est", "ly" };
+
+    /// <summary>中文释义里的结构性虚词，计算字面重叠时剔除以免重叠率虚高。</summary>
+    private static readonly HashSet<char> StopChars = new("的地得了着过之其所把被而或就也都等们与及和");
+
+    /// <summary>
+    /// B：判断 x、y 是否为屈折变形关系（一个是另一个加 -s/-ed/-ing/-er… 含双写尾辅音、y→i）。
+    /// 屈折变形语义等同原词，当干扰最冤，应排除；派生词（act→active、create→creation）不命中，予以保留。
+    /// </summary>
+    private static bool IsInflection(string x, string y)
+    {
+        var a = x.ToLowerInvariant();
+        var b = y.ToLowerInvariant();
+        var (s, l) = a.Length <= b.Length ? (a, b) : (b, a);
+        if (s.Length < 2 || l.Length <= s.Length) return false;
+
+        // 直接加后缀：play→plays/played/playing/player、quick→quickly
+        foreach (var suf in InflectDirectSuffixes)
+            if (l == s + suf) return true;
+
+        // 双写尾辅音：run→running、stop→stopped、big→bigger
+        foreach (var suf in InflectDoubleSuffixes)
+            if (l.Length == s.Length + 1 + suf.Length
+                && l.EndsWith(suf)
+                && l[..(s.Length + 1)] == s + s[^1])
+                return true;
+
+        // y→i：try→tried/tries、happy→happier/happiest
+        if (s.EndsWith("y"))
+        {
+            var stem = s[..^1] + "i";
+            foreach (var suf in InflectYSuffixes)
+                if (l == stem + suf) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A：判断两条中文释义是否字面高度重叠（疑似同义）。剔虚词后实义汉字交集 ≥2 且占较短集 ≥60%。
+    /// 保守判定：只挡"巨大的/庞大的"这类字面同义；换词同义（漂亮/美丽）无字面交集抓不到（无语义库的天花板）。
+    /// </summary>
+    private static bool IsSemanticOverlap(string a, string b)
+    {
+        var sa = ContentChars(a);
+        var sb = ContentChars(b);
+        if (sa.Count == 0 || sb.Count == 0) return false;
+        var inter = sa.Count(sb.Contains);
+        if (inter < 2) return false; // 单字重叠不算同义（避免"大的/大象"误杀）
+        return (double)inter / Math.Min(sa.Count, sb.Count) >= 0.6;
+    }
+
+    /// <summary>提取实义汉字集合（仅 CJK 且非停用词）。</summary>
+    private static HashSet<char> ContentChars(string s)
+    {
+        var set = new HashSet<char>();
+        foreach (var c in s)
+            if (c >= '一' && c <= '鿿' && !StopChars.Contains(c))
+                set.Add(c);
+        return set;
     }
 
     // ── 词根匹配 ──

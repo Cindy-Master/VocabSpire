@@ -146,6 +146,9 @@ public static class SinglePlayerPatch
                     if (t.IsFaulted)
                         Log.Error($"[VocabSpire] OnPlayWrapper faulted: {t.Exception?.GetBaseException()}");
                     QuizState.QuizActive = false; // 二次 OnPlayWrapper 完全结束后才复位
+                    // 兜底：二次 OnPlayWrapper 已 await 完成（含重放循环 + 奖惩 chain），
+                    // 此处复位所有卡级标志，防止重放中途玩家死亡 early-return 导致 SkipEffect 残留到下一张牌。
+                    QuizState.ResetCardLevel();
                     tcs.SetResult();
                 }, TaskScheduler.FromCurrentSynchronizationContext());
             }
@@ -513,9 +516,17 @@ public static class OnPlaySkipPatch
 
     /// <summary>Postfix 用于在 OnPlay 完成（或被跳过）后触发批量奖励 / 惩罚。
     /// 通过 Harmony 按参数名注入 PlayerChoiceContext —— 它是 OnPlay 的第 1 个参数，
-    /// 双端确定性的真 choice context，传给后续 reward / draw / power apply / discard 使用。</summary>
-    public static void Postfix(object __instance, ref Task __result, PlayerChoiceContext choiceContext)
+    /// 双端确定性的真 choice context，传给后续 reward / draw / power apply / discard 使用。
+    /// __1 = OnPlay 第 2 个参数 CardPlay（按位置注入，避免各子类参数名不一致）。</summary>
+    public static void Postfix(object __instance, ref Task __result, PlayerChoiceContext choiceContext, CardPlay __1)
     {
+        // 重放守卫：OnPlayWrapper 内部用 for 循环重复调 OnPlay（playCount = ReplayCount + 1，
+        // 例如华彩 SwordSagePower 给主权之刃加重放）。若在第一次 OnPlay 后就复位 SkipEffect，
+        // 第 2 次起的重放会因标志被清而正常生效 —— 答错却跳不掉效果。
+        // 因此：中间的重放直接 return，保持 SkipEffect / NoCost / ReturnToHand 不变；
+        // 只在最后一次重放（IsLastInSeries）才复位标志并结算一次奖惩。
+        if (__1 is { IsLastInSeries: false }) return;
+
         var hasReward = QuizState.PendingRewards.Count > 0;
         var hasPunishment = QuizState.PendingPunishments.Count > 0;
         if (!hasReward && !hasPunishment)
