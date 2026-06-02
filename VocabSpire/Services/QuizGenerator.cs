@@ -217,11 +217,28 @@ public sealed class QuizGenerator
         var distractorCount = Math.Min(optionCount - 1, bank.Words.Count - 1);
         var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, isEnToCn, tier, excluded, correctAnswer);
 
-        var pairs = distractorWords
-            .Select(w => (
-                option: isEnToCn ? w.Chinese : w.English,
-                detail: isEnToCn ? w.English : w.Chinese))
-            .ToList();
+        // 干扰项与正确答案保持「单义项」粒度对齐：英→中/听力只取一个义项，
+        // 不再用整串 w.Chinese（词库里有些词条是完整词典释义，含 adj./n./vt. 几十个义项，
+        // 整串塞进一个选项会撑爆 UI、长度悬殊且泄露线索）。中→英 仍用单词本身（本就短）。
+        var usedTexts = new HashSet<string> { correctAnswer };
+        var pairs = new List<(string option, string detail)>();
+        foreach (var w in distractorWords)
+        {
+            string optionText;
+            if (isEnToCn)
+            {
+                var def = PickDistractorDefinition(w, usedTexts);
+                if (def is null) continue;        // 该词所有义项都被占用 → 跳过
+                usedTexts.Add(def);
+                optionText = def;
+            }
+            else
+            {
+                if (!usedTexts.Add(w.English)) continue;
+                optionText = w.English;
+            }
+            pairs.Add((option: optionText, detail: isEnToCn ? w.English : w.Chinese));
+        }
         pairs.Add((option: correctAnswer, detail: correctDetail));
         Shuffle(pairs);
 
@@ -272,10 +289,16 @@ public sealed class QuizGenerator
 
         var distractorWords = SelectDistractorWords(bank.Words, target, distractorCount, true, tier, correctSet, target.Chinese);
 
-        var pairs = distractorWords
-            .Where(w => !correctSet.Contains(w.Chinese)) // 干扰项不能跟正确答案重复
-            .Select(w => (option: w.Chinese, detail: w.English, isCorrect: false))
-            .ToList();
+        // 干扰项同样只取单义项（与正确义项粒度对齐），避免与正确义项 / 其它干扰义项撞车。
+        var usedDefs = new HashSet<string>(correctSet);
+        var pairs = new List<(string option, string detail, bool isCorrect)>();
+        foreach (var w in distractorWords)
+        {
+            var def = PickDistractorDefinition(w, usedDefs);
+            if (def is null) continue;
+            usedDefs.Add(def);
+            pairs.Add((option: def, detail: w.English, isCorrect: false));
+        }
 
         // 加入所有正确释义（去重，但不超过 correctCount 上限以适配 UI 按钮数量）
         var addedCorrect = new HashSet<string>();
@@ -317,6 +340,22 @@ public sealed class QuizGenerator
             CorrectIndices = correctIndices.AsReadOnly(),
             CorrectText = target.Chinese
         };
+    }
+
+    /// <summary>
+    /// 为英→中/听力干扰项挑一个「未被占用」的中文义项，使干扰项与正确答案保持单义项粒度。
+    /// 优先在未用义项里随机取；该词所有义项都被占用时返回 null（调用方跳过该词）。
+    /// 没有拆出义项时退回整串 Chinese（已被上游撞车过滤保护）。
+    /// </summary>
+    private string? PickDistractorDefinition(WordEntry w, HashSet<string> used)
+    {
+        var defs = w.Definitions;
+        if (defs.Count == 0)
+            return used.Contains(w.Chinese) ? null : w.Chinese;
+
+        var avail = defs.Where(d => !used.Contains(d)).ToList();
+        if (avail.Count == 0) return null;
+        return avail[_random.Next(avail.Count)];
     }
 
     private static string FormatPrompt(WordEntry word, int tier)
