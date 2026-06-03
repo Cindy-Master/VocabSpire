@@ -1104,7 +1104,7 @@ public partial class VocabSettingsPanel : Control
         vbox.AddChild(new HSeparator());
         var help = GameTheme.MakeLabel(
             "将 .json 或 .csv 词库文件放入 mods/VocabSpire/wordbanks/ 目录后点击刷新。\n" +
-            "也可以点击「导入词库」直接选择文件导入。\n" +
+            "也可以点击「导入词库」直接选择文件导入（支持 .json / .csv / Anki .apkg）。\n" +
             "点击「导出模板」可获取 JSON 词库模板文件。\n" +
             "JSON 格式支持 \"chinese\" 为字符串或字符串数组（多释义）。",
             11, DimGrey);
@@ -1123,6 +1123,7 @@ public partial class VocabSettingsPanel : Control
         };
         _fileDialog.AddFilter("*.json", "JSON 词库文件");
         _fileDialog.AddFilter("*.csv", "CSV 词库文件");
+        _fileDialog.AddFilter("*.apkg", "Anki 词库 (.apkg)");
         _fileDialog.FileSelected += path =>
         {
             var bank = VocabManager.Instance.ImportBank(path);

@@ -95,6 +95,12 @@ public sealed class VocabManager
     public WordBank? ImportBank(string filePath)
     {
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+        // apkg 特殊处理：解析为词条后序列化成 json 存入 wordbanks
+        // （apkg 是二进制，LoadAllBanks 只扫描 json/csv，必须先转 json）
+        if (ext == ".apkg")
+            return ImportApkg(filePath);
+
         var bank = ext switch
         {
             ".json" => FileParser.ParseJson(filePath),
@@ -126,6 +132,48 @@ public sealed class VocabManager
 
         Log.Info($"[VocabSpire] Imported: {bank.Name} ({bank.TotalWords} words)");
         return bank;
+    }
+
+    /// <summary>
+    /// 导入 Anki .apkg 词库：用纯托管 reader 解析后序列化成 VocabSpire json 存入 wordbanks 目录，
+    /// 再按普通 json 加载（保证与其它词库行为一致，且下次启动可直接扫描到）。
+    /// </summary>
+    private WordBank? ImportApkg(string apkgPath)
+    {
+        try
+        {
+            var parsed = ApkgImporter.Import(apkgPath);
+
+            // 多义项写成数组，单义项写成字符串，与现有词库 json 格式一致
+            var dto = new
+            {
+                name = parsed.Name,
+                description = parsed.Description,
+                words = parsed.Words.Select(w => new
+                {
+                    english = w.English,
+                    chinese = w.Definitions.Count > 1
+                        ? (object)w.Definitions
+                        : (w.Definitions.Count == 1 ? w.Definitions[0] : w.Chinese),
+                    phonetic = w.Phonetic
+                })
+            };
+            var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true });
+            var jsonPath = Path.Combine(GetWordBanksDirectory(), parsed.Id + ".json");
+            File.WriteAllText(jsonPath, json);
+
+            var bank = FileParser.ParseJson(jsonPath) ?? parsed;
+            var idx = _banks.FindIndex(b => b.Id == bank.Id);
+            if (idx >= 0) _banks[idx] = bank; else _banks.Add(bank);
+
+            Log.Info($"[VocabSpire] Imported apkg: {bank.Name} ({bank.TotalWords} words) -> {Path.GetFileName(jsonPath)}");
+            return bank;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[VocabSpire] apkg import failed: {apkgPath} - {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>

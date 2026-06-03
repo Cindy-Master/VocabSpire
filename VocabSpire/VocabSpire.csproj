@@ -26,4 +26,9 @@
     <Content Include="Resources\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 纯托管 zstd：解压新版 Anki collection.anki21b（无 native 依赖，可随 mod 部署） -->
+  <ItemGroup>
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.*" />
+  </ItemGroup>
+
 </Project>
