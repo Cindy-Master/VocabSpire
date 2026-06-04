@@ -246,7 +246,10 @@ public partial class QuizPanel : Control
             else
             {
                 _promptLabel.Visible = true;
-                _listenPlayTop.Visible = false;
+                // 英→中选择题：可选朗读按钮（复用听力 TTS，不自动播放，玩家点击才发音）。
+                // 中→英不显示——题目是中文、答案才是英文，播放会直接读出答案。
+                _listenPlayTop.Visible = question.Mode == QuizModeFlags.EnglishToChinese
+                                         && VocabConfig.Instance.EnToCnPlayAudio;
             }
         }
 

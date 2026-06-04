@@ -331,6 +331,19 @@ public partial class VocabSettingsPanel : Control
         };
         vbox.AddChild(spellAudioToggle);
 
+        var enToCnAudioToggle = new CheckButton
+        {
+            Text = " 🔊 英→中选择题显示朗读按钮（点击播放发音）",
+            ButtonPressed = cfg.EnToCnPlayAudio
+        };
+        enToCnAudioToggle.AddThemeFontSizeOverride("font_size", 13);
+        enToCnAudioToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.EnToCnPlayAudio = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(enToCnAudioToggle);
+
         var spellEasyToggle = new CheckButton
         {
             Text = " 拼写简单模式（中间挖空填字，挖空数按字母数）",
