@@ -131,21 +131,13 @@ public partial class VocabSettingsPanel : Control
         hotkeyRow.AddThemeConstantOverride("separation", 6);
         titleRow.AddChild(hotkeyRow);
         hotkeyRow.AddChild(GameTheme.MakeLabel("\u5FEB\u6377\u952E:", 12, Grey));
-        var hotkeySelector = new OptionButton { CustomMinimumSize = new Vector2(80, 0) };
-        var keys = new[] { Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10, Key.F11 };
-        var currentIdx = 3; // default F8
-        for (var i = 0; i < keys.Length; i++)
+        var hotkeyBind = new KeyBindButton();
+        hotkeyBind.Setup(VocabConfig.Instance.SettingsHotkey, k =>
         {
-            hotkeySelector.AddItem($"F{i + 5}", i);
-            if (keys[i] == VocabConfig.Instance.SettingsHotkey) currentIdx = i;
-        }
-        hotkeySelector.Selected = currentIdx;
-        hotkeySelector.ItemSelected += idx =>
-        {
-            VocabConfig.Instance.SettingsHotkey = keys[idx];
+            VocabConfig.Instance.SettingsHotkey = k;
             VocabConfig.Instance.Save();
-        };
-        hotkeyRow.AddChild(hotkeySelector);
+        });
+        hotkeyRow.AddChild(hotkeyBind);
 
         hotkeyRow.AddChild(GameTheme.MakeLabel(" / Esc \u5173\u95ED", 12, Grey));
         vbox.AddChild(new HSeparator());
@@ -314,6 +306,35 @@ public partial class VocabSettingsPanel : Control
         var reviewDesc = GameTheme.MakeLabel(
             "开启后 Act 2+ 的拼写题只从本局已出过的词中选取", 16, DimGrey);
         _perActContainer.AddChild(reviewDesc);
+
+        // 答题按键（自定义提交 / 继续键；选项键固定 A-H / 1-8）
+        vbox.AddChild(GameTheme.MakeLabel("-- 答题按键 --", 22, SectionColor));
+
+        var submitRow = new HBoxContainer();
+        submitRow.AddThemeConstantOverride("separation", 8);
+        submitRow.AddChild(GameTheme.MakeLabel("提交答案:", 14, White));
+        var submitBind = new KeyBindButton();
+        submitBind.Setup(VocabConfig.Instance.SubmitKey, k =>
+        {
+            VocabConfig.Instance.SubmitKey = k;
+            VocabConfig.Instance.Save();
+        });
+        submitRow.AddChild(submitBind);
+        vbox.AddChild(submitRow);
+
+        var continueRow = new HBoxContainer();
+        continueRow.AddThemeConstantOverride("separation", 8);
+        continueRow.AddChild(GameTheme.MakeLabel("下一题 / 继续:", 14, White));
+        var continueBind = new KeyBindButton();
+        continueBind.Setup(VocabConfig.Instance.ContinueKey, k =>
+        {
+            VocabConfig.Instance.ContinueKey = k;
+            VocabConfig.Instance.Save();
+        });
+        continueRow.AddChild(continueBind);
+        vbox.AddChild(continueRow);
+
+        vbox.AddChild(GameTheme.MakeLabel("（选项键固定为 A-H / 1-8，不可改）", 11, Grey));
 
         // 拼写设置（始终可见，不随分层开关变化）
         vbox.AddChild(GameTheme.MakeLabel("-- 拼写设置 --", 22, SectionColor));
@@ -1271,6 +1292,8 @@ public partial class VocabSettingsPanel : Control
     public override void _Input(InputEvent @event)
     {
         if (!Visible) return;
+        // KeyBindButton 捕获模式按 Esc 取消时会先 SetInputAsHandled，此处不再误关面板
+        if (GetViewport().IsInputHandled()) return;
         if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
         {
             Visible = false;

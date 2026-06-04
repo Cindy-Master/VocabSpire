@@ -31,6 +31,12 @@ public sealed class VocabConfig
 
     /// <summary>设置面板快捷键（默认 F8）。</summary>
     public Key SettingsHotkey { get; set; } = Key.F8;
+
+    /// <summary>提交答案按键（默认 Enter）。</summary>
+    public Key SubmitKey { get; set; } = Key.Enter;
+
+    /// <summary>下一题 / 继续按键（默认 Enter）。</summary>
+    public Key ContinueKey { get; set; } = Key.Enter;
     public QuizModeFlags QuizModes { get; set; } = QuizModeFlags.EnglishToChinese | QuizModeFlags.ChineseToEnglish;
     public int OptionCount { get; set; } = 4;
     public bool ShowCombatSummary { get; set; } = true;
@@ -155,6 +161,14 @@ public sealed class VocabConfig
         return modes == QuizModeFlags.None ? QuizModes : modes;
     }
 
+    /// <summary>按键匹配：完全相等，或 Enter 与小键盘 Enter 互通。</summary>
+    public static bool KeyMatches(Key pressed, Key configured)
+    {
+        if (pressed == configured) return true;
+        return (configured == Key.Enter && pressed == Key.KpEnter)
+            || (configured == Key.KpEnter && pressed == Key.Enter);
+    }
+
     public float OverallAccuracy => TotalAnswered == 0
         ? 0f
         : (float)TotalCorrect / TotalAnswered;
@@ -183,6 +197,8 @@ public sealed class VocabConfig
             Enabled = data.Enabled;
             ActiveBankId = data.ActiveBankId ?? "";
             if (data.SettingsHotkey > 0) SettingsHotkey = (Key)data.SettingsHotkey;
+            if (data.SubmitKey > 0) SubmitKey = (Key)data.SubmitKey;
+            if (data.ContinueKey > 0) ContinueKey = (Key)data.ContinueKey;
             OptionCount = Math.Clamp(data.OptionCount, 2, 6);
             TotalAnswered = data.TotalAnswered;
             TotalCorrect = data.TotalCorrect;
@@ -287,6 +303,8 @@ public sealed class VocabConfig
                 Enabled = Enabled,
                 ActiveBankId = ActiveBankId,
                 SettingsHotkey = (int)SettingsHotkey,
+                SubmitKey = (int)SubmitKey,
+                ContinueKey = (int)ContinueKey,
                 QuizModeFlags = (int)QuizModes,
                 OptionCount = OptionCount,
                 ShowCombatSummary = ShowCombatSummary,
@@ -346,6 +364,12 @@ public sealed class VocabConfig
 
         [JsonPropertyName("settings_hotkey")]
         public int SettingsHotkey { get; set; }
+
+        [JsonPropertyName("submit_key")]
+        public int SubmitKey { get; set; }
+
+        [JsonPropertyName("continue_key")]
+        public int ContinueKey { get; set; }
 
         [JsonPropertyName("quiz_mode")]
         public int QuizMode { get; set; } = 2;

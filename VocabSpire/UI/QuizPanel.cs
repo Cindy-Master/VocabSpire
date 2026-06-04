@@ -421,7 +421,7 @@ public partial class QuizPanel : Control
         // 已作答：Enter 继续（至少 500ms 防 IME 双触发）
         if (_answered)
         {
-            if (key.Keycode is Key.Enter or Key.Space or Key.KpEnter)
+            if (VocabConfig.KeyMatches(key.Keycode, VocabConfig.Instance.ContinueKey))
             {
                 if (Time.GetTicksMsec() - _answeredAtMsec > 500)
                 {
@@ -437,8 +437,8 @@ public partial class QuizPanel : Control
         // 拼写模式不拦截字母键
         if (_currentQuestion.IsSpelling) return;
 
-        // Enter 触发提交（前提是已经选中）
-        if (key.Keycode is Key.Enter or Key.KpEnter)
+        // 提交键触发提交（前提是已经选中）
+        if (VocabConfig.KeyMatches(key.Keycode, VocabConfig.Instance.SubmitKey))
         {
             if (_choiceWidget.TrySubmit())
             {

@@ -327,7 +327,7 @@ public partial class RestSiteReviewPanel : Control
 
         if (_answered && _nextBtn.Visible)
         {
-            if (key.Keycode is Key.Enter or Key.Space or Key.KpEnter)
+            if (VocabConfig.KeyMatches(key.Keycode, VocabConfig.Instance.ContinueKey))
             {
                 ShowNextWord();
                 GetViewport().SetInputAsHandled();
@@ -338,8 +338,8 @@ public partial class RestSiteReviewPanel : Control
         if (_answered || _currentReviewQuiz is null) return;
         if (_currentReviewQuiz.IsSpelling) return; // 让 LineEdit 处理
 
-        // Enter → 提交
-        if (key.Keycode is Key.Enter or Key.KpEnter)
+        // 提交键 → 提交
+        if (VocabConfig.KeyMatches(key.Keycode, VocabConfig.Instance.SubmitKey))
         {
             if (_choiceWidget.TrySubmit())
             {
