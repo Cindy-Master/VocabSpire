@@ -223,13 +223,9 @@ public partial class RestSiteReviewPanel : Control
         _titleLabel.Text = $"篝火错题复习  ({_currentIndex + 1}/{_records.Count})";
         _promptLabel.Text = $"{record.Word.English}\n{record.Word.Chinese}";
 
-        var userDisp = string.IsNullOrEmpty(record.UserAnswerDetail)
-            ? record.UserAnswer
-            : $"{record.UserAnswer} ({record.UserAnswerDetail})";
-        var correctDisp = string.IsNullOrEmpty(record.CorrectAnswerDetail)
-            ? record.CorrectAnswer
-            : $"{record.CorrectAnswer} ({record.CorrectAnswerDetail})";
-        _feedbackLabel.Text = $"上次错误：你答了「{userDisp}」，正确答案是「{correctDisp}」";
+        // 答题前只提示「这是错题」，绝不显示正确答案 —— 复习选项里就含正确答案，
+        // 提前显示等于直接把答案告诉玩家。上次答错详情留到答题后再展示。
+        _feedbackLabel.Text = "这是你之前答错的单词，再做一次 ✍️";
         _feedbackLabel.AddThemeColorOverride("font_color", Grey);
 
         _currentReviewQuiz = null;
