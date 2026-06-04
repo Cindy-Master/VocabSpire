@@ -136,7 +136,7 @@ public partial class VocabSettingsPanel : Control
         {
             VocabConfig.Instance.SettingsHotkey = k;
             VocabConfig.Instance.Save();
-        });
+        }, k => VocabConfig.CheckKeyConflict(BindAction.OpenSettings, k));
         hotkeyRow.AddChild(hotkeyBind);
 
         hotkeyRow.AddChild(GameTheme.MakeLabel(" / Esc \u5173\u95ED", 12, Grey));
@@ -318,7 +318,7 @@ public partial class VocabSettingsPanel : Control
         {
             VocabConfig.Instance.SubmitKey = k;
             VocabConfig.Instance.Save();
-        });
+        }, k => VocabConfig.CheckKeyConflict(BindAction.Submit, k));
         submitRow.AddChild(submitBind);
         vbox.AddChild(submitRow);
 
@@ -330,7 +330,7 @@ public partial class VocabSettingsPanel : Control
         {
             VocabConfig.Instance.ContinueKey = k;
             VocabConfig.Instance.Save();
-        });
+        }, k => VocabConfig.CheckKeyConflict(BindAction.Continue, k));
         continueRow.AddChild(continueBind);
         vbox.AddChild(continueRow);
 

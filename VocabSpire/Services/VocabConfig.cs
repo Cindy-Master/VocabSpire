@@ -22,6 +22,9 @@ public enum RewardType
     Artifact  = 10  // 人工制品
 }
 
+/// <summary>可自定义的功能键动作（用于按键冲突检测）。</summary>
+public enum BindAction { OpenSettings, Submit, Continue }
+
 public sealed class VocabConfig
 {
     public static VocabConfig Instance { get; } = new();
@@ -168,6 +171,24 @@ public sealed class VocabConfig
         return (configured == Key.Enter && pressed == Key.KpEnter)
             || (configured == Key.KpEnter && pressed == Key.Enter);
     }
+
+    /// <summary>检查把 key 绑给 action 是否冲突；返回冲突对象名，无冲突返回 null。
+    /// 提交=继续 允许（答题前后状态不同，不冲突）。</summary>
+    public static string? CheckKeyConflict(BindAction action, Key key)
+    {
+        if (IsOptionKey(key)) return "选项键";
+        var c = Instance;
+        return action switch
+        {
+            BindAction.OpenSettings when key == c.SubmitKey || key == c.ContinueKey => "提交/继续键",
+            (BindAction.Submit or BindAction.Continue) when key == c.SettingsHotkey => "打开键",
+            _ => null
+        };
+    }
+
+    /// <summary>A-H / 1-8 是固定选项键，不能挪作功能键。</summary>
+    private static bool IsOptionKey(Key k) =>
+        (k >= Key.A && k <= Key.H) || (k >= Key.Key1 && k <= Key.Key8);
 
     public float OverallAccuracy => TotalAnswered == 0
         ? 0f
