@@ -14,6 +14,9 @@ namespace VocabSpire.Patches;
 [HarmonyPatch(typeof(NRestSiteRoom), "_Ready")]
 public static class RestSitePatch
 {
+    /// <summary>篝火复习默认软上限（认知负荷 ~7±2），用户未设 ReviewMaxCount 时生效。</summary>
+    private const int DefaultReviewCap = 7;
+
     public static void Postfix()
     {
         try
@@ -24,16 +27,25 @@ public static class RestSitePatch
             var allRecords = WrongAnswerTracker.Instance.FlushSegmentAnswers();
             if (allRecords.Count == 0) return;
 
-            // 按配置限制复习题数
-            var maxCount = VocabConfig.Instance.ReviewMaxCount;
-            var records = (maxCount > 0 && allRecords.Count > maxCount)
-                ? allRecords.OrderBy(_ => Guid.NewGuid()).Take(maxCount).ToList().AsReadOnly()
-                : allRecords;
+            // ② 篝火复习「分散 + 限量 + 优先级」：同词去重 → 按「最该复习」排序（Box 低=没掌握、
+            // 错得多 优先）→ 限量（默认软上限 ~7，认知负荷上限；用户设了 ReviewMaxCount 则用它）。
+            // 超出的不在篝火堆着，靠间隔重复引擎在后续战斗中按 Box 自然重现（spacing），不再一次 20+。
+            int cap = VocabConfig.Instance.ReviewMaxCount > 0
+                ? VocabConfig.Instance.ReviewMaxCount
+                : DefaultReviewCap;
+            var records = allRecords
+                .GroupBy(r => r.Word.English.ToLowerInvariant())
+                .Select(g => g.First())
+                .OrderBy(r => r.Word.Box)
+                .ThenByDescending(r => r.Word.WrongCount)
+                .Take(cap)
+                .ToList()
+                .AsReadOnly();
 
             var panel = RestSiteReviewPanel.Instance;
             if (panel is null) return;
 
-            Log.Info($"[VocabSpire] Showing rest site review: {records.Count}/{allRecords.Count} wrong answers.");
+            Log.Info($"[VocabSpire] Rest review: showing {records.Count} (deduped from {allRecords.Count} wrong answers).");
             panel.ShowReview(records);
         }
         catch (Exception ex)

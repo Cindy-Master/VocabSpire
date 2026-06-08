@@ -234,21 +234,26 @@ public sealed class VocabManager
 
     public void RecordAnswer(WordEntry word, bool correct)
     {
+        VocabConfig.Instance.TotalAnswered++;          // 全局 tick 前进（复用为间隔重复调度时钟）
+        if (correct) VocabConfig.Instance.TotalCorrect++;
+        long tick = VocabConfig.Instance.TotalAnswered;
+
         if (correct)
         {
             word.CorrectCount++;
             word.Streak++;
+            word.Box = Math.Min(5, word.Box + 1);      // 升盒 → 拉长复习间隔
         }
         else
         {
             word.WrongCount++;
-            word.Streak = 0; // 答错归零
+            word.Streak = 0;                           // 答错归零
+            word.Box = Math.Max(0, word.Box - 2);      // 降盒 → 很快重现
         }
+        word.DueTick = tick + WordEntry.Interval(word.Box);
 
         _testedWordsThisRun.Add(word.English.ToLowerInvariant());
 
-        VocabConfig.Instance.TotalAnswered++;
-        if (correct) VocabConfig.Instance.TotalCorrect++;
         VocabConfig.Instance.Save();
 
         // 持久化单词进度
@@ -270,14 +275,14 @@ public sealed class VocabManager
     {
         try
         {
-            var data = new Dictionary<string, int[]>();
+            var data = new Dictionary<string, long[]>();
             foreach (var bank in _banks)
             {
                 foreach (var w in bank.Words)
                 {
-                    if (w.CorrectCount == 0 && w.WrongCount == 0 && w.EnergyLost == 0) continue;
+                    if (w.CorrectCount == 0 && w.WrongCount == 0 && w.EnergyLost == 0 && w.Box == 0 && w.DueTick == 0) continue;
                     var key = w.English.ToLowerInvariant();
-                    data[key] = new[] { w.CorrectCount, w.WrongCount, w.EnergyLost, w.Streak };
+                    data[key] = new long[] { w.CorrectCount, w.WrongCount, w.EnergyLost, w.Streak, w.Box, w.DueTick };
                 }
             }
             var json = System.Text.Json.JsonSerializer.Serialize(data,
@@ -297,7 +302,7 @@ public sealed class VocabManager
             if (!File.Exists(ProgressFilePath)) return;
 
             var json = File.ReadAllText(ProgressFilePath);
-            var data = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int[]>>(json);
+            var data = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, long[]>>(json);
             if (data is null) return;
 
             foreach (var bank in _banks)
@@ -306,10 +311,12 @@ public sealed class VocabManager
                 {
                     var key = w.English.ToLowerInvariant();
                     if (!data.TryGetValue(key, out var stats)) continue;
-                    w.CorrectCount = stats.Length > 0 ? stats[0] : 0;
-                    w.WrongCount = stats.Length > 1 ? stats[1] : 0;
-                    w.EnergyLost = stats.Length > 2 ? stats[2] : 0;
-                    w.Streak = stats.Length > 3 ? stats[3] : 0;
+                    w.CorrectCount = stats.Length > 0 ? (int)stats[0] : 0;
+                    w.WrongCount = stats.Length > 1 ? (int)stats[1] : 0;
+                    w.EnergyLost = stats.Length > 2 ? (int)stats[2] : 0;
+                    w.Streak = stats.Length > 3 ? (int)stats[3] : 0;
+                    w.Box = stats.Length > 4 ? (int)stats[4] : 0;       // 旧 progress 缺此字段 → 默认 0（视为到期，重新纳入调度）
+                    w.DueTick = stats.Length > 5 ? stats[5] : 0;
                 }
             }
 
