@@ -127,7 +127,7 @@ public partial class RestSiteReviewPanel : Control
         mainVBox.AddChild(btnCenter);
         _nextBtn = new Button
         {
-            Text = "  下一题 (Enter)  ",
+            Text = "  下一题  ",
             CustomMinimumSize = new Vector2(200, 44),
             Visible = false
         };
@@ -269,9 +269,10 @@ public partial class RestSiteReviewPanel : Control
         _feedbackLabel.AddThemeColorOverride("font_color", correct ? CorrectGreen : WrongRed);
 
         _nextBtn.Visible = true;
+        var contKey = KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey);
         _nextBtn.Text = _currentIndex >= _records.Count - 1
-            ? "  完成复习 (Enter)  "
-            : "  下一题 (Enter)  ";
+            ? $"  完成复习 ({contKey})  "
+            : $"  下一题 ({contKey})  ";
     }
 
     private void OnSpellingSubmit()
@@ -299,9 +300,10 @@ public partial class RestSiteReviewPanel : Control
         }
 
         _nextBtn.Visible = true;
+        var contKey = KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey);
         _nextBtn.Text = _currentIndex >= _records.Count - 1
-            ? "  完成复习 (Enter)  "
-            : "  下一题 (Enter)  ";
+            ? $"  完成复习 ({contKey})  "
+            : $"  下一题 ({contKey})  ";
     }
 
     private void ShowNextWord()

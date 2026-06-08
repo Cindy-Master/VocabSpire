@@ -55,7 +55,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
 
         var submitCenter = new CenterContainer();
         AddChild(submitCenter);
-        _submitBtn = GameTheme.MakeButton("  提交答案 (Enter)  ", 16, GameTheme.Gold);
+        _submitBtn = GameTheme.MakeButton($"  提交答案 ({KeyBindButton.KeyName(VocabConfig.Instance.SubmitKey)})  ", 16, GameTheme.Gold);
         _submitBtn.CustomMinimumSize = new Vector2(220, 42);
         _submitBtn.Visible = false;
         _submitBtn.Pressed += OnSubmit;
@@ -87,9 +87,10 @@ public partial class ChoiceAnswerWidget : VBoxContainer
 
         _submitBtn.Visible = true;
         _submitBtn.Disabled = false;
+        var submitKey = KeyBindButton.KeyName(VocabConfig.Instance.SubmitKey);
         _submitBtn.Text = question.IsMultiSelect
-            ? "  提交多选答案 (Enter)  "
-            : "  提交答案 (Enter)  ";
+            ? $"  提交多选答案 ({submitKey})  "
+            : $"  提交答案 ({submitKey})  ";
         Visible = true;
     }
 

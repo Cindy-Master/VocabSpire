@@ -165,7 +165,7 @@ public partial class QuizPanel : Control
         mainVBox.AddChild(confirmContainer);
         _confirmButton = new Button
         {
-            Text = "  继续 (Enter)  ",
+            Text = "  继续  ",
             CustomMinimumSize = new Vector2(200, 44),
             Visible = false
         };
@@ -254,6 +254,7 @@ public partial class QuizPanel : Control
         }
 
         _feedbackLabel.Text = "";
+        _confirmButton.Text = $"  继续 ({KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey)})  ";
         _confirmButton.Visible = false;
         UpdateStats();
         Visible = true;
