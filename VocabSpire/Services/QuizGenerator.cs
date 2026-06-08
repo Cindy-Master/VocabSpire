@@ -15,8 +15,7 @@ public sealed class QuizGenerator
     /// <summary>mini-cooldown：只防连续两张出同词（远小于词库，让间隔重现成为主力）。</summary>
     private const int MiniCooldown = 3;
 
-    /// <summary>新词节流：同时「学习中」(Box&lt;2) 的新词上限，满了先巩固、不引入新词（③）。</summary>
-    private const int NewWordLimit = 15;
+    // 新词节流上限由 VocabConfig.NewWordLimit 配置（设置面板可调，默认 15）。
 
     /// <summary>
     /// 生成一道题。tier: 1-3 对应 Act 层级（难度递增）。
@@ -684,7 +683,7 @@ public sealed class QuizGenerator
 
         // ③ 新词节流：学习中的词（见过但 Box<2 未掌握）达上限 → 暂不引入新词
         int learning = words.Count(w => w.Seen && w.Box < 2);
-        bool allowNew = learning < NewWordLimit;
+        bool allowNew = learning < VocabConfig.Instance.NewWordLimit;
 
         var weights = words.Select(w =>
         {

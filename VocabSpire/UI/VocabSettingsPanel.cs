@@ -974,6 +974,29 @@ public partial class VocabSettingsPanel : Control
         masteryRow.AddChild(masteryInput);
         masteryRow.AddChild(GameTheme.MakeLabel("  (\u8FDE\u7EED\u7B54\u5BF9\u6B21\u6570)", 16, DimGrey));
 
+        // 每局新词上限（新词节流，v2.7 记忆引擎）
+        var newWordRow = new HBoxContainer();
+        newWordRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(newWordRow);
+        newWordRow.AddChild(GameTheme.MakeLabel("新词上限：", 18, White));
+
+        var newWordInput = new SpinBox
+        {
+            MinValue = 3,
+            MaxValue = 50,
+            Step = 1,
+            Value = cfg.NewWordLimit,
+            CustomMinimumSize = new Vector2(100, 0)
+        };
+        newWordInput.GetLineEdit().AddThemeFontSizeOverride("font_size", 14);
+        newWordInput.ValueChanged += val =>
+        {
+            VocabConfig.Instance.NewWordLimit = (int)val;
+            VocabConfig.Instance.Save();
+        };
+        newWordRow.AddChild(newWordInput);
+        newWordRow.AddChild(GameTheme.MakeLabel("  (同时学习中的新词上限，满了先巩固)", 16, DimGrey));
+
         // 听力音量
         var volRow = new HBoxContainer();
         volRow.AddThemeConstantOverride("separation", 8);

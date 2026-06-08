@@ -109,6 +109,9 @@ public sealed class VocabConfig
     /// <summary>篝火复习最大题数（0=全部错题）。</summary>
     public int ReviewMaxCount { get; set; }
 
+    /// <summary>每局同时「学习中」(Box&lt;2) 的新词上限（新词节流）。满了先巩固、不引入新词。默认 15。</summary>
+    public int NewWordLimit { get; set; } = 15;
+
     // ── 战斗惩罚/奖励设置 ──
     /// <summary>答错时跳过卡牌效果（同时影响容错和"扣费+回手/弃牌堆"互斥选项）。
     /// 关闭后答错卡牌照常生效，惩罚靠 PunishmentRules 体现。</summary>
@@ -249,6 +252,7 @@ public sealed class VocabConfig
             SpellingEasyMode = data.SpellingEasyMode;
             if (data.ReviewQuizMode > 0) ReviewQuizMode = (QuizModeFlags)data.ReviewQuizMode;
             ReviewMaxCount = Math.Max(0, data.ReviewMaxCount);
+            if (data.NewWordLimit > 0) NewWordLimit = data.NewWordLimit;
             if (data.MasteryStreak > 0) MasteryStreak = data.MasteryStreak;
             if (data.TtsVolume >= 0) TtsVolume = Math.Clamp(data.TtsVolume, 0, 100);
 
@@ -348,6 +352,7 @@ public sealed class VocabConfig
                 SpellingEasyMode = SpellingEasyMode,
                 ReviewQuizMode = (int)ReviewQuizMode,
                 ReviewMaxCount = ReviewMaxCount,
+                NewWordLimit = NewWordLimit,
                 MasteryStreak = MasteryStreak,
                 TtsVolume = TtsVolume,
                 WrongAnswerSkipEffect = WrongAnswerSkipEffect,
@@ -465,6 +470,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("review_max_count")]
         public int ReviewMaxCount { get; set; }
+
+        [JsonPropertyName("new_word_limit")]
+        public int NewWordLimit { get; set; }
 
         [JsonPropertyName("mastery_streak")]
         public int MasteryStreak { get; set; }
