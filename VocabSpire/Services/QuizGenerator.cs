@@ -12,8 +12,7 @@ public sealed class QuizGenerator
     /// <summary>最近出过的单词队列，用于防止短期内重复出题。</summary>
     private readonly Queue<WordEntry> _recentWords = new();
 
-    /// <summary>mini-cooldown：只防连续两张出同词（远小于词库，让间隔重现成为主力）。</summary>
-    private const int MiniCooldown = 3;
+    // mini-cooldown 防连续窗口由 VocabConfig.MiniCooldown 配置（设置面板可调，默认 3）。
 
     // 新词节流上限由 VocabConfig.NewWordLimit 配置（设置面板可调，默认 15）。
 
@@ -696,7 +695,7 @@ public sealed class QuizGenerator
             if (w.Box >= 3)
             {
                 long daysSince = (nowSec - w.LastSeenDate) / 86400;
-                int dueDays = WordEntry.IntervalDays(w.Box);
+                int dueDays = VocabConfig.Instance.IntervalDaysFor(w.Box);
                 if (daysSince >= dueDays)
                     return 4.0 + Math.Min((daysSince - dueDays) * 0.5, 4.0); // 搁够→优先重现，搁越久略高（不爆炸）
                 return 0.02;                                     // 没到期：基本不出，让位给没掌握的词
@@ -735,7 +734,7 @@ public sealed class QuizGenerator
 
         // mini-cooldown 窗口=3，让「间隔重现」成为主力（而非原来 bankSize/3 上限20 的长屏蔽）
         _recentWords.Enqueue(selected);
-        while (_recentWords.Count > MiniCooldown)
+        while (_recentWords.Count > VocabConfig.Instance.MiniCooldown)
             _recentWords.Dequeue();
 
         return selected;

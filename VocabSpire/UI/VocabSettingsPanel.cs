@@ -997,6 +997,69 @@ public partial class VocabSettingsPanel : Control
         newWordRow.AddChild(newWordInput);
         newWordRow.AddChild(GameTheme.MakeLabel("  (同时学习中的新词上限，满了先巩固)", 16, DimGrey));
 
+        // ── 高级：间隔参数（v2.7 记忆引擎曲线，逗号分隔）──
+        vbox.AddChild(new HSeparator());
+        vbox.AddChild(GameTheme.MakeLabel("-- 高级：间隔参数 --", 22, SectionColor));
+
+        var stepRow = new HBoxContainer();
+        stepRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(stepRow);
+        stepRow.AddChild(GameTheme.MakeLabel("题数间隔：", 18, White));
+        var stepInput = new LineEdit
+        {
+            Text = string.Join(",", cfg.IntervalSteps),
+            CustomMinimumSize = new Vector2(220, 0)
+        };
+        stepInput.AddThemeFontSizeOverride("font_size", 14);
+        stepInput.TextSubmitted += t =>
+        {
+            var arr = ParseIntCsv(t, VocabConfig.Instance.IntervalSteps);
+            VocabConfig.Instance.IntervalSteps = arr;
+            VocabConfig.Instance.Save();
+            stepInput.Text = string.Join(",", arr);
+        };
+        stepRow.AddChild(stepInput);
+        stepRow.AddChild(GameTheme.MakeLabel("  (Box0-5 题数，回车保存)", 12, DimGrey));
+
+        var dayRow = new HBoxContainer();
+        dayRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(dayRow);
+        dayRow.AddChild(GameTheme.MakeLabel("跨天间隔：", 18, White));
+        var dayInput = new LineEdit
+        {
+            Text = string.Join(",", cfg.IntervalDaysSteps),
+            CustomMinimumSize = new Vector2(160, 0)
+        };
+        dayInput.AddThemeFontSizeOverride("font_size", 14);
+        dayInput.TextSubmitted += t =>
+        {
+            var arr = ParseIntCsv(t, VocabConfig.Instance.IntervalDaysSteps);
+            VocabConfig.Instance.IntervalDaysSteps = arr;
+            VocabConfig.Instance.Save();
+            dayInput.Text = string.Join(",", arr);
+        };
+        dayRow.AddChild(dayInput);
+        dayRow.AddChild(GameTheme.MakeLabel("  (Box3-5 天数，回车保存)", 12, DimGrey));
+
+        var cdRow = new HBoxContainer();
+        cdRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(cdRow);
+        cdRow.AddChild(GameTheme.MakeLabel("防连续窗口：", 18, White));
+        var cdInput = new SpinBox
+        {
+            MinValue = 0, MaxValue = 30, Step = 1,
+            Value = cfg.MiniCooldown,
+            CustomMinimumSize = new Vector2(100, 0)
+        };
+        cdInput.GetLineEdit().AddThemeFontSizeOverride("font_size", 14);
+        cdInput.ValueChanged += val =>
+        {
+            VocabConfig.Instance.MiniCooldown = (int)val;
+            VocabConfig.Instance.Save();
+        };
+        cdRow.AddChild(cdInput);
+        cdRow.AddChild(GameTheme.MakeLabel("  (最近几张不重复同词)", 12, DimGrey));
+
         // 听力音量
         var volRow = new HBoxContainer();
         volRow.AddThemeConstantOverride("separation", 8);
@@ -1167,6 +1230,23 @@ public partial class VocabSettingsPanel : Control
             11, DimGrey);
         help.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         vbox.AddChild(help);
+    }
+
+    /// <summary>解析逗号分隔的正整数（如 "3,8,20"），失败或空则返回 fallback。</summary>
+    private static int[] ParseIntCsv(string s, int[] fallback)
+    {
+        try
+        {
+            var parts = s.Split(',');
+            var list = new System.Collections.Generic.List<int>();
+            foreach (var p in parts)
+            {
+                var t = p.Trim();
+                if (t.Length > 0 && int.TryParse(t, out var n) && n > 0) list.Add(n);
+            }
+            return list.Count > 0 ? list.ToArray() : fallback;
+        }
+        catch { return fallback; }
     }
 
     private void BuildFileDialog()

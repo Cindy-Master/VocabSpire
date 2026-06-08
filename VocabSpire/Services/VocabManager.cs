@@ -250,7 +250,7 @@ public sealed class VocabManager
             word.Streak = 0;                           // 答错归零
             word.Box = Math.Max(0, word.Box - 2);      // 降盒 → 很快重现
         }
-        word.DueTick = tick + WordEntry.Interval(word.Box);
+        word.DueTick = tick + VocabConfig.Instance.IntervalFor(word.Box);
         word.LastSeenDate = DateTimeOffset.UtcNow.ToUnixTimeSeconds();  // 记真实时间（毕业词跨天复习用）
 
         _testedWordsThisRun.Add(word.English.ToLowerInvariant());

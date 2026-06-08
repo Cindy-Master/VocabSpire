@@ -112,6 +112,31 @@ public sealed class VocabConfig
     /// <summary>每局同时「学习中」(Box&lt;2) 的新词上限（新词节流）。满了先巩固、不引入新词。默认 15。</summary>
     public int NewWordLimit { get; set; } = 15;
 
+    /// <summary>题数间隔曲线（session 内，Box0-5 的重现间隔，题为单位）。</summary>
+    public int[] IntervalSteps { get; set; } = { 3, 8, 20, 50, 120, 300 };
+
+    /// <summary>跨天间隔曲线（Box3-5 毕业词的真实天数间隔）。</summary>
+    public int[] IntervalDaysSteps { get; set; } = { 1, 3, 7 };
+
+    /// <summary>mini-cooldown：防连续两张同词的窗口。</summary>
+    public int MiniCooldown { get; set; } = 3;
+
+    /// <summary>取 Box 对应的题数间隔（带边界保护）。</summary>
+    public long IntervalFor(int box)
+    {
+        var s = IntervalSteps;
+        if (s is null || s.Length == 0) return 3;
+        return s[Math.Clamp(box, 0, s.Length - 1)];
+    }
+
+    /// <summary>取 Box(≥3) 对应的跨天天数间隔（带边界保护）。</summary>
+    public int IntervalDaysFor(int box)
+    {
+        var s = IntervalDaysSteps;
+        if (s is null || s.Length == 0) return 1;
+        return s[Math.Clamp(box - 3, 0, s.Length - 1)];
+    }
+
     // ── 战斗惩罚/奖励设置 ──
     /// <summary>答错时跳过卡牌效果（同时影响容错和"扣费+回手/弃牌堆"互斥选项）。
     /// 关闭后答错卡牌照常生效，惩罚靠 PunishmentRules 体现。</summary>
@@ -253,6 +278,9 @@ public sealed class VocabConfig
             if (data.ReviewQuizMode > 0) ReviewQuizMode = (QuizModeFlags)data.ReviewQuizMode;
             ReviewMaxCount = Math.Max(0, data.ReviewMaxCount);
             if (data.NewWordLimit > 0) NewWordLimit = data.NewWordLimit;
+            if (data.IntervalSteps is { Length: > 0 }) IntervalSteps = data.IntervalSteps;
+            if (data.IntervalDaysSteps is { Length: > 0 }) IntervalDaysSteps = data.IntervalDaysSteps;
+            if (data.MiniCooldown > 0) MiniCooldown = data.MiniCooldown;
             if (data.MasteryStreak > 0) MasteryStreak = data.MasteryStreak;
             if (data.TtsVolume >= 0) TtsVolume = Math.Clamp(data.TtsVolume, 0, 100);
 
@@ -353,6 +381,9 @@ public sealed class VocabConfig
                 ReviewQuizMode = (int)ReviewQuizMode,
                 ReviewMaxCount = ReviewMaxCount,
                 NewWordLimit = NewWordLimit,
+                IntervalSteps = IntervalSteps,
+                IntervalDaysSteps = IntervalDaysSteps,
+                MiniCooldown = MiniCooldown,
                 MasteryStreak = MasteryStreak,
                 TtsVolume = TtsVolume,
                 WrongAnswerSkipEffect = WrongAnswerSkipEffect,
@@ -473,6 +504,15 @@ public sealed class VocabConfig
 
         [JsonPropertyName("new_word_limit")]
         public int NewWordLimit { get; set; }
+
+        [JsonPropertyName("interval_steps")]
+        public int[]? IntervalSteps { get; set; }
+
+        [JsonPropertyName("interval_days_steps")]
+        public int[]? IntervalDaysSteps { get; set; }
+
+        [JsonPropertyName("mini_cooldown")]
+        public int MiniCooldown { get; set; }
 
         [JsonPropertyName("mastery_streak")]
         public int MasteryStreak { get; set; }
