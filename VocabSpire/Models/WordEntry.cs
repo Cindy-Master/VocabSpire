@@ -23,8 +23,11 @@ public sealed class WordEntry
     /// <summary>掌握盒 0-5：0=生词/刚答错，5=已牢固。决定下次复习间隔。</summary>
     public int Box { get; set; }
 
-    /// <summary>下次该复习的全局序号（GlobalTick）。tick 到达即「到期」，优先出题。</summary>
+    /// <summary>下次该复习的全局序号（GlobalTick）。学习阶段(Box&lt;3)用：tick 到达即「到期」。</summary>
     public long DueTick { get; set; }
+
+    /// <summary>上次遇到该词的真实时间（Unix 秒）。毕业词(Box≥3)按真实天数判断「搁久了该复习」。</summary>
+    public long LastSeenDate { get; set; }
 
     /// <summary>是否已答过（区分 新词 / 学习中 / 已掌握）。</summary>
     public bool Seen => CorrectCount + WrongCount > 0;
@@ -43,5 +46,14 @@ public sealed class WordEntry
         3 => 50,
         4 => 120,
         _ => 300
+    };
+
+    /// <summary>毕业词(Box≥3)的跨天复习间隔（真实天数）：搁够这么多天就该复习。
+    /// 宽容式——到期不玩不堆债，下次进游戏自然优先重现，不催不惩罚。</summary>
+    public static int IntervalDays(int box) => box switch
+    {
+        3 => 1,
+        4 => 3,
+        _ => 7
     };
 }

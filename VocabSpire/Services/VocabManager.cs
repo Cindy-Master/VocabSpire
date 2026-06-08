@@ -251,6 +251,7 @@ public sealed class VocabManager
             word.Box = Math.Max(0, word.Box - 2);      // 降盒 → 很快重现
         }
         word.DueTick = tick + WordEntry.Interval(word.Box);
+        word.LastSeenDate = DateTimeOffset.UtcNow.ToUnixTimeSeconds();  // 记真实时间（毕业词跨天复习用）
 
         _testedWordsThisRun.Add(word.English.ToLowerInvariant());
 
@@ -282,7 +283,7 @@ public sealed class VocabManager
                 {
                     if (w.CorrectCount == 0 && w.WrongCount == 0 && w.EnergyLost == 0 && w.Box == 0 && w.DueTick == 0) continue;
                     var key = w.English.ToLowerInvariant();
-                    data[key] = new long[] { w.CorrectCount, w.WrongCount, w.EnergyLost, w.Streak, w.Box, w.DueTick };
+                    data[key] = new long[] { w.CorrectCount, w.WrongCount, w.EnergyLost, w.Streak, w.Box, w.DueTick, w.LastSeenDate };
                 }
             }
             var json = System.Text.Json.JsonSerializer.Serialize(data,
@@ -317,6 +318,7 @@ public sealed class VocabManager
                     w.Streak = stats.Length > 3 ? (int)stats[3] : 0;
                     w.Box = stats.Length > 4 ? (int)stats[4] : 0;       // 旧 progress 缺此字段 → 默认 0（视为到期，重新纳入调度）
                     w.DueTick = stats.Length > 5 ? stats[5] : 0;
+                    w.LastSeenDate = stats.Length > 6 ? stats[6] : 0;
                 }
             }
 

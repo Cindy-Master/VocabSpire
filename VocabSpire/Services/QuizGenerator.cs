@@ -678,7 +678,8 @@ public sealed class QuizGenerator
     /// </summary>
     private WordEntry SelectWeightedWord(List<WordEntry> words)
     {
-        long tick = VocabConfig.Instance.TotalAnswered;          // 全局调度时钟
+        long tick = VocabConfig.Instance.TotalAnswered;          // 全局调度时钟（题数，session 内）
+        long nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // 真实时间（毕业词跨天用）
         var recentSet = new HashSet<WordEntry>(_recentWords);
 
         // ③ 新词节流：学习中的词（见过但 Box<2 未掌握）达上限 → 暂不引入新词
@@ -692,15 +693,25 @@ public sealed class QuizGenerator
             if (!w.Seen)
                 return allowNew ? 2.0 : 0.0;                     // 新词：节流满时不引入
 
+            // 毕业词（Box≥3）：宽容跨天——按真实天数判断「搁久了该复习」，到期不玩不堆债
+            if (w.Box >= 3)
+            {
+                long daysSince = (nowSec - w.LastSeenDate) / 86400;
+                int dueDays = WordEntry.IntervalDays(w.Box);
+                if (daysSince >= dueDays)
+                    return 4.0 + Math.Min((daysSince - dueDays) * 0.5, 4.0); // 搁够→优先重现，搁越久略高（不爆炸）
+                return 0.02;                                     // 没到期：基本不出，让位给没掌握的词
+            }
+
+            // 学习中（Box<3）：session 内题数间隔，没掌握的反复重现凑 6-10 次
             long overdue = tick - w.DueTick;
             if (overdue >= 0)
             {
-                // 到期复习：Box 越低（越没掌握）+ 过期越久 → 权重越高
-                double boxFactor = 6 - w.Box;                    // Box0→6 … Box5→1
+                double boxFactor = 6 - w.Box;                    // Box0→6 … Box2→4
                 double overdueFactor = 1.0 + Math.Min(overdue / 5.0, 3.0);
                 return boxFactor * overdueFactor;
             }
-            return 0.05;                                         // 未到期：极低权重兜底，避免无词可选
+            return 0.05;                                         // 未到期：极低权重兜底
         }).ToList();
 
         var totalWeight = weights.Sum();

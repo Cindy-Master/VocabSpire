@@ -932,7 +932,7 @@ public partial class VocabSettingsPanel : Control
         var reviewCountRow = new HBoxContainer();
         reviewCountRow.AddThemeConstantOverride("separation", 8);
         vbox.AddChild(reviewCountRow);
-        reviewCountRow.AddChild(GameTheme.MakeLabel("\u590D\u4E60\u9898\u6570\uFF1A", 18, White));
+        reviewCountRow.AddChild(GameTheme.MakeLabel("\u7BDD\u706B\u590D\u4E60\u4E0A\u9650\uFF1A", 18, White));
 
         var reviewCountInput = new SpinBox
         {
@@ -949,7 +949,7 @@ public partial class VocabSettingsPanel : Control
             VocabConfig.Instance.Save();
         };
         reviewCountRow.AddChild(reviewCountInput);
-        reviewCountRow.AddChild(GameTheme.MakeLabel("  (0 = \u5168\u90E8\u9519\u9898)", 12, DimGrey));
+        reviewCountRow.AddChild(GameTheme.MakeLabel("  (0 = \u9ED8\u8BA4 7\uFF0C\u81EA\u5DF1\u586B\u60F3\u590D\u4E60\u51E0\u4E2A)", 12, DimGrey));
 
         // 掌握阈值
         var masteryRow = new HBoxContainer();
