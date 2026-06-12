@@ -24,6 +24,10 @@ public static class QuizState
 {
     internal static bool Bypass;
     internal static bool SkipEffect;
+    /// <summary>答错跳过卡牌效果时，附魔(Enchantment)/词缀(Affliction)的独立 OnPlay 也要跳过。
+    /// 与 SkipEffect 同设，但生命周期覆盖整个 OnPlayWrapper —— 不被 OnPlaySkipPatch.Postfix
+    /// 提前复位，因为附魔/词缀的 OnPlay 在 CardModel.OnPlay（及其 Postfix 复位）之后才执行。</summary>
+    internal static bool SkipCardExtras;
     internal static bool NoCost;
     internal static bool ReturnToHand;
     internal static bool QuizActive;
@@ -40,6 +44,7 @@ public static class QuizState
     public static void ResetCardLevel()
     {
         SkipEffect = false;
+        SkipCardExtras = false;
         NoCost = false;
         ReturnToHand = false;
         PendingRewards.Clear();
@@ -215,6 +220,7 @@ public static class SinglePlayerPatch
         }
 
         QuizState.SkipEffect = true;
+        QuizState.SkipCardExtras = true; // 附魔/词缀效果随卡牌效果一并跳过（"伶俐"附魔的起防即在此触发）
 
         if (BattleStateTracker.Instance.CanUseTolerance())
         {
@@ -382,7 +388,7 @@ public static class NetPlayCardDeserializePatch
         try
         {
             QuizState.ResetCardLevel();
-            if (reader.ReadBool()) QuizState.SkipEffect = true;
+            if (reader.ReadBool()) { QuizState.SkipEffect = true; QuizState.SkipCardExtras = true; }
             if (reader.ReadBool()) QuizState.NoCost = true;
             if (reader.ReadBool()) QuizState.ReturnToHand = true;
 
@@ -472,8 +478,11 @@ public static class GetResultPileTypePatch
 
     public static void Postfix(ref PileType __result)
     {
-        if (QuizState.ReturnToHand && __result != PileType.None)
+        if (QuizState.ReturnToHand)
         {
+            // 答错回手：能力牌/复制牌(IsDupe)的原结果是 PileType.None —— OnPlayWrapper 会对 None
+            // 调 RemoveFromCombat 把它移出战斗（=凭空消失）。开了回手就必须把 None 也改成 Hand，
+            // 否则能力牌答错后既没上 buff 也没回手，直接消失。
             __result = PileType.Hand;
         }
     }
@@ -569,5 +578,50 @@ public static class OnPlaySkipPatch
             await RewardService.ApplyAllAsync(target, rewards, choiceContext);
         if (punishments.Count > 0)
             await PunishmentService.ApplyAllAsync(target, punishments, choiceContext);
+    }
+}
+
+/// <summary>
+/// 答错跳过卡牌效果时，附魔(Enchantment)与词缀(Affliction)的 OnPlay 也要一并跳过。
+/// 它们在 OnPlayWrapper 里独立于 CardModel.OnPlay 触发（"伶俐"附魔的起防即在此），
+/// 只 patch CardModel.OnPlay 拦不住 —— 会出现"牌没打出却触发了附魔/词缀效果"。
+/// 用 SkipCardExtras（而非 SkipEffect）判断：附魔/词缀 OnPlay 在 CardModel.OnPlay 之后执行，
+/// 此时 SkipEffect 已被 OnPlaySkipPatch.Postfix 复位，SkipCardExtras 则覆盖整个 OnPlayWrapper。
+/// </summary>
+[HarmonyPatch]
+public static class EnchantmentAfflictionSkipPatch
+{
+    static IEnumerable<MethodBase> TargetMethods()
+    {
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic
+                  | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        var enchantBase = typeof(EnchantmentModel);
+        var afflictBase = typeof(AfflictionModel);
+        var enchantParams = new[] { typeof(PlayerChoiceContext), typeof(CardPlay) };
+        var afflictParams = new[] { typeof(PlayerChoiceContext), typeof(Creature) };
+        var count = 0;
+
+        foreach (var type in enchantBase.Assembly.GetTypes())
+        {
+            MethodInfo? method = null;
+            if (enchantBase.IsAssignableFrom(type))
+                method = type.GetMethod("OnPlay", flags, null, enchantParams, null);
+            else if (afflictBase.IsAssignableFrom(type))
+                method = type.GetMethod("OnPlay", flags, null, afflictParams, null);
+            if (method is null) continue;
+            count++;
+            yield return method;
+        }
+
+        Log.Info($"[VocabSpire] Patched {count} Enchantment/Affliction OnPlay methods (skip on wrong answer).");
+    }
+
+    public static bool Prefix(object __instance, ref Task __result)
+    {
+        if (!QuizState.SkipCardExtras) return true;
+
+        Log.Info($"[VocabSpire] Extra effect skipped: {__instance?.GetType().Name} (wrong answer).");
+        __result = Task.CompletedTask;
+        return false;
     }
 }
