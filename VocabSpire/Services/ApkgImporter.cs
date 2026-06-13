@@ -10,9 +10,10 @@ namespace VocabSpire.Services;
 /// 把 Anki .apkg 词库导入为 VocabSpire 词库（WordBank）。
 ///
 /// 流程：apkg(zip) → 取 collection 数据库 → <see cref="MiniSqliteReader"/> 读 col/notes
-/// → 解析 note type 字段定义 → 自动判定哪个字段是「英文词 / 中文释义 / 音标」
-/// （内容检测：ASCII=英文、CJK=中文、IPA 字符=音标，叠加字段名启发式）
-/// → 清洗 HTML 标签与 [sound:] 标记 → 同一英文词的多条 note 聚合成多义项。
+/// → 解析 note type 字段定义 → 自动判定哪个字段是「单词 / 释义 / 音标·读音」
+/// （字段名多语言启发式 + 内容检测：长度/词数定单词、CJK 或最长列定释义、IPA/拼音/假名定读音）
+/// → 清洗 HTML 标签与 [sound:] 标记 → 同一单词的多条 note 聚合成多义项。
+/// 支持任意语种词库（法→中、法→英、日→英、德→中…），不再局限「英文单词 + 中文释义」。
 ///
 /// 目前支持 collection.anki2 / collection.anki21（纯 SQLite）。新版 collection.anki21b
 /// （zstd 压缩）会抛出友好提示，建议用 Anki 旧版格式重新导出。
@@ -27,6 +28,41 @@ public static class ApkgImporter
 
     private static readonly char[] IpaChars =
         "ˈˌːɪɛæʌɑɒɔəɜʊθðʃʒŋɡɹɝɚɫʔˑʰ".ToCharArray();
+
+    // 多语言「字段角色」名 —— 只放角色词，不放具体语言名（如 english/chinese），避免
+    // 「英→中的 English 列」与「法→英的 English 列」角色相反时误判。语言本身交给内容检测。
+    private static readonly string[] WordNames =
+    {
+        "word", "term", "headword", "expression", "vocab", "spelling", "lemma",
+        "front", "question", "recto", "vorderseite", "mot", "palabra", "parola",
+        "wort", "vokabel", "単語", "단어", "单词", "词条", "生词", "正面", "词头"
+    };
+    private static readonly string[] WordExclude =
+    {
+        "password", "keyword", "wordid", "reword", "audio", "sound", "image", "media", "example"
+    };
+    private static readonly string[] DefNames =
+    {
+        "definition", "meaning", "translation", "translat", "back", "answer",
+        "sense", "gloss", "explanation", "notes", "verso", "ruckseite", "rückseite",
+        "traduction", "signification", "bedeutung", "ubersetzung", "übersetzung",
+        "significado", "意味", "定義", "意思", "解释", "释义", "翻译", "义项",
+        "含义", "注释", "背面", "訳", "裏", "뜻", "의미"
+    };
+    private static readonly string[] DefExclude =
+    {
+        "audio", "ipa", "sound", "image", "url", "媒体", "video", "phonetic", "pron"
+    };
+    private static readonly string[] PhoneticNames =
+    {
+        "ipa", "phonetic", "pronunciation", "prononciation", "aussprache",
+        "pronunciacion", "pronunciación", "音标", "発音", "拼音", "pinyin",
+        "reading", "読み", "kana", "仮名", "furigana", "romaji", "注音", "yomi"
+    };
+    private static readonly string[] PhoneticExclude =
+    {
+        "audio", "sound", "example", "passage", "url", "媒体", "video", "image"
+    };
 
     /// <summary>导入 apkg，返回 WordBank。失败抛异常（调用方负责 Log）。</summary>
     public static WordBank Import(string apkgPath)
@@ -77,9 +113,9 @@ public static class ApkgImporter
                 string word = Clean(parts[en]);
                 string cdef = Clean(parts[cn]);
                 if (word.Length == 0 || cdef.Length == 0) continue;
-                if (HasCjk(word)) continue; // 英文词字段不该含中文（过滤表头/脏行/方向错的列）
+                if (word == cdef) continue; // 单词列与释义列取到同一值（方向退化/脏行），跳过
 
-                // 表头行特征：英文词字段的值恰好等于它的字段名（如值="Word"）。
+                // 表头行特征：单词字段的值恰好等于它的字段名（如值="Word"）。
                 // 用「值==字段名」精确判定，避免把 term/word/front 这类真实单词误当表头。
                 if (string.Equals(word, fnames[en], StringComparison.OrdinalIgnoreCase)) continue;
                 string lower = word.ToLowerInvariant();
@@ -115,7 +151,7 @@ public static class ApkgImporter
 
         if (words.Count < 2)
             throw new InvalidDataException(
-                "未能从该 apkg 提取出有效词条（可能字段不是「英文单词 + 中文释义」结构）。");
+                "未能从该 apkg 提取出有效词条（无法识别「单词 + 释义」两列，可能是单字段/填空卡）。");
 
         string id = Path.GetFileNameWithoutExtension(apkgPath);
         return new WordBank
@@ -239,51 +275,68 @@ public static class ApkgImporter
 
     // ── 字段角色检测 ────────────────────────────────────────────────────────
 
-    private sealed class ColStat { public double Cjk, Asc, Ipa, AvgLen; public bool Any; }
+    private sealed class ColStat { public double Cjk, Asc, Ipa, AvgLen, Tokens; public bool Any; }
 
+    /// <summary>
+    /// 从 N 个字段中判定（单词列 en, 释义列 cn, 音标/读音列 ph）。语种无关：
+    /// 字段名多语言启发式优先，否则用内容特征（长度/词数/IPA/CJK），兼容任意语种词库。
+    /// </summary>
     private static (int en, int cn, int ph) DetectRoles(List<string> fnames, List<string[]> rows)
     {
         int nc = fnames.Count;
+        if (nc < 2) return (-1, -1, -1); // 单字段（如填空卡）无法拆「单词 / 释义」
         var low = fnames.ConvertAll(f => f.ToLowerInvariant());
         var stat = new ColStat[nc];
         int sample = Math.Min(rows.Count, 300);
         for (int c = 0; c < nc; c++) stat[c] = ColStats(rows, c, sample);
 
-        // 音标：字段名命中 ipa/phonetic/pronunciation（排除 audio/sound/example/url），否则 IPA 字符占比高的列
-        int ph = NameHit(low, new[] { "ipa", "phonetic", "pronunciation", "音标" },
-                              new[] { "audio", "sound", "example", "url", "媒体" });
+        // 1) 音标/读音列：字段名（IPA/拼音/假名/読み…多语言）命中，否则 IPA 字符占比高且内容短
+        int ph = NameHit(low, PhoneticNames, PhoneticExclude);
         if (ph < 0)
         {
             double best = 0.4; int bi = -1;
             for (int c = 0; c < nc; c++)
-                if (stat[c].Any && stat[c].Cjk < 0.2 && stat[c].Ipa > best) { best = stat[c].Ipa; bi = c; }
+                if (stat[c].Any && stat[c].Cjk < 0.2 && stat[c].Ipa > best && stat[c].AvgLen < 40)
+                { best = stat[c].Ipa; bi = c; }
             ph = bi;
         }
 
-        // 中文释义：字段名优先中文翻译列，否则 CJK 占比最高的列
-        int cn = NameHit(low, new[] { "definitiontr", "transcn", "translation", "释义", "中文", "翻译", "义项", "解释" },
-                              new[] { "audio", "ipa" });
-        if (cn < 0 || !stat[cn].Any || stat[cn].Cjk <= 0.3)
+        // 2) 释义列：字段名（definition/翻译/traduction/Bedeutung…）命中 > 中文(CJK)列 > 第4步兜底。
+        //    CJK 优先是为兼容最常见的「外语→中文」词库，准确率高。
+        int cn = NameHit(low, DefNames, DefExclude);
+        if (cn < 0 || cn == ph)
         {
             double best = 0.3; int bi = -1;
             for (int c = 0; c < nc; c++)
-                if (stat[c].Any && stat[c].Cjk > best) { best = stat[c].Cjk; bi = c; }
+                if (c != ph && stat[c].Any && stat[c].Cjk > best) { best = stat[c].Cjk; bi = c; }
             cn = bi;
         }
 
-        // 英文词：字段名优先 word/headword/spelling/term，否则 ASCII 主导且短、非 CJK、非音标的列
-        int en = NameHit(low, new[] { "headword", "wordhead", "word", "spelling", "term", "单词", "lemma" },
-                              new[] { "password", "keyword", "wordid", "reword" });
-        if (en < 0)
+        // 3) 单词列：字段名（word/term/front/mot/単語…）命中，否则「除释义/音标外，最短 + 词数最少 + 越靠前」。
+        //    不再要求 ASCII —— 法语重音、俄/日/阿拉伯等任意文字的单词都能选中。
+        int en = NameHit(low, WordNames, WordExclude);
+        if (en < 0 || en == cn || en == ph)
         {
-            double bestLen = double.MaxValue; int bi = -1;
+            double bestScore = double.NegativeInfinity; int bi = -1;
             for (int c = 0; c < nc; c++)
             {
                 if (c == ph || c == cn || !stat[c].Any) continue;
-                if (stat[c].Asc > 0.45 && stat[c].Cjk < 0.1 && stat[c].AvgLen < 30 && stat[c].AvgLen < bestLen)
-                { bestLen = stat[c].AvgLen; bi = c; }
+                double score = -stat[c].AvgLen - stat[c].Tokens * 4 - c * 0.5; // 越短/词越少/越靠前越像单词
+                if (score > bestScore) { bestScore = score; bi = c; }
             }
             en = bi;
+        }
+
+        // 4) 释义仍未定（无字段名、无中文）→ 取「除单词/音标外」最长列，支持 法→英 / 日→英 等任意语种对
+        if (cn < 0)
+        {
+            double bestLen = -1; int bi = -1;
+            for (int c = 0; c < nc; c++)
+            {
+                if (c == en || c == ph || !stat[c].Any) continue;
+                if (stat[c].AvgLen > bestLen) { bestLen = stat[c].AvgLen; bi = c; }
+            }
+            cn = bi;
         }
 
         return (en, cn, ph);
@@ -305,11 +358,12 @@ public static class ApkgImporter
             st.Asc += (double)letters / v.Length;
             foreach (char ch in v) if (Array.IndexOf(IpaChars, ch) >= 0) { st.Ipa += 1; break; }
             st.AvgLen += v.Length;
+            st.Tokens += v.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
         }
         if (n > 0)
         {
             st.Any = true;
-            st.Cjk /= n; st.Asc /= n; st.Ipa /= n; st.AvgLen /= n;
+            st.Cjk /= n; st.Asc /= n; st.Ipa /= n; st.AvgLen /= n; st.Tokens /= n;
         }
         return st;
     }
