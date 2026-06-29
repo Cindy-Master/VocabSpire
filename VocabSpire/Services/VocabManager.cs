@@ -272,6 +272,11 @@ public sealed class VocabManager
         }
     }
 
+    /// <summary>进度存档 key：按「词库 Id + 单词」隔离，避免多词库同名词（cet4/专升本都有 "core"）
+    /// 共用一条记录、互相覆盖。:: 作分隔符（不会出现在词库 id 或单词里）。</summary>
+    private static string ProgressKey(WordBank bank, WordEntry w)
+        => $"{bank.Id}::{w.English.ToLowerInvariant()}";
+
     public void SaveProgress()
     {
         try
@@ -282,7 +287,7 @@ public sealed class VocabManager
                 foreach (var w in bank.Words)
                 {
                     if (w.CorrectCount == 0 && w.WrongCount == 0 && w.EnergyLost == 0 && w.Box == 0 && w.DueTick == 0) continue;
-                    var key = w.English.ToLowerInvariant();
+                    var key = ProgressKey(bank, w);
                     data[key] = new long[] { w.CorrectCount, w.WrongCount, w.EnergyLost, w.Streak, w.Box, w.DueTick, w.LastSeenDate };
                 }
             }
@@ -310,8 +315,10 @@ public sealed class VocabManager
             {
                 foreach (var w in bank.Words)
                 {
-                    var key = w.English.ToLowerInvariant();
-                    if (!data.TryGetValue(key, out var stats)) continue;
+                    var key = ProgressKey(bank, w);
+                    // 优先按「词库::单词」隔离 key 读；找不到再回退旧版全局 english key（兼容 v2.7.4 及更早存档）
+                    if (!data.TryGetValue(key, out var stats)
+                        && !data.TryGetValue(w.English.ToLowerInvariant(), out stats)) continue;
                     w.CorrectCount = stats.Length > 0 ? (int)stats[0] : 0;
                     w.WrongCount = stats.Length > 1 ? (int)stats[1] : 0;
                     w.EnergyLost = stats.Length > 2 ? (int)stats[2] : 0;
