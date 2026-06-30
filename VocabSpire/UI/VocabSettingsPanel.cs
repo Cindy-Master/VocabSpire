@@ -972,7 +972,7 @@ public partial class VocabSettingsPanel : Control
             VocabConfig.Instance.Save();
         };
         masteryRow.AddChild(masteryInput);
-        masteryRow.AddChild(GameTheme.MakeLabel("  (\u8FDE\u7EED\u7B54\u5BF9\u6B21\u6570)", 16, DimGrey));
+        masteryRow.AddChild(GameTheme.MakeLabel("  (\u8FDE\u7EED\u7B54\u5BF9\u6B21\u6570\uFF1B\u6BD5\u4E1A\u8BCD\u4E0D\u4F1A\u56E0\u5355\u6B21\u7B54\u9519\u6389\u51FA\u638C\u63E1)", 16, DimGrey));
 
         // 每局新词上限（新词节流，v2.7 记忆引擎）
         var newWordRow = new HBoxContainer();

@@ -31,6 +31,16 @@ public partial class VocabCollectionPanel : NSubmenu
 
     private static int MasteryThreshold => VocabConfig.Instance.MasteryStreak;
 
+    /// <summary>
+    /// 是否「已掌握」。两条路径满足其一即可：
+    ///  ① 连续答对 ≥ 掌握阈值（首次达成掌握）；
+    ///  ② 记忆盒 Box ≥ 3（引擎「毕业词」——经间隔重复巩固到长期记忆）。
+    /// 关键：用 Box 兜底可避免「掌握数无故减少」——v2.7 引擎会频繁重现已掌握的词来复习，
+    /// 若仅看 Streak，答错一次就归零、该词立刻掉出掌握；而 Box 答错只降 2 不归零
+    /// （如 5→3 仍 ≥3），单次失误不会丢掌握，只有连续答错跌到 Box&lt;3（真的忘了）才退出。
+    /// </summary>
+    private static bool IsMastered(WordEntry w) => w.Streak >= MasteryThreshold || w.Box >= 3;
+
     protected override Control? InitialFocusedControl => _backBtn;
 
     public override void _Ready()
@@ -276,7 +286,7 @@ public partial class VocabCollectionPanel : NSubmenu
         {
             var attempts = w.CorrectCount + w.WrongCount;
             if (attempts == 0) continue;
-            if (w.Streak >= MasteryThreshold) mastered++;
+            if (IsMastered(w)) mastered++;
             else learning++;
             totalEnergyLost += w.EnergyLost;
         }
@@ -310,7 +320,7 @@ public partial class VocabCollectionPanel : NSubmenu
         foreach (var w in bank.Words)
         {
             var attempts = w.CorrectCount + w.WrongCount;
-            var isMastered = w.Streak >= MasteryThreshold;
+            var isMastered = IsMastered(w);
             var isLearning = attempts > 0 && !isMastered;
             var isLocked = attempts == 0;
 
