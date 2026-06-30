@@ -265,6 +265,10 @@ public partial class RestSiteReviewPanel : Control
         if (_currentReviewQuiz is null) return;
         _answered = true;
 
+        // 篝火复习也是一次真实的「提取练习」——必须回写记忆引擎（升/降 Box、Streak、DueTick），
+        // 否则复习答对了掌握度纹丝不动、词永远当错题反复出，复习等于白做。
+        VocabManager.Instance.RecordAnswer(_currentReviewQuiz.TargetWord, correct);
+
         _feedbackLabel.Text = correct ? "回答正确！" : "回答错误！";
         _feedbackLabel.AddThemeColorOverride("font_color", correct ? CorrectGreen : WrongRed);
 
@@ -284,6 +288,9 @@ public partial class RestSiteReviewPanel : Control
 
         _answered = true;
         var correct = _currentReviewQuiz.CheckSpelling(userInput);
+
+        // 同上：拼写复习也回写记忆引擎。
+        VocabManager.Instance.RecordAnswer(_currentReviewQuiz.TargetWord, correct);
 
         _spellingInput.Editable = false;
         _spellingSubmitBtn.Disabled = true;
