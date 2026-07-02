@@ -22,6 +22,8 @@ public static class CombatEndHandler
     private static void OnCombatSetUp(CombatState _)
     {
         WrongAnswerTracker.Instance.ClearCombatAnswers();
+        // 前几局战斗开始时提示玩家：按快捷键可打开设置、配置奖励/惩罚/词库等。
+        UI.EntryHintToast.MaybeShow();
     }
 
     private static void OnCombatEnded(CombatRoom _)

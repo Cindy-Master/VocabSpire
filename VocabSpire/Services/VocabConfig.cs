@@ -35,6 +35,9 @@ public sealed class VocabConfig
     /// <summary>设置面板快捷键（默认 F8）。</summary>
     public Key SettingsHotkey { get; set; } = Key.F8;
 
+    /// <summary>进入战斗时「按 X 打开设置」提示已显示的次数；达到上限（前几局）后不再提示，避免打扰老玩家。</summary>
+    public int EntryHintShownCount { get; set; } = 0;
+
     /// <summary>提交答案按键（默认 Enter）。</summary>
     public Key SubmitKey { get; set; } = Key.Enter;
 
@@ -253,6 +256,7 @@ public sealed class VocabConfig
             TotalCorrect = data.TotalCorrect;
             ShowCombatSummary = data.ShowCombatSummary;
             ShowRestSiteReview = data.ShowRestSiteReview;
+            EntryHintShownCount = data.EntryHintShownCount;
 
             // 旧配置迁移：单一 enable_difficulty_scaling 拆成 5 个独立开关。
             // 5 个新开关分别 fallback 到旧 legacy 字段（默认 true）。
@@ -398,7 +402,8 @@ public sealed class VocabConfig
                 FreePassStreakCost = FreePassStreakCost,
                 FreePassMaxStock = FreePassMaxStock,
                 TotalAnswered = TotalAnswered,
-                TotalCorrect = TotalCorrect
+                TotalCorrect = TotalCorrect,
+                EntryHintShownCount = EntryHintShownCount
             };
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -421,6 +426,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("settings_hotkey")]
         public int SettingsHotkey { get; set; }
+
+        [JsonPropertyName("entry_hint_shown_count")]
+        public int EntryHintShownCount { get; set; }
 
         [JsonPropertyName("submit_key")]
         public int SubmitKey { get; set; }
