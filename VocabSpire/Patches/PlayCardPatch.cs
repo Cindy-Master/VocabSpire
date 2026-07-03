@@ -156,15 +156,8 @@ public static class SinglePlayerPatch
                 // 不会覆盖当前 callback 导致 tcs 永不结算。QuizActive 等到本张牌的
                 // OnPlayWrapper 完全结束后再复位。
 
-                // 重放奖励：答对时把这张牌的原生 BaseReplayCount 临时 +N，第二次 OnPlayWrapper
-                // 就会用游戏原生循环把它的效果多打 N 次；打完在下面 ContinueWith 里还原（一次性）。
-                var replayN = QuizState.PendingReplay;
-                var replayOrig = 0;
-                if (replayN > 0)
-                {
-                    try { replayOrig = card.BaseReplayCount; card.BaseReplayCount = replayOrig + replayN; }
-                    catch (System.Exception ex) { Log.Warn($"[VocabSpire] Replay set BaseReplayCount failed: {ex.Message}"); replayN = 0; }
-                }
+                // 重放奖励通过 ReplayCountPatch（Postfix GetEnchantedReplayCount）施加，SP/MP 统一，
+                // 这里不需要手动改 BaseReplayCount。
 
                 var task = card.OnPlayWrapper(
                     choiceContext, target, isAutoPlay, resources, skipCardPileVisuals);
@@ -172,10 +165,6 @@ public static class SinglePlayerPatch
                 {
                     if (t.IsFaulted)
                         Log.Error($"[VocabSpire] OnPlayWrapper faulted: {t.Exception?.GetBaseException()}");
-                    if (replayN > 0)
-                    {
-                        try { card.BaseReplayCount = replayOrig; } catch { }  // 还原，保证一次性
-                    }
                     QuizState.QuizActive = false; // 二次 OnPlayWrapper 完全结束后才复位
                     // 兜底：二次 OnPlayWrapper 已 await 完成（含重放循环 + 奖惩 chain），
                     // 此处复位所有卡级标志，防止重放中途玩家死亡 early-return 导致 SkipEffect 残留到下一张牌。
@@ -399,6 +388,9 @@ public static class NetPlayCardSerializePatch
             writer.WriteInt(amount, 16);
         }
 
+        // v2.7.11+ 新增：重放次数（重放奖励，联机同步两端 playCount；新字段 → 双端须同版本）
+        writer.WriteUInt((uint)System.Math.Clamp(QuizState.PendingReplay, 0, 15), 4);
+
         // 诊断
         var rewardsDesc = rCount == 0 ? "none"
             : string.Join(",", QuizState.PendingRewards.Take(rCount).Select(r => $"{(RewardType)r.Kind}x{r.Amount}"));
@@ -437,6 +429,9 @@ public static class NetPlayCardDeserializePatch
                 var amount = (int)reader.ReadInt(16);
                 QuizState.PendingPunishments.Add((kind, amount));
             }
+
+            // v2.7.11+ 重放次数（重放奖励，联机同步）
+            QuizState.PendingReplay = (int)reader.ReadUInt(4);
             // PendingRewardTarget 由 OnPlay Postfix 从 __instance.Owner 推断
 
             var rewardsDesc = rCount == 0 ? "none"
@@ -465,6 +460,23 @@ public static class SpendResourcesPatch
         __result = Task.FromResult((0, 0));
         Log.Info("[VocabSpire] SpendResources skipped (tolerance).");
         return false;
+    }
+}
+
+/// <summary>
+/// 重放奖励 —— 答对且配了「重放本牌」奖励时，给该牌 GetEnchantedReplayCount 的结果 +N。
+/// OnPlayWrapper 的 playCount = GetEnchantedReplayCount()+1，于是这张牌用游戏原生循环多打 N 次。
+/// 该方法在单机/联机两端打牌时都会被 GeneratePlayCount 调用一次算 playCount，两端加同样的 N（联机经
+/// NetPlayCardAction 同步 PendingReplay），因此结果一致、不会 desync。PendingReplay 在 series 最后
+/// 一次 OnPlay 后清零（OnPlaySkipPatch.Postfix）。对所有牌一视同仁，含能力牌。
+/// </summary>
+[HarmonyPatch(typeof(CardModel), nameof(CardModel.GetEnchantedReplayCount))]
+public static class ReplayCountPatch
+{
+    public static void Postfix(ref int __result)
+    {
+        if (QuizState.PendingReplay > 0)
+            __result += QuizState.PendingReplay;
     }
 }
 
@@ -564,6 +576,10 @@ public static class OnPlaySkipPatch
         // 因此：中间的重放直接 return，保持 SkipEffect / NoCost / ReturnToHand 不变；
         // 只在最后一次重放（IsLastInSeries）才复位标志并结算一次奖惩。
         if (__1 is { IsLastInSeries: false }) return;
+
+        // 重放奖励只用于本次 GeneratePlayCount（已在 series 开始前被消费），series 结束即清零，
+        // 防止残留影响下一张牌的 playCount。
+        QuizState.PendingReplay = 0;
 
         var hasReward = QuizState.PendingRewards.Count > 0;
         var hasPunishment = QuizState.PendingPunishments.Count > 0;
