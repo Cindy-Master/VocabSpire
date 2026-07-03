@@ -25,6 +25,14 @@ public partial class WordBankEditorPanel : Control
 
     private readonly List<RowWidgets> _rows = new();
 
+    // ── 分页（避免大词库一次性建几千行 UI 卡死；每页只渲染 PageSize 行）──
+    private const int PageSize = 50;
+    private readonly List<WordData> _data = new();   // 全量数据（纯字符串，不占 UI 节点）
+    private int _page;
+    private Label _pageLabel = null!;
+    private Button _prevBtn = null!;
+    private Button _nextBtn = null!;
+
     private static readonly Color Gold = GameTheme.Gold;
     private static readonly Color Cream = GameTheme.Cream;
     private static readonly Color DimGrey = GameTheme.MidGray;
@@ -47,8 +55,10 @@ public partial class WordBankEditorPanel : Control
         Visible = true;
         _nameInput.Text = "";
         _descInput.Text = "";
-        ClearRows();
-        for (var i = 0; i < 3; i++) AddRow();
+        _data.Clear();
+        for (var i = 0; i < 3; i++) _data.Add(new WordData());
+        _page = 0;
+        RenderPage();
         _statusLabel.Text = "";
     }
 
@@ -61,15 +71,17 @@ public partial class WordBankEditorPanel : Control
         Visible = true;
         _nameInput.Text = bank.Name;
         _descInput.Text = bank.Description;
-        ClearRows();
+        _data.Clear();
         foreach (var w in bank.Words)
         {
             // 多义项用 "; " 拼回（保存时会按 ';' 拆分还原成数组）
             var cnText = w.Definitions.Count > 0 ? string.Join("; ", w.Definitions) : w.Chinese;
-            AddRow(w.English, cnText, w.Phonetic);
+            _data.Add(new WordData { En = w.English, Cn = cnText, Phon = w.Phonetic });
         }
-        if (_rows.Count == 0) for (var i = 0; i < 3; i++) AddRow();
-        _statusLabel.Text = $"共 {_rows.Count} 词 —— 改完点「保存并启用」写回该词库。";
+        if (_data.Count == 0) for (var i = 0; i < 3; i++) _data.Add(new WordData());
+        _page = 0;
+        RenderPage();
+        _statusLabel.Text = $"共 {_data.Count} 词 · 每页 {PageSize} 行 · 改完点「保存并启用」写回该词库。";
     }
 
     private void BuildUI()
@@ -152,17 +164,30 @@ public partial class WordBankEditorPanel : Control
         _rowsContainer.AddThemeConstantOverride("separation", 4);
         scroll.AddChild(_rowsContainer);
 
+        // 翻页
+        var pageRow = new HBoxContainer();
+        pageRow.AddThemeConstantOverride("separation", 12);
+        vbox.AddChild(pageRow);
+        _prevBtn = GameTheme.MakeButton("  ◀ 上一页  ", 14);
+        _prevBtn.Pressed += () => { FlushPage(); _page--; RenderPage(); };
+        pageRow.AddChild(_prevBtn);
+        _pageLabel = GameTheme.MakeLabel("", 15, Cream);
+        pageRow.AddChild(_pageLabel);
+        _nextBtn = GameTheme.MakeButton("  下一页 ▶  ", 14);
+        _nextBtn.Pressed += () => { FlushPage(); _page++; RenderPage(); };
+        pageRow.AddChild(_nextBtn);
+
         // 操作按钮
         var btnRow = new HBoxContainer();
         btnRow.AddThemeConstantOverride("separation", 8);
         vbox.AddChild(btnRow);
 
         var addBtn = GameTheme.MakeButton("  添加一行  ", 14);
-        addBtn.Pressed += () => AddRow();
+        addBtn.Pressed += () => AddNewRows(1);
         btnRow.AddChild(addBtn);
 
         var addManyBtn = GameTheme.MakeButton("  +10 行  ", 14);
-        addManyBtn.Pressed += () => { for (var i = 0; i < 10; i++) AddRow(); };
+        addManyBtn.Pressed += () => AddNewRows(10);
         btnRow.AddChild(addManyBtn);
 
         btnRow.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
@@ -180,7 +205,49 @@ public partial class WordBankEditorPanel : Control
         vbox.AddChild(_statusLabel);
     }
 
-    private void AddRow(string enText = "", string cnText = "", string phonText = "")
+    /// <summary>渲染当前页：只为「当前页的数据切片」建 UI 行，其余仅存在 _data 里。</summary>
+    private void RenderPage()
+    {
+        ClearRows();
+        var total = _data.Count;
+        var pageCount = System.Math.Max(1, (total + PageSize - 1) / PageSize);
+        _page = System.Math.Clamp(_page, 0, pageCount - 1);
+        var start = _page * PageSize;
+        var end = System.Math.Min(start + PageSize, total);
+        for (var di = start; di < end; di++)
+        {
+            var d = _data[di];
+            AddRowWidget(d.En, d.Cn, d.Phon);
+        }
+        _pageLabel.Text = $"第 {_page + 1} / {pageCount} 页 · 共 {total} 词";
+        _prevBtn.Disabled = _page <= 0;
+        _nextBtn.Disabled = _page >= pageCount - 1;
+    }
+
+    /// <summary>把当前页 UI 行的文本写回 _data（翻页 / 增删 / 保存前必调，防丢失编辑）。</summary>
+    private void FlushPage()
+    {
+        var start = _page * PageSize;
+        for (var i = 0; i < _rows.Count; i++)
+        {
+            var di = start + i;
+            if (di >= _data.Count) break;
+            _data[di].En = _rows[i].En.Text;
+            _data[di].Cn = _rows[i].Cn.Text;
+            _data[di].Phon = _rows[i].Phon.Text;
+        }
+    }
+
+    /// <summary>末尾追加 n 个空行并跳到最后一页。</summary>
+    private void AddNewRows(int n)
+    {
+        FlushPage();
+        for (var i = 0; i < n; i++) _data.Add(new WordData());
+        _page = (_data.Count - 1) / PageSize;
+        RenderPage();
+    }
+
+    private void AddRowWidget(string enText, string cnText, string phonText)
     {
         var row = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         row.AddThemeConstantOverride("separation", 8);
@@ -198,12 +265,12 @@ public partial class WordBankEditorPanel : Control
         delBtn.AddThemeFontSizeOverride("font_size", 14);
         delBtn.Pressed += () =>
         {
-            var idx = _rows.FindIndex(r => r.Row == row);
-            if (idx >= 0)
-            {
-                _rows.RemoveAt(idx);
-                row.QueueFree();
-            }
+            FlushPage();
+            var pos = _rows.FindIndex(r => r.Row == row);
+            if (pos < 0) return;
+            var di = _page * PageSize + pos;
+            if (di < _data.Count) _data.RemoveAt(di);
+            RenderPage();
         };
 
         row.AddChild(en);
@@ -233,12 +300,13 @@ public partial class WordBankEditorPanel : Control
             return;
         }
 
+        FlushPage();   // 先把当前页的编辑写回数据，再从全量 _data 收集
         var words = new List<object>();
-        foreach (var r in _rows)
+        foreach (var r in _data)
         {
-            var en = r.En.Text.Trim();
-            var cn = r.Cn.Text.Trim();
-            var phon = r.Phon.Text.Trim();
+            var en = r.En.Trim();
+            var cn = r.Cn.Trim();
+            var phon = r.Phon.Trim();
             if (string.IsNullOrEmpty(en) || string.IsNullOrEmpty(cn)) continue;
 
             if (cn.Contains(';'))
@@ -322,6 +390,14 @@ public partial class WordBankEditorPanel : Control
             LayoutMode = 1,
             AnchorsPreset = (int)LayoutPreset.FullRect
         });
+    }
+
+    /// <summary>全量数据项（纯字符串，不占 UI 节点，几千词也不卡）。</summary>
+    private sealed class WordData
+    {
+        public string En = "";
+        public string Cn = "";
+        public string Phon = "";
     }
 
     private sealed class RowWidgets
