@@ -181,6 +181,14 @@ public partial class VocabSettingsPanel : Control
         newBankBtn.Pressed += () => WordBankEditorPanel.Instance?.Open();
         btnRow.AddChild(newBankBtn);
 
+        var editBankBtn = GameTheme.MakeButton("  编辑当前词库  ", 14);
+        editBankBtn.Pressed += () =>
+        {
+            var active = VocabManager.Instance.ActiveBank;
+            if (active is not null) WordBankEditorPanel.Instance?.Open(active);
+        };
+        btnRow.AddChild(editBankBtn);
+
         var refreshBtn = GameTheme.MakeButton("  刷新  ", 14);
         refreshBtn.Pressed += () =>
         {

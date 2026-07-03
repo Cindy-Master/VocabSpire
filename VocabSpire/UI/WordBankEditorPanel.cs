@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Godot;
 using MegaCrit.Sts2.Core.Logging;
+using VocabSpire.Models;
 using VocabSpire.Services;
 
 namespace VocabSpire.UI;
@@ -17,6 +18,10 @@ public partial class WordBankEditorPanel : Control
     private LineEdit _descInput = null!;
     private VBoxContainer _rowsContainer = null!;
     private Label _statusLabel = null!;
+    private Label _titleLabel = null!;
+
+    /// <summary>编辑模式：保存写回的原文件路径；null = 新建。</summary>
+    private string? _editingPath;
 
     private readonly List<RowWidgets> _rows = new();
 
@@ -34,14 +39,37 @@ public partial class WordBankEditorPanel : Control
         ProcessMode = ProcessModeEnum.Always;
     }
 
+    /// <summary>新建词库：空白表单。</summary>
     public void Open()
     {
+        _editingPath = null;
+        _titleLabel.Text = "新建词库";
         Visible = true;
         _nameInput.Text = "";
         _descInput.Text = "";
         ClearRows();
         for (var i = 0; i < 3; i++) AddRow();
         _statusLabel.Text = "";
+    }
+
+    /// <summary>编辑已有词库：载入名称/描述/全部词条到表单，保存时写回原文件（同 Id 替换、保留进度）。</summary>
+    public void Open(WordBank bank)
+    {
+        if (bank is null) { Open(); return; }
+        _editingPath = bank.SourcePath;
+        _titleLabel.Text = $"编辑词库：{bank.Name}";
+        Visible = true;
+        _nameInput.Text = bank.Name;
+        _descInput.Text = bank.Description;
+        ClearRows();
+        foreach (var w in bank.Words)
+        {
+            // 多义项用 "; " 拼回（保存时会按 ';' 拆分还原成数组）
+            var cnText = w.Definitions.Count > 0 ? string.Join("; ", w.Definitions) : w.Chinese;
+            AddRow(w.English, cnText, w.Phonetic);
+        }
+        if (_rows.Count == 0) for (var i = 0; i < 3; i++) AddRow();
+        _statusLabel.Text = $"共 {_rows.Count} 词 —— 改完点「保存并启用」写回该词库。";
     }
 
     private void BuildUI()
@@ -80,7 +108,8 @@ public partial class WordBankEditorPanel : Control
         vbox.AddThemeConstantOverride("separation", 12);
         panel.AddChild(vbox);
 
-        vbox.AddChild(GameTheme.MakeLabel("新建词库", 24, Gold));
+        _titleLabel = GameTheme.MakeLabel("新建词库", 24, Gold);
+        vbox.AddChild(_titleLabel);
         vbox.AddChild(new HSeparator());
 
         // 名称
@@ -151,18 +180,18 @@ public partial class WordBankEditorPanel : Control
         vbox.AddChild(_statusLabel);
     }
 
-    private void AddRow()
+    private void AddRow(string enText = "", string cnText = "", string phonText = "")
     {
         var row = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         row.AddThemeConstantOverride("separation", 8);
 
-        var en = new LineEdit { CustomMinimumSize = new Vector2(180, 0) };
+        var en = new LineEdit { CustomMinimumSize = new Vector2(180, 0), Text = enText };
         en.AddThemeFontSizeOverride("font_size", 14);
 
-        var cn = new LineEdit { CustomMinimumSize = new Vector2(320, 0) };
+        var cn = new LineEdit { CustomMinimumSize = new Vector2(320, 0), Text = cnText };
         cn.AddThemeFontSizeOverride("font_size", 14);
 
-        var phon = new LineEdit { CustomMinimumSize = new Vector2(160, 0) };
+        var phon = new LineEdit { CustomMinimumSize = new Vector2(160, 0), Text = phonText };
         phon.AddThemeFontSizeOverride("font_size", 14);
 
         var delBtn = new Button { Text = " ✕ ", CustomMinimumSize = new Vector2(36, 0) };
@@ -239,17 +268,21 @@ public partial class WordBankEditorPanel : Control
             };
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
 
-            var fileName = SanitizeFileName(name) + ".json";
-            var path = Path.Combine(VocabManager.Instance.GetWordBanksDirectory(), fileName);
+            // 编辑模式写回原文件（同 Id 替换）；新建则按名称生成文件名。
+            var path = !string.IsNullOrEmpty(_editingPath)
+                ? _editingPath!
+                : Path.Combine(VocabManager.Instance.GetWordBanksDirectory(), SanitizeFileName(name) + ".json");
             File.WriteAllText(path, json);
 
             var bank = VocabManager.Instance.ImportBank(path);
             if (bank is not null)
             {
+                // 编辑后重新绑定进度，避免重解析出的新词条把已有掌握度归零。
+                VocabManager.Instance.LoadProgress();
                 VocabManager.Instance.SetActiveBank(bank.Id);
             }
             _statusLabel.Text = $"已保存: {path}";
-            Log.Info($"[VocabSpire] Saved new bank: {path}");
+            Log.Info($"[VocabSpire] Saved bank ({(_editingPath is null ? "new" : "edit")}): {path}");
 
             // 通知父面板刷新
             VocabSettingsPanel.Instance?.NotifyBanksChanged();
