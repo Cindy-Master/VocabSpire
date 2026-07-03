@@ -716,10 +716,31 @@ public partial class VocabSettingsPanel : Control
         };
         r1.AddChild(delBtn);
 
-        // 行 2：难度加成 + 多义翻倍
+        // 行 2：题型筛选 + 难度加成 + 多义翻倍
         var r2 = new HBoxContainer();
         r2.AddThemeConstantOverride("separation", 16);
         v.AddChild(r2);
+
+        r2.AddChild(GameTheme.MakeLabel("题型", 12, Grey));
+        var typeSel = new OptionButton { CustomMinimumSize = new Vector2(110, 0) };
+        var types = new (QuizModeFlags, string)[]
+        {
+            (QuizModeFlags.None, "全部"),
+            (QuizModeFlags.EnglishToChinese, "英→中"),
+            (QuizModeFlags.ChineseToEnglish, "中→英"),
+            (QuizModeFlags.ListenToChinese, "听力"),
+            (QuizModeFlags.SpellEnglish, "拼写")
+        };
+        var typeIdx = 0;
+        for (var i = 0; i < types.Length; i++)
+        {
+            typeSel.AddItem(types[i].Item2, (int)types[i].Item1);
+            if (types[i].Item1 == rule.QuizTypeFilter) typeIdx = i;
+        }
+        typeSel.Selected = typeIdx;
+        typeSel.TooltipText = "只对该题型答对时触发本条奖励（如「拼写→+力量」「听力→+覆甲」）。选「全部」则不限题型。";
+        typeSel.ItemSelected += i => { rule.QuizTypeFilter = (QuizModeFlags)typeSel.GetItemId((int)i); VocabConfig.Instance.Save(); };
+        r2.AddChild(typeSel);
 
         var diffCb = new CheckBox { ButtonPressed = rule.DifficultyScaling, Text = " 难度加成（拼写×2/听力×1.5）" };
         diffCb.AddThemeFontSizeOverride("font_size", 12);

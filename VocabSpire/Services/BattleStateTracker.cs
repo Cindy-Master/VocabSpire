@@ -169,6 +169,13 @@ public sealed class BattleStateTracker
                 if (rule.Amount <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (amount<=0)"); continue; }
                 if (rule.Streak <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (streak<=0)"); continue; }
 
+                // 题型筛选：规则设了适用题型时，只对该题型的题生效（拼写题→+力量、听力题→+防御等）
+                if (rule.QuizTypeFilter != QuizModeFlags.None && rule.QuizTypeFilter != question.Mode)
+                {
+                    MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (题型筛选 {rule.QuizTypeFilter} ≠ 本题 {question.Mode})");
+                    continue;
+                }
+
                 bool triggered = rule.Mode switch
                 {
                     RewardTriggerMode.Once      => CorrectStreak == rule.Streak,

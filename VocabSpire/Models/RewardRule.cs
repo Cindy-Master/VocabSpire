@@ -42,6 +42,11 @@ public sealed class RewardRule
     [JsonPropertyName("difficulty_scaling")]
     public bool DifficultyScaling { get; set; }
 
+    /// <summary>适用题型：None = 全部题型都触发；设为某题型（如拼写 SpellEnglish）则只在该题型答对时触发。
+    /// 用于「拼写题→+力量、听力题→+防御」这类按题型定制的独立奖励。</summary>
+    [JsonPropertyName("quiz_type_filter")]
+    public QuizModeFlags QuizTypeFilter { get; set; } = QuizModeFlags.None;
+
     public RewardRule Clone() => new()
     {
         Enabled = Enabled,
@@ -50,6 +55,7 @@ public sealed class RewardRule
         Amount = Amount,
         Mode = Mode,
         MultiDefDouble = MultiDefDouble,
-        DifficultyScaling = DifficultyScaling
+        DifficultyScaling = DifficultyScaling,
+        QuizTypeFilter = QuizTypeFilter
     };
 }
