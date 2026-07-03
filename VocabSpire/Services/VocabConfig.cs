@@ -38,6 +38,9 @@ public sealed class VocabConfig
     /// <summary>进入战斗时「按 X 打开设置」提示已显示的次数；达到上限（前几局）后不再提示，避免打扰老玩家。</summary>
     public int EntryHintShownCount { get; set; } = 0;
 
+    /// <summary>自动打出的牌（回合开始遗物/能力自动打出等）是否也弹词测验。默认 true（保持原有行为）；关掉则这些牌不做题、直接生效。</summary>
+    public bool QuizOnAutoPlay { get; set; } = true;
+
     /// <summary>提交答案按键（默认 Enter）。</summary>
     public Key SubmitKey { get; set; } = Key.Enter;
 
@@ -257,6 +260,7 @@ public sealed class VocabConfig
             ShowCombatSummary = data.ShowCombatSummary;
             ShowRestSiteReview = data.ShowRestSiteReview;
             EntryHintShownCount = data.EntryHintShownCount;
+            QuizOnAutoPlay = data.QuizOnAutoPlay ?? true;   // 旧配置无此字段 → 默认 true（保持原有行为）
 
             // 旧配置迁移：单一 enable_difficulty_scaling 拆成 5 个独立开关。
             // 5 个新开关分别 fallback 到旧 legacy 字段（默认 true）。
@@ -403,7 +407,8 @@ public sealed class VocabConfig
                 FreePassMaxStock = FreePassMaxStock,
                 TotalAnswered = TotalAnswered,
                 TotalCorrect = TotalCorrect,
-                EntryHintShownCount = EntryHintShownCount
+                EntryHintShownCount = EntryHintShownCount,
+                QuizOnAutoPlay = QuizOnAutoPlay
             };
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -429,6 +434,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("entry_hint_shown_count")]
         public int EntryHintShownCount { get; set; }
+
+        [JsonPropertyName("quiz_on_auto_play")]
+        public bool? QuizOnAutoPlay { get; set; }
 
         [JsonPropertyName("submit_key")]
         public int SubmitKey { get; set; }

@@ -155,6 +155,24 @@ public partial class VocabSettingsPanel : Control
             VocabConfig.Instance.Save();
         };
         row.AddChild(_enableToggle);
+
+        // 自动打出的牌是否也做题（回合开始遗物/能力自动打出等）
+        var autoRow = new HBoxContainer();
+        vbox.AddChild(autoRow);
+        var autoToggle = new CheckButton
+        {
+            Text = " 自动打出的牌也做题",
+            ButtonPressed = VocabConfig.Instance.QuizOnAutoPlay
+        };
+        autoToggle.AddThemeFontSizeOverride("font_size", 14);
+        autoToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.QuizOnAutoPlay = on;
+            VocabConfig.Instance.Save();
+        };
+        autoRow.AddChild(autoToggle);
+        vbox.AddChild(GameTheme.MakeLabel(
+            "（关掉后，回合开始遗物/能力等自动打出的牌不弹题、直接生效）", 14, DimGrey));
     }
 
     private void BuildBankSection(VBoxContainer vbox)

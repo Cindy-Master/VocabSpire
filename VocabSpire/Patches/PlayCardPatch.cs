@@ -89,6 +89,13 @@ public static class SinglePlayerPatch
             return true;
         }
 
+        // 自动打出的牌（回合开始遗物/能力自动打出等）：开关关闭时不做题，直接正常打出。
+        if (isAutoPlay && !VocabConfig.Instance.QuizOnAutoPlay)
+        {
+            Log.Info($"[VocabSpire][SP] Auto-played card '{cardName}' — quiz disabled by config, normal play.");
+            return true;
+        }
+
         // 免错券激活 → 跳过答题，直接正常打出
         if (BattleStateTracker.Instance.FreePassArmed)
         {
