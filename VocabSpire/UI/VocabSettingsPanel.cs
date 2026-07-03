@@ -666,7 +666,8 @@ public partial class VocabSettingsPanel : Control
             (RewardType.Draw, "抽牌"),
             (RewardType.Thorns, "荆棘"),
             (RewardType.Focus, "集中"),
-            (RewardType.Artifact, "人工制品")
+            (RewardType.Artifact, "人工制品"),
+            (RewardType.Replay, "重放本牌")
         };
         var selIdx = 0;
         for (var i = 0; i < kinds.Length; i++)

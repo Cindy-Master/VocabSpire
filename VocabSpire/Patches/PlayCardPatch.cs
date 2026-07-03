@@ -41,12 +41,17 @@ public static class QuizState
     /// <summary>本次打牌的卡主（用于 OnPlay 完成后施加奖励 / 惩罚）。</summary>
     internal static Player? PendingRewardTarget;
 
+    /// <summary>本次答对要给这张牌额外重放的次数（重放奖励）。由 RunQuizAsync 在第二次 OnPlayWrapper 前
+    /// 临时加到 card.BaseReplayCount、打完还原。不走 RewardService（时序不同）。</summary>
+    internal static int PendingReplay;
+
     public static void ResetCardLevel()
     {
         SkipEffect = false;
         SkipCardExtras = false;
         NoCost = false;
         ReturnToHand = false;
+        PendingReplay = 0;
         PendingRewards.Clear();
         PendingPunishments.Clear();
         PendingRewardTarget = null;
@@ -151,12 +156,26 @@ public static class SinglePlayerPatch
                 // 不会覆盖当前 callback 导致 tcs 永不结算。QuizActive 等到本张牌的
                 // OnPlayWrapper 完全结束后再复位。
 
+                // 重放奖励：答对时把这张牌的原生 BaseReplayCount 临时 +N，第二次 OnPlayWrapper
+                // 就会用游戏原生循环把它的效果多打 N 次；打完在下面 ContinueWith 里还原（一次性）。
+                var replayN = QuizState.PendingReplay;
+                var replayOrig = 0;
+                if (replayN > 0)
+                {
+                    try { replayOrig = card.BaseReplayCount; card.BaseReplayCount = replayOrig + replayN; }
+                    catch (System.Exception ex) { Log.Warn($"[VocabSpire] Replay set BaseReplayCount failed: {ex.Message}"); replayN = 0; }
+                }
+
                 var task = card.OnPlayWrapper(
                     choiceContext, target, isAutoPlay, resources, skipCardPileVisuals);
                 task.ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                         Log.Error($"[VocabSpire] OnPlayWrapper faulted: {t.Exception?.GetBaseException()}");
+                    if (replayN > 0)
+                    {
+                        try { card.BaseReplayCount = replayOrig; } catch { }  // 还原，保证一次性
+                    }
                     QuizState.QuizActive = false; // 二次 OnPlayWrapper 完全结束后才复位
                     // 兜底：二次 OnPlayWrapper 已 await 完成（含重放循环 + 奖惩 chain），
                     // 此处复位所有卡级标志，防止重放中途玩家死亡 early-return 导致 SkipEffect 残留到下一张牌。
@@ -191,6 +210,9 @@ public static class SinglePlayerPatch
         {
             foreach (var r in outcome.Rewards)
             {
+                // 重放奖励特殊处理：不入 PendingRewards（RewardService 无法施加），
+                // 累加到 PendingReplay，由 RunQuizAsync 在第二次打出前改 BaseReplayCount。
+                if (r.Kind == RewardType.Replay) { QuizState.PendingReplay += r.Amount; continue; }
                 QuizState.PendingRewards.Add(((byte)r.Kind, r.Amount));
             }
             if (QuizState.PendingRewards.Count > 0)
