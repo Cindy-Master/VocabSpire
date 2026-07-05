@@ -652,6 +652,54 @@ public partial class VocabSettingsPanel : Control
         row.AddChild(sel);
     }
 
+    /// <summary>给规则加「高级 ▾」折叠区：重算范围 / 冷却 / 连对封顶 / 最多触发（奖励/惩罚共用）。</summary>
+    private void AddAdvancedFold(VBoxContainer parent,
+        Models.StreakResetScope scope, System.Action<Models.StreakResetScope> setScope,
+        int cooldown, System.Action<int> setCooldown,
+        int streakCap, System.Action<int> setCap,
+        int maxTriggers, System.Action<int> setMax)
+    {
+        var foldBtn = new Button { Text = "高级 ▾", Flat = true, CustomMinimumSize = new Vector2(70, 0) };
+        foldBtn.AddThemeFontSizeOverride("font_size", 12);
+        parent.AddChild(foldBtn);
+
+        var adv = new HBoxContainer { Visible = false };
+        adv.AddThemeConstantOverride("separation", 12);
+        parent.AddChild(adv);
+        foldBtn.Pressed += () => { adv.Visible = !adv.Visible; foldBtn.Text = adv.Visible ? "高级 ▲" : "高级 ▾"; };
+
+        adv.AddChild(GameTheme.MakeLabel("重算", 12, Grey));
+        var scopeSel = new OptionButton { CustomMinimumSize = new Vector2(92, 0) };
+        scopeSel.AddItem("永久", 0);
+        scopeSel.AddItem("每场战斗", 1);
+        scopeSel.AddItem("每回合", 2);
+        scopeSel.Selected = (int)scope;
+        scopeSel.TooltipText = "连对/连错计数的重算范围：永久（跨战斗累积，=老行为）/ 每场战斗开始重置 / 每回合开始重置。";
+        scopeSel.ItemSelected += i => { setScope((Models.StreakResetScope)(int)i); VocabConfig.Instance.Save(); };
+        adv.AddChild(scopeSel);
+
+        adv.AddChild(GameTheme.MakeLabel("冷却", 12, Grey));
+        var cdSpin = new SpinBox { MinValue = 0, MaxValue = 99, Step = 1, Value = cooldown, CustomMinimumSize = new Vector2(62, 0) };
+        cdSpin.GetLineEdit().AddThemeFontSizeOverride("font_size", 12);
+        cdSpin.TooltipText = "触发后需再答满 N 题才能再次触发。0=无冷却。";
+        cdSpin.ValueChanged += v => { setCooldown((int)v); VocabConfig.Instance.Save(); };
+        adv.AddChild(cdSpin);
+
+        adv.AddChild(GameTheme.MakeLabel("封顶", 12, Grey));
+        var capSpin = new SpinBox { MinValue = 0, MaxValue = 99, Step = 1, Value = streakCap, CustomMinimumSize = new Vector2(62, 0) };
+        capSpin.GetLineEdit().AddThemeFontSizeOverride("font_size", 12);
+        capSpin.TooltipText = "连对/连错计数最多按 N 算，防 Recurring/EveryN 无限放大。0=不封顶。";
+        capSpin.ValueChanged += v => { setCap((int)v); VocabConfig.Instance.Save(); };
+        adv.AddChild(capSpin);
+
+        adv.AddChild(GameTheme.MakeLabel("上限", 12, Grey));
+        var maxSpin = new SpinBox { MinValue = 0, MaxValue = 99, Step = 1, Value = maxTriggers, CustomMinimumSize = new Vector2(62, 0) };
+        maxSpin.GetLineEdit().AddThemeFontSizeOverride("font_size", 12);
+        maxSpin.TooltipText = "本重算周期内最多触发次数，到点本周期不再触发。0=无限。";
+        maxSpin.ValueChanged += v => { setMax((int)v); VocabConfig.Instance.Save(); };
+        adv.AddChild(maxSpin);
+    }
+
     private Control BuildRuleRow(Models.RewardRule rule, int idx)
     {
         var box = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -757,6 +805,12 @@ public partial class VocabSettingsPanel : Control
         multiCb.AddThemeFontSizeOverride("font_size", 12);
         multiCb.Toggled += on => { rule.MultiDefDouble = on; VocabConfig.Instance.Save(); };
         r2.AddChild(multiCb);
+
+        AddAdvancedFold(v,
+            rule.ResetScope, val => rule.ResetScope = val,
+            rule.Cooldown, val => rule.Cooldown = val,
+            rule.StreakCap, val => rule.StreakCap = val,
+            rule.MaxTriggers, val => rule.MaxTriggers = val);
 
         return box;
     }

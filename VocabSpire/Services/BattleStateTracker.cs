@@ -23,6 +23,21 @@ public sealed class BattleStateTracker
     /// <summary>免错券是否已激活（玩家点过按钮）。</summary>
     public bool FreePassArmed { get; private set; }
 
+    // ── 连对机制：按重算范围分别维护「每回合 / 每场战斗」计数；CorrectStreak/WrongStreak 为「永久」范围 ──
+    private int _correctTurn, _wrongTurn;       // 每回合范围（回合开始额外重置）
+    private int _correctCombat, _wrongCombat;   // 每场战斗范围（战斗开始额外重置）
+    private int _answerSeq;                      // 单调递增的累计答题数（冷却按此计）
+    private int _turnPeriod, _combatPeriod;      // 周期编号（用于按范围重置「最多触发次数」）
+
+    /// <summary>每条规则的运行时状态（冷却上次触发序号 + 本周期触发次数）。key = 规则对象。</summary>
+    private sealed class RuleRuntime
+    {
+        public int LastTriggerSeq = int.MinValue / 2;
+        public int TriggerCount;
+        public int CountPeriod = -1;
+    }
+    private readonly Dictionary<object, RuleRuntime> _ruleRt = new();
+
     private BattleStateTracker() { }
 
     // ── 回合 / 战斗生命周期 ──
@@ -30,6 +45,22 @@ public sealed class BattleStateTracker
     public void OnSideTurnStart()
     {
         ToleranceUsedThisTurn = 0;
+        _correctTurn = 0;
+        _wrongTurn = 0;
+        _turnPeriod++;
+    }
+
+    /// <summary>战斗开始时调用（CombatSetUp）：重置「每场战斗 / 每回合」范围计数与周期。
+    /// 「永久」范围（CorrectStreak/WrongStreak）不动，跨战斗累积；每规则运行时用周期编号自然失效，不清空。</summary>
+    public void OnCombatReset()
+    {
+        ToleranceUsedThisTurn = 0;
+        _correctCombat = 0;
+        _wrongCombat = 0;
+        _correctTurn = 0;
+        _wrongTurn = 0;
+        _combatPeriod++;
+        _turnPeriod++;
     }
 
     public void OnCombatEnd()
@@ -38,6 +69,62 @@ public sealed class BattleStateTracker
         CorrectStreak = 0;
         WrongStreak = 0;
         FreePassArmed = false;
+    }
+
+    // ── 连对机制辅助 ──
+
+    /// <summary>按重算范围取原始连对/连错计数。correct=true 取连对，false 取连错。</summary>
+    private int RawStreak(StreakResetScope scope, bool correct) => scope switch
+    {
+        StreakResetScope.Turn   => correct ? _correctTurn   : _wrongTurn,
+        StreakResetScope.Combat => correct ? _correctCombat : _wrongCombat,
+        _                       => correct ? CorrectStreak  : WrongStreak   // Persistent
+    };
+
+    private int PeriodOf(StreakResetScope scope) => scope switch
+    {
+        StreakResetScope.Turn   => _turnPeriod,
+        StreakResetScope.Combat => _combatPeriod,
+        _                       => 0
+    };
+
+    private RuleRuntime GetRuntime(object key)
+    {
+        if (!_ruleRt.TryGetValue(key, out var rt)) { rt = new RuleRuntime(); _ruleRt[key] = rt; }
+        return rt;
+    }
+
+    /// <summary>综合判断一条规则是否可触发：阈值/模式 + 连对封顶 + 冷却 + 本周期最多触发次数。不提交（提交见 CommitTrigger）。</summary>
+    private bool CanTrigger(object ruleKey, StreakResetScope scope, RewardTriggerMode mode,
+        int threshold, int streakCap, int cooldown, int maxTriggers, int rawStreak)
+    {
+        var streak = rawStreak;
+        if (streakCap > 0 && streak > streakCap) streak = streakCap;   // 连对计数封顶
+
+        var baseTrig = mode switch
+        {
+            RewardTriggerMode.Once      => streak == threshold,
+            RewardTriggerMode.Recurring => streak >= threshold,
+            RewardTriggerMode.EveryN    => threshold > 0 && streak >= threshold && streak % threshold == 0,
+            _ => false
+        };
+        if (!baseTrig) return false;
+
+        var rt = GetRuntime(ruleKey);
+        var period = PeriodOf(scope);
+        if (rt.CountPeriod != period) { rt.CountPeriod = period; rt.TriggerCount = 0; }   // 跨周期→重置本周期触发次数
+
+        if (cooldown > 0 && (_answerSeq - rt.LastTriggerSeq) < cooldown) return false;    // 冷却中
+        if (maxTriggers > 0 && rt.TriggerCount >= maxTriggers) return false;              // 已达本周期上限
+        return true;
+    }
+
+    /// <summary>确认奖励/惩罚实际发放后提交触发（记冷却序号 + 本周期次数+1）。</summary>
+    private void CommitTrigger(object ruleKey)
+    {
+        var rt = GetRuntime(ruleKey);
+        rt.LastTriggerSeq = _answerSeq;
+        rt.TriggerCount++;
     }
 
     // ── 容错 ──
@@ -103,11 +190,12 @@ public sealed class BattleStateTracker
     {
         var outcome = new AnswerOutcome();
         var cfg = VocabConfig.Instance;
+        _answerSeq++;   // 累计答题数（冷却按此计）
 
         if (!correct)
         {
-            CorrectStreak = 0;
-            WrongStreak++;
+            CorrectStreak = 0; _correctCombat = 0; _correctTurn = 0;
+            WrongStreak++; _wrongCombat++; _wrongTurn++;
             MegaCrit.Sts2.Core.Logging.Log.Info(
                 $"[VocabSpire][Punish] RecordAnswer: WRONG streak={WrongStreak} " +
                 $"PunishmentEnabled={cfg.PunishmentEnabled} PunishmentRules.Count={cfg.PunishmentRules.Count}");
@@ -156,8 +244,8 @@ public sealed class BattleStateTracker
             return outcome;
         }
 
-        CorrectStreak++;
-        WrongStreak = 0;
+        CorrectStreak++; _correctCombat++; _correctTurn++;
+        WrongStreak = 0; _wrongCombat = 0; _wrongTurn = 0;
 
         MegaCrit.Sts2.Core.Logging.Log.Info(
             $"[VocabSpire][Reward] RecordAnswer: CORRECT streak={CorrectStreak} " +
@@ -183,16 +271,11 @@ public sealed class BattleStateTracker
                     continue;
                 }
 
-                bool triggered = rule.Mode switch
+                // 连对机制：按重算范围取原始连对数，综合封顶/冷却/最多触发判定
+                var rawStreak = RawStreak(rule.ResetScope, correct: true);
+                if (!CanTrigger(rule, rule.ResetScope, rule.Mode, rule.Streak, rule.StreakCap, rule.Cooldown, rule.MaxTriggers, rawStreak))
                 {
-                    RewardTriggerMode.Once      => CorrectStreak == rule.Streak,
-                    RewardTriggerMode.Recurring => CorrectStreak >= rule.Streak,
-                    RewardTriggerMode.EveryN    => CorrectStreak >= rule.Streak && CorrectStreak % rule.Streak == 0,
-                    _ => false
-                };
-                if (!triggered)
-                {
-                    MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (triggered=false: streak={CorrectStreak} vs threshold={rule.Streak} mode={rule.Mode})");
+                    MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (未触发: scope={rule.ResetScope} rawStreak={rawStreak} cap={rule.StreakCap} cd={rule.Cooldown} max={rule.MaxTriggers})");
                     continue;
                 }
 
@@ -200,6 +283,7 @@ public sealed class BattleStateTracker
                 var amount = DifficultyScale.Scale(rule.Amount, scale);
                 if (amount <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (scaled amount={amount} <=0)"); continue; }
 
+                CommitTrigger(rule);   // 确认发放后才提交触发（记冷却+周期次数）
                 MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → ✓ TRIGGERED (scaled={amount} via scale={scale:F2})");
                 outcome.Rewards.Add((rule.Kind, amount));
             }

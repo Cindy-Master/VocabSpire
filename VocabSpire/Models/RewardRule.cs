@@ -14,6 +14,17 @@ public enum RewardTriggerMode
     EveryN = 2
 }
 
+/// <summary>连对/连错计数的重算范围（在答相反结果重置之外，额外的边界重置）。</summary>
+public enum StreakResetScope
+{
+    /// <summary>永久：只在答相反结果时重置，跨回合跨战斗累积（= 老版本行为，默认）。</summary>
+    Persistent = 0,
+    /// <summary>每场战斗：战斗开始时也重置。</summary>
+    Combat = 1,
+    /// <summary>每回合：己方回合开始时也重置。</summary>
+    Turn = 2
+}
+
 /// <summary>
 /// 单条奖励规则。多条规则可独立配置，原子化搭配。
 /// </summary>
@@ -47,6 +58,23 @@ public sealed class RewardRule
     [JsonPropertyName("quiz_type_filter")]
     public QuizModeFlags QuizTypeFilter { get; set; } = QuizModeFlags.None;
 
+    // ── 高级：连对机制（每条规则独立）──
+    /// <summary>连对计数重算范围：永久（默认，= 老行为）/ 每场战斗 / 每回合。</summary>
+    [JsonPropertyName("reset_scope")]
+    public StreakResetScope ResetScope { get; set; } = StreakResetScope.Persistent;
+
+    /// <summary>冷却：本规则触发后，需再答满 N 题才能再次触发。0 = 无冷却。</summary>
+    [JsonPropertyName("cooldown")]
+    public int Cooldown { get; set; }
+
+    /// <summary>连对计数封顶：评估本规则时连对数最多按 N 算（防 Recurring/EveryN 无限放大）。0 = 不封顶。</summary>
+    [JsonPropertyName("streak_cap")]
+    public int StreakCap { get; set; }
+
+    /// <summary>本重算周期内最多触发次数：达到后本周期不再触发，直到重算范围边界重置。0 = 无限。</summary>
+    [JsonPropertyName("max_triggers")]
+    public int MaxTriggers { get; set; }
+
     public RewardRule Clone() => new()
     {
         Enabled = Enabled,
@@ -56,6 +84,10 @@ public sealed class RewardRule
         Mode = Mode,
         MultiDefDouble = MultiDefDouble,
         DifficultyScaling = DifficultyScaling,
-        QuizTypeFilter = QuizTypeFilter
+        QuizTypeFilter = QuizTypeFilter,
+        ResetScope = ResetScope,
+        Cooldown = Cooldown,
+        StreakCap = StreakCap,
+        MaxTriggers = MaxTriggers
     };
 }
