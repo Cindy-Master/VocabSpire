@@ -496,6 +496,27 @@ public static class GetResultPileTypePatch
 }
 
 /// <summary>
+/// 能力牌答错回手的「空白牌」修复 —— 能力牌打出时 CardModel.PlayPowerCardFlyVfx() 会把卡牌视觉节点
+/// 搬进 CombatVfxContainer 并交给「飞向能力区」动画消耗掉（CardModel.cs:1613）。若此时又强制把牌回手，
+/// 牌 model 回到手牌但视觉节点已被消耗 → 手里是一张空白牌。
+/// 答错回手(ReturnToHand)时跳过这段 VFX：节点留在桌上，随后正常移进手牌，牌面完整。
+/// 答对(能力正常生效)时 ReturnToHand=false，VFX 照常播放，行为不变。
+/// </summary>
+[HarmonyPatch(typeof(CardModel), "PlayPowerCardFlyVfx")]
+public static class PowerCardFlyVfxSkipPatch
+{
+    public static bool Prefix(ref Task __result)
+    {
+        if (QuizState.ReturnToHand)
+        {
+            __result = Task.CompletedTask;
+            return false; // 跳过原 VFX，保留卡牌节点
+        }
+        return true;
+    }
+}
+
+/// <summary>
 /// 拦截所有 CardModel 子类的 OnPlay —— 答错跳过；正确（有奖励）则施加奖励。
 /// </summary>
 [HarmonyPatch]
