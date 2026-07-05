@@ -244,31 +244,45 @@ public partial class VocabCollectionPanel : NSubmenu
 
     // ── 刷新逻辑 ──
 
+    // 查看用词库（"" = 全部激活的合并库）；仅影响本面板展示，不改变全局激活。
+    private string _viewBankId = "";
+
+    private Models.WordBank? ViewBank()
+        => string.IsNullOrEmpty(_viewBankId)
+            ? VocabManager.Instance.ActiveBank
+            : (VocabManager.Instance.Banks.FirstOrDefault(b => b.Id == _viewBankId) ?? VocabManager.Instance.ActiveBank);
+
     private void RefreshBankSelector()
     {
         _bankSelector.Clear();
+        _bankSelector.AddItem("全部激活（合并）", 0);
         var banks = VocabManager.Instance.Banks;
-        var activeId = VocabConfig.Instance.ActiveBankId;
         for (var i = 0; i < banks.Count; i++)
         {
-            _bankSelector.AddItem($"{banks[i].Name} ({banks[i].TotalWords})", i);
-            if (banks[i].Id == activeId) _bankSelector.Selected = i;
+            _bankSelector.AddItem($"{banks[i].Name} ({banks[i].TotalWords})", i + 1);
+            if (banks[i].Id == _viewBankId) _bankSelector.Selected = i + 1;
         }
+        if (string.IsNullOrEmpty(_viewBankId)) _bankSelector.Selected = 0;
     }
 
     private void OnBankChanged(long idx)
     {
-        var banks = VocabManager.Instance.Banks;
-        if (idx >= 0 && idx < banks.Count)
+        if (idx <= 0)
         {
-            VocabManager.Instance.SetActiveBank(banks[(int)idx].Id);
-            Refresh();
+            _viewBankId = "";
         }
+        else
+        {
+            var banks = VocabManager.Instance.Banks;
+            var bi = (int)idx - 1;
+            _viewBankId = (bi >= 0 && bi < banks.Count) ? banks[bi].Id : "";
+        }
+        Refresh();
     }
 
     private void Refresh()
     {
-        var bank = VocabManager.Instance.ActiveBank;
+        var bank = ViewBank();
         if (bank is null)
         {
             _titleLabel.Text = "\u8BCD\u6C47\u56FE\u9274";
@@ -309,7 +323,7 @@ public partial class VocabCollectionPanel : NSubmenu
     private void RefreshWordList()
     {
         foreach (var child in _wordListContainer.GetChildren()) child.QueueFree();
-        var bank = VocabManager.Instance.ActiveBank;
+        var bank = ViewBank();
         if (bank is null) return;
 
         var filter = _filterSelector.Selected;
@@ -466,7 +480,7 @@ public partial class VocabCollectionPanel : NSubmenu
 
     private void ExportErrorBook(string format)
     {
-        var bank = VocabManager.Instance.ActiveBank;
+        var bank = ViewBank();
         if (bank is null) return;
 
         var sortMode = _exportSortSelector.Selected;

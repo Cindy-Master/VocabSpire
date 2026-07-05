@@ -11,15 +11,18 @@ public sealed class VocabManager
 
     private readonly List<WordBank> _banks = new();
     private readonly QuizGenerator _quizGenerator = new();
-    private WordBank? _activeBank;
+    private readonly List<WordBank> _activeBanks = new();   // 已激活的库（按激活顺序，可多选）
+    private WordBank? _mergedBank;                            // 合并去重后的出题池（缓存）
 
     // ── 本局已测试词追踪（用于拼写复习模式）──
     private readonly HashSet<string> _testedWordsThisRun = new();
     private bool _wasInRun;
 
     public IReadOnlyList<WordBank> Banks => _banks.AsReadOnly();
-    public WordBank? ActiveBank => _activeBank;
-    public bool HasActiveBank => _activeBank is { IsValid: true };
+    public IReadOnlyList<WordBank> ActiveBanks => _activeBanks.AsReadOnly();
+    public WordBank? ActiveBank => _mergedBank;              // 出题/展示统一用合并库
+    public bool HasActiveBank => _mergedBank is { IsValid: true };
+    public bool IsBankActive(string bankId) => _activeBanks.Any(b => b.Id == bankId);
 
     private VocabManager() { }
 
@@ -67,10 +70,15 @@ public sealed class VocabManager
 
         Log.Info($"[VocabSpire] Total word banks: {_banks.Count}");
 
-        var activeBankId = VocabConfig.Instance.ActiveBankId;
-        if (!string.IsNullOrEmpty(activeBankId))
+        // 恢复激活库（多选优先）；都没有则默认第一个库
+        var ids = VocabConfig.Instance.ActiveBankIds;
+        if (ids is { Count: > 0 })
         {
-            SetActiveBank(activeBankId);
+            SetActiveBanks(ids);
+        }
+        else if (!string.IsNullOrEmpty(VocabConfig.Instance.ActiveBankId))
+        {
+            SetActiveBank(VocabConfig.Instance.ActiveBankId);
         }
         else if (_banks.Count > 0)
         {
@@ -81,15 +89,80 @@ public sealed class VocabManager
         LoadProgress();
     }
 
-    public void SetActiveBank(string bankId)
+    /// <summary>设为单一激活库（兼容旧调用：清空后只激活这一个）。</summary>
+    public void SetActiveBank(string bankId) => SetActiveBanks(new[] { bankId });
+
+    /// <summary>按 Id 列表设置激活库（保持顺序、去掉不存在的、去重）。</summary>
+    public void SetActiveBanks(IEnumerable<string> bankIds)
     {
-        _activeBank = _banks.FirstOrDefault(b => b.Id == bankId);
-        if (_activeBank is not null)
+        _activeBanks.Clear();
+        foreach (var id in bankIds)
         {
-            VocabConfig.Instance.ActiveBankId = bankId;
-            VocabConfig.Instance.Save();
-            Log.Info($"[VocabSpire] Active bank: {_activeBank.Name}");
+            var b = _banks.FirstOrDefault(x => x.Id == id);
+            if (b is not null && !_activeBanks.Contains(b)) _activeBanks.Add(b);
         }
+        PersistActiveIds();
+        RebuildMergedBank();
+        Log.Info($"[VocabSpire] Active banks: {string.Join(", ", _activeBanks.Select(b => b.Name))}");
+    }
+
+    /// <summary>勾选/取消一个库（多选）。至少保留一个：取消最后一个时忽略。</summary>
+    public void ToggleActiveBank(string bankId, bool active)
+    {
+        var b = _banks.FirstOrDefault(x => x.Id == bankId);
+        if (b is null) return;
+        if (active)
+        {
+            if (!_activeBanks.Contains(b)) _activeBanks.Add(b);
+        }
+        else
+        {
+            if (_activeBanks.Count <= 1) return;
+            _activeBanks.Remove(b);
+        }
+        PersistActiveIds();
+        RebuildMergedBank();
+    }
+
+    private void PersistActiveIds()
+    {
+        var ids = _activeBanks.Select(b => b.Id).ToList();
+        VocabConfig.Instance.ActiveBankIds = ids;
+        VocabConfig.Instance.ActiveBankId = ids.Count > 0 ? ids[0] : "";   // 兼容旧字段
+        VocabConfig.Instance.Save();
+    }
+
+    /// <summary>把所有激活库合并成一个去重出题池：按英文去重；激活顺序第一个库拥有该词（进度归它的 WordEntry 对象，
+    /// 保证 SaveProgress 按该库 Id 存盘）；其余库的释义合并进来（去重、幂等，不影响进度）。</summary>
+    private void RebuildMergedBank()
+    {
+        var seen = new Dictionary<string, WordEntry>();
+        var order = new List<WordEntry>();
+        foreach (var bank in _activeBanks)
+        {
+            foreach (var w in bank.Words)
+            {
+                var key = w.English.Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(key)) continue;
+                if (seen.TryGetValue(key, out var owner))
+                {
+                    foreach (var d in w.Definitions)
+                        if (!owner.Definitions.Contains(d)) owner.Definitions.Add(d);
+                }
+                else
+                {
+                    seen[key] = w;
+                    order.Add(w);
+                }
+            }
+        }
+        _mergedBank = new WordBank
+        {
+            Id = "__merged__",
+            Name = _activeBanks.Count == 1 ? _activeBanks[0].Name : $"合并词库（{_activeBanks.Count} 个）",
+            Words = order
+        };
+        Log.Info($"[VocabSpire] Merged pool: {order.Count} unique words from {_activeBanks.Count} bank(s).");
     }
 
     public WordBank? ImportBank(string filePath)
@@ -204,7 +277,7 @@ public sealed class VocabManager
 
     public QuizQuestion? GenerateQuiz()
     {
-        if (_activeBank is null || !_activeBank.IsValid) return null;
+        if (_mergedBank is null || !_mergedBank.IsValid) return null;
 
         // 检测新局开始，清空已测试词记录
         DetectRunBoundary();
@@ -223,13 +296,13 @@ public sealed class VocabManager
             if (reviewPool.Count >= 4)
             {
                 return _quizGenerator.Generate(
-                    _activeBank, reviewPool, modes,
+                    _mergedBank, reviewPool, modes,
                     cfg.OptionCount, tier);
             }
         }
 
         return _quizGenerator.Generate(
-            _activeBank, modes, cfg.OptionCount, tier);
+            _mergedBank, modes, cfg.OptionCount, tier);
     }
 
     public void RecordAnswer(WordEntry word, bool correct)
@@ -361,13 +434,13 @@ public sealed class VocabManager
     /// </summary>
     private List<WordEntry> GetReviewWordPool()
     {
-        if (_activeBank is null) return new();
-        if (_testedWordsThisRun.Count < 4) return _activeBank.Words;
+        if (_mergedBank is null) return new();
+        if (_testedWordsThisRun.Count < 4) return _mergedBank.Words;
 
-        var filtered = _activeBank.Words
+        var filtered = _mergedBank.Words
             .Where(w => _testedWordsThisRun.Contains(w.English.ToLowerInvariant()))
             .ToList();
 
-        return filtered.Count >= 4 ? filtered : _activeBank.Words;
+        return filtered.Count >= 4 ? filtered : _mergedBank.Words;
     }
 }

@@ -13,7 +13,7 @@ public partial class VocabSettingsPanel : Control
     public static VocabSettingsPanel? Instance { get; private set; }
 
     private CheckButton _enableToggle = null!;
-    private OptionButton _bankSelector = null!;
+    private VBoxContainer _bankChecksContainer = null!;
     private CheckButton _modeEnToCn = null!;
     private CheckButton _modeCnToEn = null!;
     private CheckButton _modeSpell = null!;
@@ -180,12 +180,12 @@ public partial class VocabSettingsPanel : Control
         vbox.AddChild(new HSeparator());
         vbox.AddChild(GameTheme.MakeLabel("-- 词库管理 --", 22, SectionColor));
 
-        var bankRow = new HBoxContainer();
-        vbox.AddChild(bankRow);
-        bankRow.AddChild(GameTheme.MakeLabel("当前词库：", 20, White));
-        _bankSelector = new OptionButton { CustomMinimumSize = new Vector2(300, 0) };
-        _bankSelector.ItemSelected += OnBankSelected;
-        bankRow.AddChild(_bankSelector);
+        vbox.AddChild(GameTheme.MakeLabel("激活词库（可多选，合并去重出题）：", 20, White));
+        var bankScroll = new ScrollContainer { CustomMinimumSize = new Vector2(380, 132) };
+        _bankChecksContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _bankChecksContainer.AddThemeConstantOverride("separation", 2);
+        bankScroll.AddChild(_bankChecksContainer);
+        vbox.AddChild(bankScroll);
 
         var btnRow = new HBoxContainer();
         btnRow.AddThemeConstantOverride("separation", 8);
@@ -199,11 +199,25 @@ public partial class VocabSettingsPanel : Control
         newBankBtn.Pressed += () => WordBankEditorPanel.Instance?.Open();
         btnRow.AddChild(newBankBtn);
 
-        var editBankBtn = GameTheme.MakeButton("  编辑当前词库  ", 14);
+        var editBankBtn = GameTheme.MakeButton("  编辑词库  ", 14);
+        var editPopup = new PopupMenu { ProcessMode = ProcessModeEnum.Always };
+        editBankBtn.AddChild(editPopup);
         editBankBtn.Pressed += () =>
         {
-            var active = VocabManager.Instance.ActiveBank;
-            if (active is not null) WordBankEditorPanel.Instance?.Open(active);
+            var active = VocabManager.Instance.ActiveBanks;
+            if (active.Count == 0) return;
+            if (active.Count == 1) { WordBankEditorPanel.Instance?.Open(active[0]); return; }
+            editPopup.Clear();
+            for (var i = 0; i < active.Count; i++)
+                editPopup.AddItem($"{active[i].Name} ({active[i].TotalWords} 词)", i);
+            editPopup.ResetSize();
+            editPopup.Position = (Vector2I)editBankBtn.GetScreenPosition() + new Vector2I(0, (int)editBankBtn.Size.Y);
+            editPopup.Popup();
+        };
+        editPopup.IdPressed += id =>
+        {
+            var active = VocabManager.Instance.ActiveBanks;
+            if (id >= 0 && id < active.Count) WordBankEditorPanel.Instance?.Open(active[(int)id]);
         };
         btnRow.AddChild(editBankBtn);
 
@@ -1436,19 +1450,7 @@ public partial class VocabSettingsPanel : Control
 
     private void RefreshUI()
     {
-        _bankSelector.Clear();
-        var banks = VocabManager.Instance.Banks;
-        var selectedIdx = 0;
-
-        for (var i = 0; i < banks.Count; i++)
-        {
-            _bankSelector.AddItem($"{banks[i].Name} ({banks[i].TotalWords} 词)", i);
-            if (banks[i].Id == VocabConfig.Instance.ActiveBankId)
-                selectedIdx = i;
-        }
-        if (banks.Count > 0)
-            _bankSelector.Selected = selectedIdx;
-
+        RebuildBankChecks();
         RefreshBankAnalysis();
 
         var cfg = VocabConfig.Instance;
@@ -1485,14 +1487,28 @@ public partial class VocabSettingsPanel : Control
         _sampleWordsLabel.Text = "示例：\n" + string.Join("\n", samples);
     }
 
-    private void OnBankSelected(long index)
+    private void RebuildBankChecks()
     {
-        var banks = VocabManager.Instance.Banks;
-        if (index >= 0 && index < banks.Count)
+        foreach (var c in _bankChecksContainer.GetChildren()) c.QueueFree();
+        foreach (var b in VocabManager.Instance.Banks)
         {
-            VocabManager.Instance.SetActiveBank(banks[(int)index].Id);
-            RefreshBankAnalysis();
+            var id = b.Id;
+            var cb = new CheckBox
+            {
+                Text = $" {b.Name} ({b.TotalWords} 词)",
+                ButtonPressed = VocabManager.Instance.IsBankActive(id)
+            };
+            cb.AddThemeFontSizeOverride("font_size", 15);
+            cb.Toggled += on =>
+            {
+                VocabManager.Instance.ToggleActiveBank(id, on);
+                // ToggleActiveBank 会拒绝取消最后一个 → 用实际状态回写勾选框
+                cb.SetPressedNoSignal(VocabManager.Instance.IsBankActive(id));
+                RefreshBankAnalysis();
+            };
+            _bankChecksContainer.AddChild(cb);
         }
+        GameTheme.ApplyFontRecursive(_bankChecksContainer);
     }
 
     private void OnExportTemplate()

@@ -347,7 +347,10 @@ public partial class WordBankEditorPanel : Control
             {
                 // 编辑后重新绑定进度，避免重解析出的新词条把已有掌握度归零。
                 VocabManager.Instance.LoadProgress();
-                VocabManager.Instance.SetActiveBank(bank.Id);
+                // 保持当前多选激活集，把编辑/新建的库并入并重新解析（用新对象重建合并池）
+                var ids = new List<string>(VocabConfig.Instance.ActiveBankIds);
+                if (!ids.Contains(bank.Id)) ids.Add(bank.Id);
+                VocabManager.Instance.SetActiveBanks(ids);
             }
             _statusLabel.Text = $"已保存: {path}";
             Log.Info($"[VocabSpire] Saved bank ({(_editingPath is null ? "new" : "edit")}): {path}");

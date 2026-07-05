@@ -32,6 +32,9 @@ public sealed class VocabConfig
     public bool Enabled { get; set; } = true;
     public string ActiveBankId { get; set; } = "";
 
+    /// <summary>激活的词库 Id 列表（可多选，合并去重出题）。空则回退到单选 ActiveBankId。</summary>
+    public List<string> ActiveBankIds { get; set; } = new();
+
     /// <summary>设置面板快捷键（默认 F8）。</summary>
     public Key SettingsHotkey { get; set; } = Key.F8;
 
@@ -251,6 +254,10 @@ public sealed class VocabConfig
 
             Enabled = data.Enabled;
             ActiveBankId = data.ActiveBankId ?? "";
+            // 多选激活库；旧存档只有单选 ActiveBankId → 迁移为单元素列表
+            ActiveBankIds = data.ActiveBankIds is { Count: > 0 }
+                ? new List<string>(data.ActiveBankIds)
+                : (string.IsNullOrEmpty(ActiveBankId) ? new List<string>() : new List<string> { ActiveBankId });
             if (data.SettingsHotkey > 0) SettingsHotkey = (Key)data.SettingsHotkey;
             if (data.SubmitKey > 0) SubmitKey = (Key)data.SubmitKey;
             if (data.ContinueKey > 0) ContinueKey = (Key)data.ContinueKey;
@@ -363,6 +370,7 @@ public sealed class VocabConfig
             {
                 Enabled = Enabled,
                 ActiveBankId = ActiveBankId,
+                ActiveBankIds = ActiveBankIds,
                 SettingsHotkey = (int)SettingsHotkey,
                 SubmitKey = (int)SubmitKey,
                 ContinueKey = (int)ContinueKey,
@@ -428,6 +436,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("active_bank_id")]
         public string? ActiveBankId { get; set; }
+
+        [JsonPropertyName("active_bank_ids")]
+        public List<string>? ActiveBankIds { get; set; }
 
         [JsonPropertyName("settings_hotkey")]
         public int SettingsHotkey { get; set; }
