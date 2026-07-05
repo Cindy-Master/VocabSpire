@@ -124,6 +124,13 @@ public sealed class BattleStateTracker
                     if (rule.Amount <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (amount<=0)"); continue; }
                     if (rule.Streak <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (streak<=0)"); continue; }
 
+                    // 题型筛选：只对该题型答错时触发本条惩罚（对称于奖励）
+                    if (rule.QuizTypeFilter != QuizModeFlags.None && rule.QuizTypeFilter != question.Mode)
+                    {
+                        MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (题型筛选 {rule.QuizTypeFilter} ≠ 本题 {question.Mode})");
+                        continue;
+                    }
+
                     bool triggered = rule.Mode switch
                     {
                         RewardTriggerMode.Once      => WrongStreak == rule.Streak,
@@ -168,6 +175,13 @@ public sealed class BattleStateTracker
                 if (rule.Kind == RewardType.None) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (kind=None)"); continue; }
                 if (rule.Amount <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (amount<=0)"); continue; }
                 if (rule.Streak <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (streak<=0)"); continue; }
+
+                // 题型筛选：规则设了适用题型时，只对该题型答对时触发（拼写题→+力量、听力题→+覆甲等）
+                if (rule.QuizTypeFilter != QuizModeFlags.None && rule.QuizTypeFilter != question.Mode)
+                {
+                    MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (题型筛选 {rule.QuizTypeFilter} ≠ 本题 {question.Mode})");
+                    continue;
+                }
 
                 bool triggered = rule.Mode switch
                 {

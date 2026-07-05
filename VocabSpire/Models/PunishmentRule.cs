@@ -34,6 +34,10 @@ public sealed class PunishmentRule
     [JsonPropertyName("difficulty_scaling")]
     public bool DifficultyScaling { get; set; }
 
+    /// <summary>适用题型：None = 全部题型都触发；设为某题型则只在该题型答错时触发（与奖励对称）。</summary>
+    [JsonPropertyName("quiz_type_filter")]
+    public QuizModeFlags QuizTypeFilter { get; set; } = QuizModeFlags.None;
+
     public PunishmentRule Clone() => new()
     {
         Enabled = Enabled,
@@ -42,6 +46,7 @@ public sealed class PunishmentRule
         Amount = Amount,
         Mode = Mode,
         MultiDefDouble = MultiDefDouble,
-        DifficultyScaling = DifficultyScaling
+        DifficultyScaling = DifficultyScaling,
+        QuizTypeFilter = QuizTypeFilter
     };
 }

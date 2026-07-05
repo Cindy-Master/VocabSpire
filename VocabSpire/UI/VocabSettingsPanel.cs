@@ -627,6 +627,31 @@ public partial class VocabSettingsPanel : Control
         GameTheme.ApplyFontRecursive(_rewardRulesContainer);
     }
 
+    /// <summary>给规则行加「题型」下拉（奖励/惩罚共用）。current=当前值，onChange=写回。</summary>
+    private void AddQuizTypeSelector(HBoxContainer row, QuizModeFlags current, System.Action<QuizModeFlags> onChange)
+    {
+        row.AddChild(GameTheme.MakeLabel("题型", 12, Grey));
+        var sel = new OptionButton { CustomMinimumSize = new Vector2(100, 0) };
+        var types = new (QuizModeFlags, string)[]
+        {
+            (QuizModeFlags.None, "全部"),
+            (QuizModeFlags.EnglishToChinese, "英→中"),
+            (QuizModeFlags.ChineseToEnglish, "中→英"),
+            (QuizModeFlags.ListenToChinese, "听力"),
+            (QuizModeFlags.SpellEnglish, "拼写")
+        };
+        var pick = 0;
+        for (var i = 0; i < types.Length; i++)
+        {
+            sel.AddItem(types[i].Item2, (int)types[i].Item1);
+            if (types[i].Item1 == current) pick = i;
+        }
+        sel.Selected = pick;
+        sel.TooltipText = "只对该题型答对/答错时触发本条规则（如「拼写→+力量」「听力→+覆甲」）。选「全部」则不限题型。";
+        sel.ItemSelected += i => { onChange((QuizModeFlags)sel.GetItemId((int)i)); VocabConfig.Instance.Save(); };
+        row.AddChild(sel);
+    }
+
     private Control BuildRuleRow(Models.RewardRule rule, int idx)
     {
         var box = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -716,10 +741,12 @@ public partial class VocabSettingsPanel : Control
         };
         r1.AddChild(delBtn);
 
-        // 行 2：难度加成 + 多义翻倍
+        // 行 2：题型 + 难度加成 + 多义翻倍
         var r2 = new HBoxContainer();
         r2.AddThemeConstantOverride("separation", 16);
         v.AddChild(r2);
+
+        AddQuizTypeSelector(r2, rule.QuizTypeFilter, val => rule.QuizTypeFilter = val);
 
         var diffCb = new CheckBox { ButtonPressed = rule.DifficultyScaling, Text = " 难度加成（拼写×2/听力×1.5）" };
         diffCb.AddThemeFontSizeOverride("font_size", 12);
@@ -884,6 +911,8 @@ public partial class VocabSettingsPanel : Control
         var r2 = new HBoxContainer();
         r2.AddThemeConstantOverride("separation", 16);
         v.AddChild(r2);
+
+        AddQuizTypeSelector(r2, rule.QuizTypeFilter, val => rule.QuizTypeFilter = val);
 
         var diffCb = new CheckBox { ButtonPressed = rule.DifficultyScaling, Text = " 难度加成（拼写×2/听力×1.5）" };
         diffCb.AddThemeFontSizeOverride("font_size", 12);
