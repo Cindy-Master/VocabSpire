@@ -219,16 +219,11 @@ public sealed class BattleStateTracker
                         continue;
                     }
 
-                    bool triggered = rule.Mode switch
+                    // 连错机制：按重算范围取原始连错数，综合封顶/冷却/最多触发判定（对称于奖励）
+                    var rawWrong = RawStreak(rule.ResetScope, correct: false);
+                    if (!CanTrigger(rule, rule.ResetScope, rule.Mode, rule.Streak, rule.StreakCap, rule.Cooldown, rule.MaxTriggers, rawWrong))
                     {
-                        RewardTriggerMode.Once      => WrongStreak == rule.Streak,
-                        RewardTriggerMode.Recurring => WrongStreak >= rule.Streak,
-                        RewardTriggerMode.EveryN    => WrongStreak >= rule.Streak && WrongStreak % rule.Streak == 0,
-                        _ => false
-                    };
-                    if (!triggered)
-                    {
-                        MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (triggered=false: wrong_streak={WrongStreak} vs threshold={rule.Streak} mode={rule.Mode})");
+                        MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (未触发: scope={rule.ResetScope} rawWrong={rawWrong} cap={rule.StreakCap} cd={rule.Cooldown} max={rule.MaxTriggers})");
                         continue;
                     }
 
@@ -236,6 +231,7 @@ public sealed class BattleStateTracker
                     var amountP = DifficultyScale.Scale(rule.Amount, scaleP);
                     if (amountP <= 0) { MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → SKIP (scaled amount={amountP} <=0)"); continue; }
 
+                    CommitTrigger(rule);   // 确认发放后才提交触发
                     MegaCrit.Sts2.Core.Logging.Log.Info($"{preLog} → ✓ TRIGGERED (scaled={amountP} via scale={scaleP:F2})");
                     outcome.Punishments.Add((rule.Kind, amountP));
                 }

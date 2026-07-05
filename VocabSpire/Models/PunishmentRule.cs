@@ -38,6 +38,23 @@ public sealed class PunishmentRule
     [JsonPropertyName("quiz_type_filter")]
     public QuizModeFlags QuizTypeFilter { get; set; } = QuizModeFlags.None;
 
+    // ── 高级：连错机制（每条规则独立，与奖励对称）──
+    /// <summary>连错计数重算范围：永久（默认，= 老行为）/ 每场战斗 / 每回合。</summary>
+    [JsonPropertyName("reset_scope")]
+    public StreakResetScope ResetScope { get; set; } = StreakResetScope.Persistent;
+
+    /// <summary>冷却：本规则触发后，需再答满 N 题才能再次触发。0 = 无冷却。</summary>
+    [JsonPropertyName("cooldown")]
+    public int Cooldown { get; set; }
+
+    /// <summary>连错计数封顶：评估本规则时连错数最多按 N 算。0 = 不封顶。</summary>
+    [JsonPropertyName("streak_cap")]
+    public int StreakCap { get; set; }
+
+    /// <summary>本重算周期内最多触发次数：达到后本周期不再触发，直到重算范围边界重置。0 = 无限。</summary>
+    [JsonPropertyName("max_triggers")]
+    public int MaxTriggers { get; set; }
+
     public PunishmentRule Clone() => new()
     {
         Enabled = Enabled,
@@ -47,6 +64,10 @@ public sealed class PunishmentRule
         Mode = Mode,
         MultiDefDouble = MultiDefDouble,
         DifficultyScaling = DifficultyScaling,
-        QuizTypeFilter = QuizTypeFilter
+        QuizTypeFilter = QuizTypeFilter,
+        ResetScope = ResetScope,
+        Cooldown = Cooldown,
+        StreakCap = StreakCap,
+        MaxTriggers = MaxTriggers
     };
 }

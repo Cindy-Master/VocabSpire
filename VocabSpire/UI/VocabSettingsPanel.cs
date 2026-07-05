@@ -978,6 +978,12 @@ public partial class VocabSettingsPanel : Control
         multiCb.Toggled += on => { rule.MultiDefDouble = on; VocabConfig.Instance.Save(); };
         r2.AddChild(multiCb);
 
+        AddAdvancedFold(v,
+            rule.ResetScope, val => rule.ResetScope = val,
+            rule.Cooldown, val => rule.Cooldown = val,
+            rule.StreakCap, val => rule.StreakCap = val,
+            rule.MaxTriggers, val => rule.MaxTriggers = val);
+
         return box;
     }
 
