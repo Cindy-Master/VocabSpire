@@ -143,7 +143,7 @@ public static class SinglePlayerPatch
             try
             {
                 GameBridge.SetGamePaused(false);
-                ApplyAnswerEffects(card, question, correct, resources);
+                ApplyAnswerEffects(card, question, correct, resources, isAutoPlay);
                 QuizState.Bypass = true;
                 // 注意：QuizActive 不在这里复位 —— 二次 OnPlayWrapper 内部如果触发
                 // 嵌套牌（横祸/横扫/任何角色任何会引发额外打牌的卡），
@@ -179,7 +179,7 @@ public static class SinglePlayerPatch
     }
 
     /// <summary>核心：根据答题结果设置所有打牌标志（容错/回手/扣费/奖励）。</summary>
-    internal static void ApplyAnswerEffects(CardModel card, Models.QuizQuestion question, bool correct, ResourceInfo resources = default)
+    internal static void ApplyAnswerEffects(CardModel card, Models.QuizQuestion question, bool correct, ResourceInfo resources = default, bool isAutoPlay = false)
     {
         var cfg = VocabConfig.Instance;
         QuizState.ResetCardLevel();
@@ -243,6 +243,10 @@ public static class SinglePlayerPatch
         {
             QuizState.ReturnToHand = true;
         }
+
+        // Sly(奇巧「被丢弃时自动打出」)等自动打出的牌本就不在手牌里 —— 回手会把它塞进手牌 = 凭空多一张。
+        // 自动打出的牌答错不回手，让它走正常结果堆（如弃牌堆），效果照常跳过。
+        if (isAutoPlay) QuizState.ReturnToHand = false;
     }
 
     /// <summary>退还本次 SpendResources 已扣的能量和星费。</summary>
