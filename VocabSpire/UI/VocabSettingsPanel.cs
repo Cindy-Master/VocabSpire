@@ -200,24 +200,26 @@ public partial class VocabSettingsPanel : Control
         btnRow.AddChild(newBankBtn);
 
         var editBankBtn = GameTheme.MakeButton("  编辑词库  ", 14);
-        var editPopup = new PopupMenu { ProcessMode = ProcessModeEnum.Always };
-        editBankBtn.AddChild(editPopup);
         editBankBtn.Pressed += () =>
         {
             var active = VocabManager.Instance.ActiveBanks;
             if (active.Count == 0) return;
             if (active.Count == 1) { WordBankEditorPanel.Instance?.Open(active[0]); return; }
-            editPopup.Clear();
+            // 懒创建 PopupMenu —— 绝不能在面板构造时创建：PopupMenu 是内嵌子窗口，
+            // 启动时主窗口若无焦点，构造子窗口会原生崩溃。按下时窗口必有焦点 → 安全。
+            var popup = new PopupMenu { ProcessMode = ProcessModeEnum.Always };
             for (var i = 0; i < active.Count; i++)
-                editPopup.AddItem($"{active[i].Name} ({active[i].TotalWords} 词)", i);
-            editPopup.ResetSize();
-            editPopup.Position = (Vector2I)editBankBtn.GetScreenPosition() + new Vector2I(0, (int)editBankBtn.Size.Y);
-            editPopup.Popup();
-        };
-        editPopup.IdPressed += id =>
-        {
-            var active = VocabManager.Instance.ActiveBanks;
-            if (id >= 0 && id < active.Count) WordBankEditorPanel.Instance?.Open(active[(int)id]);
+                popup.AddItem($"{active[i].Name} ({active[i].TotalWords} 词)", i);
+            popup.IdPressed += id =>
+            {
+                var banks = VocabManager.Instance.ActiveBanks;
+                if (id >= 0 && id < banks.Count) WordBankEditorPanel.Instance?.Open(banks[(int)id]);
+            };
+            popup.PopupHide += () => popup.QueueFree();   // 关闭即释放，不常驻
+            editBankBtn.AddChild(popup);
+            popup.ResetSize();
+            popup.Position = (Vector2I)editBankBtn.GetScreenPosition() + new Vector2I(0, (int)editBankBtn.Size.Y);
+            popup.Popup();
         };
         btnRow.AddChild(editBankBtn);
 

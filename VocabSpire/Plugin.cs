@@ -104,14 +104,19 @@ public partial class InputListener : Node
 
     private void CreateUI()
     {
-        QuizPanel.Create();
-        VocabSettingsPanel.Create();
-        WordBankEditorPanel.Create();
-        WrongAnswerSummaryPanel.Create();
-        RestSiteReviewPanel.Create();
-        RunSummaryPanel.Create();
-        FreePassButton.Create();
-        FreePassPopup.Create();
+        static void Safe(string name, System.Action create)
+        {
+            try { Log.Info($"[VocabSpire] CreateUI → {name}"); create(); }
+            catch (System.Exception ex) { Log.Error($"[VocabSpire] CreateUI {name} FAILED: {ex}"); }
+        }
+        Safe("QuizPanel", QuizPanel.Create);
+        Safe("VocabSettingsPanel", VocabSettingsPanel.Create);
+        Safe("WordBankEditorPanel", WordBankEditorPanel.Create);
+        Safe("WrongAnswerSummaryPanel", WrongAnswerSummaryPanel.Create);
+        Safe("RestSiteReviewPanel", RestSiteReviewPanel.Create);
+        Safe("RunSummaryPanel", RunSummaryPanel.Create);
+        Safe("FreePassButton", FreePassButton.Create);
+        Safe("FreePassPopup", FreePassPopup.Create);
         // VocabCollectionPanel 由 CompendiumPatch 按需创建（原生注入）
         Log.Info("[VocabSpire] UI panels created.");
     }
