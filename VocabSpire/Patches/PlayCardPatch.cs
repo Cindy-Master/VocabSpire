@@ -469,10 +469,20 @@ public static class SpendResourcesPatch
 /// OnPlayWrapper 的 playCount = GetEnchantedReplayCount()+1，于是这张牌用游戏原生循环多打 N 次。
 /// 该方法在单机/联机两端打牌时都会被 GeneratePlayCount 调一次算 playCount，两端加同样的 N（联机经
 /// NetPlayCardAction 同步 PendingReplay），结果一致、不 desync。PendingReplay 在 series 末清零。含能力牌。
+/// 用 TargetMethods 反射查方法：**若游戏版本没有该方法则不注册补丁、不崩**（防御式）。
 /// </summary>
-[HarmonyPatch(typeof(CardModel), nameof(CardModel.GetEnchantedReplayCount))]
+[HarmonyPatch]
 public static class ReplayCountPatch
 {
+    static IEnumerable<MethodBase> TargetMethods()
+    {
+        var m = typeof(CardModel).GetMethod("GetEnchantedReplayCount",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null, System.Type.EmptyTypes, null);
+        if (m is not null) { yield return m; }
+        else Log.Warn("[VocabSpire] GetEnchantedReplayCount 未找到 —— 重放奖励禁用（不注册补丁、不崩）。");
+    }
+
     public static void Postfix(ref int __result)
     {
         if (QuizState.PendingReplay > 0) __result += QuizState.PendingReplay;
