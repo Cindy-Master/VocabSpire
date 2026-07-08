@@ -13,6 +13,8 @@ public partial class ChoiceAnswerWidget : VBoxContainer
 {
     private VBoxContainer _optionsContainer = null!;
     private readonly List<Button> _optionButtons = new();
+    private readonly List<HBoxContainer> _optionRows = new();     // 每个选项一行（选项按钮 + 小喇叭）
+    private readonly List<Button> _optionSpeakers = new();        // 每个选项的发音按钮
     private Button _submitBtn = null!;
     private readonly HashSet<int> _selected = new();
 
@@ -48,9 +50,20 @@ public partial class ChoiceAnswerWidget : VBoxContainer
 
         for (var i = 0; i < QuizGenerator.MaxOptionCount; i++)
         {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 6);
+
             var btn = CreateOptionButton(i);
-            _optionsContainer.AddChild(btn);
+            btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.AddChild(btn);
+
+            var spk = CreateSpeakerButton(i);
+            row.AddChild(spk);
+
+            _optionsContainer.AddChild(row);
             _optionButtons.Add(btn);
+            _optionSpeakers.Add(spk);
+            _optionRows.Add(row);
         }
 
         var submitCenter = new CenterContainer();
@@ -70,18 +83,22 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _answered = false;
         _selected.Clear();
 
+        // 只有中→英题的选项是英文单词，才显示发音小喇叭（且开关开启）
+        var showSpeakers = VocabConfig.Instance.OptionPlayAudio
+                           && question.Mode == QuizModeFlags.ChineseToEnglish;
         for (var i = 0; i < _optionButtons.Count; i++)
         {
             if (i < question.Options.Count)
             {
                 _optionButtons[i].Text = $"  {Prefixes[i]}.  {question.Options[i]}";
-                _optionButtons[i].Visible = true;
                 _optionButtons[i].Disabled = false;
                 ResetStyle(_optionButtons[i]);
+                _optionSpeakers[i].Visible = showSpeakers;
+                _optionRows[i].Visible = true;
             }
             else
             {
-                _optionButtons[i].Visible = false;
+                _optionRows[i].Visible = false;
             }
         }
 
@@ -203,11 +220,26 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         }
     }
 
+    private Button CreateSpeakerButton(int index)
+    {
+        var spk = GameTheme.MakeButton(" 🔊 ", 18, GameTheme.Gold);
+        spk.CustomMinimumSize = new Vector2(52, 50);
+        spk.FocusMode = Control.FocusModeEnum.None;   // 不抢键盘焦点，不影响 A-H/1-8 选项快捷键
+        spk.Visible = false;
+        var idx = index;
+        spk.Pressed += () =>
+        {
+            if (_currentQuestion is not null && idx < _currentQuestion.Options.Count)
+                TtsService.Instance.Speak(_currentQuestion.Options[idx]);   // 播该英文选项发音
+        };
+        return spk;
+    }
+
     private Button CreateOptionButton(int index)
     {
         var btn = new Button
         {
-            CustomMinimumSize = new Vector2(540, 50),
+            CustomMinimumSize = new Vector2(0, 50),
             Alignment = HorizontalAlignment.Left
         };
         btn.AddThemeStyleboxOverride("normal", MakeBtnStyle(BtnNormal));
