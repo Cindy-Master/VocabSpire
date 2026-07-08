@@ -19,7 +19,8 @@ public enum RewardType
     Draw      = 7,  // 抽牌
     Thorns    = 8,  // 荆棘
     Focus     = 9,  // 集中
-    Artifact  = 10  // 人工制品
+    Artifact  = 10, // 人工制品
+    Replay    = 11  // 重放：答对时用游戏原生机制把这张牌额外再打 N 次
 }
 
 /// <summary>可自定义的功能键动作（用于按键冲突检测）。</summary>
