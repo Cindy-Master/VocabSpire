@@ -29,6 +29,14 @@ public partial class VocabCollectionPanel : NSubmenu
     private OptionButton _exportSortSelector = null!;
     private VBoxContainer _wordListContainer = null!;
 
+    // 分页（词表可能几千词，多词库合并后更多，一次性全渲染会崩）
+    private const int WordsPerPage = 60;
+    private int _wordPage;
+    private readonly List<(WordEntry w, bool mastered, bool learning, bool locked)> _sortedWords = new();
+    private Label _wordPageLabel = null!;
+    private Button _wordPrevBtn = null!;
+    private Button _wordNextBtn = null!;
+
     private static int MasteryThreshold => VocabConfig.Instance.MasteryStreak;
 
     /// <summary>
@@ -240,6 +248,19 @@ public partial class VocabCollectionPanel : NSubmenu
         _wordListContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _wordListContainer.AddThemeConstantOverride("separation", 2);
         scroll.AddChild(_wordListContainer);
+
+        // 翻页控件（只渲染当前页，避免大词库/多库合并时一次性建几千行崩溃）
+        var pageNav = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        pageNav.AddThemeConstantOverride("separation", 12);
+        parent.AddChild(pageNav);
+        _wordPrevBtn = GameTheme.MakeButton("  ◀ 上一页  ", 14);
+        _wordPrevBtn.Pressed += () => { _wordPage--; RenderWordPage(); };
+        pageNav.AddChild(_wordPrevBtn);
+        _wordPageLabel = GameTheme.MakeLabel("", 15, GameTheme.MidGray);
+        pageNav.AddChild(_wordPageLabel);
+        _wordNextBtn = GameTheme.MakeButton("  下一页 ▶  ", 14);
+        _wordNextBtn.Pressed += () => { _wordPage++; RenderWordPage(); };
+        pageNav.AddChild(_wordNextBtn);
     }
 
     // ── 刷新逻辑 ──
@@ -322,9 +343,10 @@ public partial class VocabCollectionPanel : NSubmenu
 
     private void RefreshWordList()
     {
-        foreach (var child in _wordListContainer.GetChildren()) child.QueueFree();
+        // 只算数据（纯内存，几千词也不卡），渲染交给 RenderWordPage 按页建行
+        _sortedWords.Clear();
         var bank = ViewBank();
-        if (bank is null) return;
+        if (bank is null) { _wordPage = 0; RenderWordPage(); return; }
 
         var filter = _filterSelector.Selected;
         var sortMode = _exportSortSelector.Selected;
@@ -357,9 +379,29 @@ public partial class VocabCollectionPanel : NSubmenu
             2 => filtered.OrderBy(x => x.locked ? 999f : (x.w.CorrectCount + x.w.WrongCount > 0 ? x.w.Accuracy : 999f)),
             _ => filtered.AsEnumerable()
         };
+        _sortedWords.AddRange(sorted);
+        _wordPage = 0;
+        RenderWordPage();
+    }
 
-        foreach (var (w, mastered, learning, locked) in sorted)
+    /// <summary>只渲染当前页的词行（每页 WordsPerPage 行）。</summary>
+    private void RenderWordPage()
+    {
+        foreach (var child in _wordListContainer.GetChildren()) child.QueueFree();
+        var total = _sortedWords.Count;
+        var pageCount = System.Math.Max(1, (total + WordsPerPage - 1) / WordsPerPage);
+        _wordPage = System.Math.Clamp(_wordPage, 0, pageCount - 1);
+        var start = _wordPage * WordsPerPage;
+        var end = System.Math.Min(start + WordsPerPage, total);
+        for (var i = start; i < end; i++)
+        {
+            var (w, mastered, learning, locked) = _sortedWords[i];
             _wordListContainer.AddChild(BuildWordRow(w, mastered, learning, locked));
+        }
+        _wordPageLabel.Text = total == 0 ? "无词" : $"第 {_wordPage + 1}/{pageCount} 页 · 共 {total} 词";
+        _wordPrevBtn.Disabled = _wordPage <= 0;
+        _wordNextBtn.Disabled = _wordPage >= pageCount - 1;
+        _wordPrevBtn.Visible = _wordNextBtn.Visible = total > WordsPerPage;   // 一页装得下就不显示翻页
     }
 
     private Control BuildWordRow(WordEntry w, bool mastered, bool learning, bool locked)
