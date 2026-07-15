@@ -25,7 +25,20 @@ public static class Plugin
         VocabManager.Instance.LoadAllBanks();
 
         _harmony = new Harmony("com.vocabspire.mod");
-        _harmony.PatchAll(Assembly.GetExecutingAssembly());
+        // 不用 PatchAll：任何一个补丁类失败（如游戏版本改了 API、TargetMethods 找到 0 个方法——
+        // Harmony 对空 TargetMethods 是抛异常不是跳过）都会炸掉整个 mod 初始化（v0.108 手机版实锤）。
+        // 逐类 Patch + 隔离：单个补丁失败只失去对应功能，其余照常。
+        foreach (var type in Assembly.GetExecutingAssembly().GetTypes())
+        {
+            try
+            {
+                _harmony.CreateClassProcessor(type).Patch();
+            }
+            catch (System.Exception ex)
+            {
+                Log.Error($"[VocabSpire] 补丁 {type.Name} 挂载失败（游戏版本不兼容？该功能已禁用，mod 其余功能不受影响）: {ex.Message}");
+            }
+        }
 
         CombatEndHandler.Subscribe();
 
