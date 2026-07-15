@@ -4,6 +4,14 @@
 > GitHub Release notes、Steam changeNote 全部从对应版本段落派生，不得凭记忆另写。
 > 未发布的改动先记在 [Unreleased]，发版时把该段定稿为 vX.Y.Z。
 
+## v2.7.16（2026-07-15）
+
+### 修复
+- 更新弹窗重做并启用：改用游戏官方弹窗组件（NGenericPopup/NVerticalPopup，原生样式），延迟到主菜单就绪后弹
+  - 首版自绘面板在主菜单渲染成全屏黑条 → 已废弃
+  - 二版经 NModalContainer.Add 挂载时其内部 ActiveScreenContext.Instance 在主菜单为 null 抛 NRE（被内联致行号误指），导致文本未覆盖显示成「退出」占位 → 改为直接挂 UI 根 + YesButton 自行接 Released 信号
+- （2.7.15 发布当天曾紧急撤回弹窗，工坊版弹窗为禁用状态；本版恢复）
+
 ## v2.7.15（2026-07-15）
 
 ### 新增
