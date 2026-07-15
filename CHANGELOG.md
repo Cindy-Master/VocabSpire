@@ -4,6 +4,15 @@
 > GitHub Release notes、Steam changeNote 全部从对应版本段落派生，不得凭记忆另写。
 > 未发布的改动先记在 [Unreleased]，发版时把该段定稿为 vX.Y.Z。
 
+## v2.7.17（2026-07-15）
+
+### 修复
+- **兼容游戏 v0.108 测试版（含手机移植版），修复「DLL 加载失败」**：
+  - 根因：0.108 把 `GetResultPileTypeForCardPlay` 改名为 `GetResultPileTypeAndPositionForCardPlay` 且返回 `(PileType, CardPilePosition)` 元组 → 旧补丁 TargetMethods 为空 → Harmony 对空 targets 抛异常（不是跳过）→ PatchAll 炸掉整个 mod 初始化
+  - Harmony 补丁改为**逐类隔离挂载**：单个补丁失败只禁用对应功能并打 Warn，mod 其余功能不受影响（未来游戏更新也不再整体挂掉）
+  - 新增 `GetResultPileTypeAndPositionPatch`（0.108+ 元组版，基类+3 子类 override），与旧补丁（≤0.107）共存、按版本各自生效 → **答错回手在 0.107 正式版与 0.108 测试版均可用**
+  - 已在 0.108 实测：初始化完整、回手正常（`Patched 4 GetResultPileTypeAndPosition... (v0.108+)`）
+
 ## v2.7.16（2026-07-15）
 
 ### 修复
