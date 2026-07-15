@@ -106,6 +106,9 @@ public sealed class VocabConfig
     /// <summary>中→英题给每个英文选项显示小喇叭，点击听该选项发音（复用 TTS）。默认开。</summary>
     public bool OptionPlayAudio { get; set; } = true;
 
+    /// <summary>是否出多选题（多义词在英→中/听力模式下有概率变多选）。默认开；关掉则多义词也只出单选。</summary>
+    public bool EnableMultiSelect { get; set; } = true;
+
     /// <summary>拼写简单模式：在单词中间挖空让玩家填（挖空数量按字母数）。false=困难模式（从零拼写）。</summary>
     public bool SpellingEasyMode { get; set; }
 
@@ -294,6 +297,7 @@ public sealed class VocabConfig
             SpellingPlayAudio = data.SpellingPlayAudio;
             EnToCnPlayAudio = data.EnToCnPlayAudio;
             OptionPlayAudio = data.OptionPlayAudio ?? true;   // 老存档无此字段 → 默认开
+            EnableMultiSelect = data.EnableMultiSelect ?? true;
             SpellingEasyMode = data.SpellingEasyMode;
             if (data.ReviewQuizMode > 0) ReviewQuizMode = (QuizModeFlags)data.ReviewQuizMode;
             ReviewMaxCount = Math.Max(0, data.ReviewMaxCount);
@@ -399,6 +403,7 @@ public sealed class VocabConfig
                 SpellingPlayAudio = SpellingPlayAudio,
                 EnToCnPlayAudio = EnToCnPlayAudio,
                 OptionPlayAudio = OptionPlayAudio,
+                EnableMultiSelect = EnableMultiSelect,
                 SpellingEasyMode = SpellingEasyMode,
                 ReviewQuizMode = (int)ReviewQuizMode,
                 ReviewMaxCount = ReviewMaxCount,
@@ -525,6 +530,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("option_play_audio")]
         public bool? OptionPlayAudio { get; set; }
+
+        [JsonPropertyName("enable_multi_select")]
+        public bool? EnableMultiSelect { get; set; }
 
         [JsonPropertyName("en_to_cn_play_audio")]
         public bool EnToCnPlayAudio { get; set; }

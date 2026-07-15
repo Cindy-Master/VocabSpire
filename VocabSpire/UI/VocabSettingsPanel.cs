@@ -420,6 +420,32 @@ public partial class VocabSettingsPanel : Control
         };
         vbox.AddChild(spellEasyToggle);
 
+        var optionAudioToggle = new CheckButton
+        {
+            Text = " 🔊 中→英题每个英文选项显示发音小喇叭",
+            ButtonPressed = cfg.OptionPlayAudio
+        };
+        optionAudioToggle.AddThemeFontSizeOverride("font_size", 13);
+        optionAudioToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.OptionPlayAudio = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(optionAudioToggle);
+
+        var multiSelectToggle = new CheckButton
+        {
+            Text = " 出多选题（多义词有概率变多选；关掉则只出单选）",
+            ButtonPressed = cfg.EnableMultiSelect
+        };
+        multiSelectToggle.AddThemeFontSizeOverride("font_size", 13);
+        multiSelectToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.EnableMultiSelect = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(multiSelectToggle);
+
         vbox.AddChild(GameTheme.MakeLabel(
             "简单模式：显示如 \"c _ _ e\" 的提示，仍需输入完整单词；困难模式：仅给中文释义从零拼写", 16, DimGrey));
 

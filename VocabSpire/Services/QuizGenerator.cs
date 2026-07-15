@@ -195,8 +195,9 @@ public sealed class QuizGenerator
         // 听力模式与英→中相同逻辑（选项是中文释义）
         var isEnToCn = mode == QuizModeFlags.EnglishToChinese || mode == QuizModeFlags.ListenToChinese;
 
-        // 多义词 + 英→中/听力模式 → 有概率出多选题（不是每次都多选）
-        if (isEnToCn && target.HasMultipleDefinitions && _random.NextDouble() < 0.4)
+        // 多义词 + 英→中/听力模式 → 有概率出多选题（不是每次都多选）；开关关闭则永不出多选
+        if (VocabConfig.Instance.EnableMultiSelect
+            && isEnToCn && target.HasMultipleDefinitions && _random.NextDouble() < 0.4)
             return GenerateMultiSelectQuestion(target, bank, mode, optionCount, tier);
 
         // 先决定本题的"正确答案显示文本"
