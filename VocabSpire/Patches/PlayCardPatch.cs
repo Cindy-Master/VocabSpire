@@ -539,6 +539,44 @@ public static class GetResultPileTypePatch
 }
 
 /// <summary>
+/// 答错回手（v0.108+ 版本）—— 0.108 起 GetResultPileType(ForCardPlay) 改名为
+/// GetResultPileTypeAndPositionForCardPlay 且返回 (PileType, CardPilePosition) 元组
+/// （0.108 CardModel.cs:2077；子类 ParticleWall/ShiningStrike/TheBall 有 override）。
+/// 与上面的 GetResultPileTypePatch(≤0.107) 共存：两类各自的 TargetMethods 在对方版本上为空
+/// → Harmony 抛异常 → 由 Plugin 的逐类隔离兜住（仅日志），当前版本对应的那个类正常生效。
+/// </summary>
+[HarmonyPatch]
+public static class GetResultPileTypeAndPositionPatch
+{
+    static IEnumerable<MethodBase> TargetMethods()
+    {
+        var baseType = typeof(CardModel);
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic
+                  | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        var count = 0;
+
+        foreach (var type in baseType.Assembly.GetTypes())
+        {
+            if (!baseType.IsAssignableFrom(type)) continue;
+            var method = type.GetMethod("GetResultPileTypeAndPositionForCardPlay", flags, null, System.Type.EmptyTypes, null);
+            if (method is null) continue;
+            count++;
+            yield return method;
+        }
+
+        Log.Info($"[VocabSpire] Patched {count} GetResultPileTypeAndPositionForCardPlay methods (v0.108+).");
+    }
+
+    public static void Postfix(ref (PileType, CardPilePosition) __result)
+    {
+        if (QuizState.ReturnToHand)
+        {
+            __result.Item1 = PileType.Hand;   // 只改归堆，保留位置分量
+        }
+    }
+}
+
+/// <summary>
 /// 能力牌答错回手的「空白牌」修复 —— 能力牌打出时 CardModel.PlayPowerCardFlyVfx() 会把卡牌视觉节点
 /// 搬进 CombatVfxContainer 并交给「飞向能力区」动画消耗掉（CardModel.cs:1613）。若此时又强制把牌回手，
 /// 牌 model 回到手牌但视觉节点已被消耗 → 手里是一张空白牌。

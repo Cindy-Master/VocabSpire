@@ -36,7 +36,9 @@ public static class Plugin
             }
             catch (System.Exception ex)
             {
-                Log.Error($"[VocabSpire] 补丁 {type.Name} 挂载失败（游戏版本不兼容？该功能已禁用，mod 其余功能不受影响）: {ex.Message}");
+                // 双版本兼容下这是预期行为：如 GetResultPileTypePatch(≤0.107) 与
+                // GetResultPileTypeAndPositionPatch(0.108+) 总有一个在当前版本无目标方法。
+                Log.Warn($"[VocabSpire] 补丁 {type.Name} 未挂载（当前游戏版本无对应方法，对应功能由兼容补丁接管或禁用）: {ex.Message}");
             }
         }
 
