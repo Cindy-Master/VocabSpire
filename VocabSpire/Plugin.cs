@@ -118,6 +118,7 @@ public partial class InputListener : Node
         Safe("FreePassButton", FreePassButton.Create);
         Safe("FreePassPopup", FreePassPopup.Create);
         // VocabCollectionPanel 由 CompendiumPatch 按需创建（原生注入）
+        Safe("ChangelogPopup", ChangelogPopup.MaybeShow);   // 版本更新弹窗（每版只弹一次）
         Log.Info("[VocabSpire] UI panels created.");
     }
 
