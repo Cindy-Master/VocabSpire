@@ -1,6 +1,7 @@
-using MegaCrit.Sts2.Core.Localization;
+using Godot;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Multiplayer;
 using VocabSpire.Services;
 
@@ -48,34 +49,40 @@ public static class ChangelogPopup
     {
         try
         {
-            if (NModalContainer.Instance is null)
+            var root = GameBridge.GetUIRoot();
+            if (root is null) return;
+
+            var popup = NGenericPopup.Create();
+            if (popup is null) { Log.Warn("[VocabSpire] ChangelogPopup: NGenericPopup.Create() 返回 null"); return; }
+
+            // 不走 NModalContainer.Add —— 其内部 ActiveScreenContext.Instance.Update() 在主菜单为 null → NRE。
+            // 直接挂 UI 根，按钮自己接线，点掉即释放。
+            root.AddChild(popup);
+
+            var vp = popup.GetNodeOrNull<NVerticalPopup>("VerticalPopup")
+                     ?? popup.GetChildren().OfType<NVerticalPopup>().FirstOrDefault();
+            if (vp is null)
             {
-                Log.Warn("[VocabSpire] ChangelogPopup: NModalContainer 未就绪，本次跳过（下次启动再弹）。");
+                var childNames = string.Join(", ", popup.GetChildren().Select(c => c.Name.ToString()));
+                Log.Error($"[VocabSpire] ChangelogPopup: 未找到 NVerticalPopup，children=[{childNames}]，放弃");
+                popup.QueueFree();
                 return;
             }
-            var popup = NGenericPopup.Create();
-            if (popup is null) return;
 
-            NModalContainer.Instance.Add(popup);
-
-            // WaitForConfirmation 负责按钮接线/关闭/Task；文本参数用任意存在的 LocString 占位，随后整体覆盖
-            var placeholder = new LocString("main_menu_ui", "QUIT");
-            var task = popup.WaitForConfirmation(placeholder, placeholder, null, placeholder);
-
-            var vp = popup.GetNode<NVerticalPopup>("VerticalPopup");
             var body = string.Join("\n", ChangelogLines)
                        + "\n\n反馈交流 QQ 群：750809524"
                        + "\n开源地址：github.com/Cindy-Master/VocabSpire";
-            vp.SetText($"VocabSpire 已更新到 v{version}", body);   // 裸字符串重载，覆盖占位文本
+            vp.SetText($"VocabSpire 已更新到 v{version}", body);   // 裸字符串重载（内部 EnsureNodesAreSet）
+            vp.YesButton.IsYes = true;
             vp.YesButton.SetText("知道了");
             vp.HideNoButton();
-
-            _ = task.ContinueWith(_ =>
+            vp.YesButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(_ =>
             {
                 // 玩家点了「知道了」→ 记录已看过，本版本不再弹
                 VocabConfig.Instance.LastSeenChangelogVersion = version;
                 VocabConfig.Instance.Save();
-            });
+                popup.QueueFree();
+            }));
             Log.Info($"[VocabSpire] ChangelogPopup shown for v{version}.");
         }
         catch (System.Exception ex)
