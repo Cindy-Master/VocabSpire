@@ -1,18 +1,20 @@
-using Godot;
+using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Multiplayer;
 using VocabSpire.Services;
 
 namespace VocabSpire.UI;
 
 /// <summary>
-/// 版本更新弹窗 —— 进游戏（主界面）弹一次本版更新内容 + 交流群；
-/// 用 LastSeenChangelogVersion 记录已看过的版本，同版本只弹一次。
-/// 自包含：MaybeShow() 按需创建挂到 UI 根；点「知道了」关闭并记录版本。
-/// 注意：这里是普通 Control 面板，不是内嵌 Window/Popup（启动时建子窗口会在无焦点下原生崩溃）。
+/// 版本更新弹窗 —— 复用游戏官方通用弹窗（NGenericPopup / NVerticalPopup，原生样式），
+/// 显示本版更新要点 + 交流群；LastSeenChangelogVersion 记录已看过版本，每版只弹一次。
+/// 官方调用姿势（NGame.cs:1042-1050）：Create() → NModalContainer.Instance.Add() → WaitForConfirmation()。
+/// 文本用 NVerticalPopup.SetText(string,string) 裸字符串重载覆盖（LocString 只能读本地化表）。
 /// </summary>
-public partial class ChangelogPopup : Control
+public static class ChangelogPopup
 {
-    /// <summary>本版更新要点 —— 每次发版更新这里（与 manifest 更新日志同步，只写玩家关心的）。</summary>
+    /// <summary>本版更新要点 —— 每次发版从 CHANGELOG.md 对应版本段派生（发版流程步骤 1）。</summary>
     private static readonly string[] ChangelogLines =
     {
         "· 新增内置「托业 TOEIC 核心词汇」词库（1633 词）",
@@ -21,7 +23,7 @@ public partial class ChangelogPopup : Control
         "· 新增本更新弹窗：每个新版本进游戏提示一次更新内容",
     };
 
-    /// <summary>若当前版本还没看过更新说明，弹一次（UI 创建完成后调用）。</summary>
+    /// <summary>若当前版本还没看过更新说明，延迟到主菜单就绪后用官方弹窗弹一次。</summary>
     public static void MaybeShow()
     {
         try
@@ -33,11 +35,52 @@ public partial class ChangelogPopup : Control
             var root = GameBridge.GetUIRoot();
             if (root is null) return;
 
-            root.CallDeferred(Node.MethodName.AddChild, new ChangelogPopup { _version = version });
+            // 首帧太早（还在「正在加载模组」画面），延迟数秒等主菜单完全就绪再弹
+            root.GetTree().CreateTimer(4.0).Timeout += () => TryShow(version);
         }
         catch (System.Exception ex)
         {
             Log.Error($"[VocabSpire] ChangelogPopup.MaybeShow failed: {ex.Message}");
+        }
+    }
+
+    private static void TryShow(string version)
+    {
+        try
+        {
+            if (NModalContainer.Instance is null)
+            {
+                Log.Warn("[VocabSpire] ChangelogPopup: NModalContainer 未就绪，本次跳过（下次启动再弹）。");
+                return;
+            }
+            var popup = NGenericPopup.Create();
+            if (popup is null) return;
+
+            NModalContainer.Instance.Add(popup);
+
+            // WaitForConfirmation 负责按钮接线/关闭/Task；文本参数用任意存在的 LocString 占位，随后整体覆盖
+            var placeholder = new LocString("main_menu_ui", "QUIT");
+            var task = popup.WaitForConfirmation(placeholder, placeholder, null, placeholder);
+
+            var vp = popup.GetNode<NVerticalPopup>("VerticalPopup");
+            var body = string.Join("\n", ChangelogLines)
+                       + "\n\n反馈交流 QQ 群：750809524"
+                       + "\n开源地址：github.com/Cindy-Master/VocabSpire";
+            vp.SetText($"VocabSpire 已更新到 v{version}", body);   // 裸字符串重载，覆盖占位文本
+            vp.YesButton.SetText("知道了");
+            vp.HideNoButton();
+
+            _ = task.ContinueWith(_ =>
+            {
+                // 玩家点了「知道了」→ 记录已看过，本版本不再弹
+                VocabConfig.Instance.LastSeenChangelogVersion = version;
+                VocabConfig.Instance.Save();
+            });
+            Log.Info($"[VocabSpire] ChangelogPopup shown for v{version}.");
+        }
+        catch (System.Exception ex)
+        {
+            Log.Error($"[VocabSpire] ChangelogPopup.TryShow failed: {ex}");
         }
     }
 
@@ -52,84 +95,5 @@ public partial class ChangelogPopup : Control
             return doc.RootElement.GetProperty("version").GetString() ?? "";
         }
         catch { return ""; }
-    }
-
-    private string _version = "";
-
-    public override void _Ready()
-    {
-        ProcessMode = ProcessModeEnum.Always;
-        TopLevel = true;
-        ZIndex = 95;
-        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-
-        // 半透明遮罩（挡住误点，但不暂停游戏）
-        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.55f) };
-        dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        AddChild(dim);
-
-        var style = new StyleBoxFlat
-        {
-            BgColor = new Color(0.05f, 0.05f, 0.08f, 0.98f),
-            BorderColor = GameTheme.BorderGold,
-            ContentMarginLeft = 32, ContentMarginRight = 32,
-            ContentMarginTop = 20, ContentMarginBottom = 20,
-            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
-            CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10
-        };
-        style.SetBorderWidthAll(2);
-
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(560, 0) };
-        panel.AddThemeStyleboxOverride("panel", style);
-
-        var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 10);
-        panel.AddChild(vbox);
-
-        vbox.AddChild(GameTheme.MakeLabel($"VocabSpire 已更新到 v{_version}",
-            24, GameTheme.Gold, HorizontalAlignment.Center, bold: true));
-        vbox.AddChild(new HSeparator());
-
-        foreach (var line in ChangelogLines)
-        {
-            var l = GameTheme.MakeLabel(line, 16, GameTheme.Cream);
-            l.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            vbox.AddChild(l);
-        }
-
-        vbox.AddChild(new HSeparator());
-        vbox.AddChild(GameTheme.MakeLabel("反馈交流 QQ 群：750809524", 17, GameTheme.Gold, HorizontalAlignment.Center));
-        vbox.AddChild(GameTheme.MakeLabel("开源地址：github.com/Cindy-Master/VocabSpire", 13, GameTheme.MidGray, HorizontalAlignment.Center));
-
-        var btnCenter = new CenterContainer();
-        var okBtn = GameTheme.MakeButton("  知道了  ", 18, GameTheme.Gold);
-        okBtn.CustomMinimumSize = new Vector2(160, 44);
-        okBtn.Pressed += () =>
-        {
-            // 记录已看过 → 本版本不再弹
-            VocabConfig.Instance.LastSeenChangelogVersion = _version;
-            VocabConfig.Instance.Save();
-            QueueFree();
-        };
-        btnCenter.AddChild(okBtn);
-        vbox.AddChild(btnCenter);
-
-        AddChild(panel);
-        GameTheme.ApplyFontRecursive(panel);
-
-        // 居中（延迟到布局尺寸就绪后定位）
-        Callable.From(() => CenterPanel(panel)).CallDeferred();
-        panel.Resized += () => CenterPanel(panel);
-
-        // 淡入
-        Modulate = new Color(1, 1, 1, 0);
-        var tween = CreateTween();
-        tween.TweenProperty(this, "modulate:a", 1f, 0.3f);
-    }
-
-    private void CenterPanel(Control panel)
-    {
-        var vp = GetViewportRect().Size;
-        panel.Position = new Vector2((vp.X - panel.Size.X) / 2f, (vp.Y - panel.Size.Y) / 2f);
     }
 }
