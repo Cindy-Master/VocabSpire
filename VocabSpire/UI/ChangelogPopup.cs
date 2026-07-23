@@ -18,10 +18,8 @@ public static class ChangelogPopup
     /// <summary>本版更新要点 —— 每次发版从 CHANGELOG.md 对应版本段派生（发版流程步骤 1）。</summary>
     private static readonly string[] ChangelogLines =
     {
-        "· 兼容游戏 v0.108 测试版（含手机移植版）：修复「DLL 加载失败」",
-        "· 答错回手在 0.107 正式版与 0.108 测试版均可用",
-        "· 单个功能与游戏版本不兼容时不再影响整个 mod 加载",
-        "· 近期新增：托业 TOEIC 词库 / 多选题开关 / 选项发音小喇叭",
+        "· 新增「界面字体大小」调节（85%~145% 五档），设置面板与答题面板均生效",
+        "· 近期：兼容游戏 v0.108 测试版（含手机移植版）、托业 TOEIC 词库",
     };
 
     /// <summary>若当前版本还没看过更新说明，延迟到主菜单就绪后用官方弹窗弹一次。</summary>
