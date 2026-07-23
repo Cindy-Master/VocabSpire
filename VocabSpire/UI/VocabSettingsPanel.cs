@@ -47,6 +47,7 @@ public partial class VocabSettingsPanel : Control
         BuildUI();
         GameTheme.ApplyFontRecursive(this);
         RefreshUI();
+        ApplyUiFontScale();
         Visible = false;
         ZIndex = 101;
         ProcessMode = ProcessModeEnum.Always;
@@ -667,6 +668,7 @@ public partial class VocabSettingsPanel : Control
             _rewardRulesContainer.AddChild(BuildRuleRow(rule, i));
         }
         GameTheme.ApplyFontRecursive(_rewardRulesContainer);
+        GameTheme.ApplyFontScaleRecursive(_rewardRulesContainer, VocabConfig.Instance.UiFontScale);
     }
 
     /// <summary>给规则行加「题型」下拉（奖励/惩罚共用）。current=当前值，onChange=写回。</summary>
@@ -914,6 +916,7 @@ public partial class VocabSettingsPanel : Control
             _punishmentRulesContainer.AddChild(BuildPunishmentRuleRow(rule, i));
         }
         GameTheme.ApplyFontRecursive(_punishmentRulesContainer);
+        GameTheme.ApplyFontScaleRecursive(_punishmentRulesContainer, VocabConfig.Instance.UiFontScale);
     }
 
     private Control BuildPunishmentRuleRow(Models.PunishmentRule rule, int idx)
@@ -1030,12 +1033,46 @@ public partial class VocabSettingsPanel : Control
         return box;
     }
 
+    /// <summary>把配置的字体倍率应用到设置面板与答题面板（可重复调用，按基准字号重算不叠乘）。</summary>
+    internal static void ApplyUiFontScale()
+    {
+        var scale = VocabConfig.Instance.UiFontScale;
+        if (Instance is not null) GameTheme.ApplyFontScaleRecursive(Instance, scale);
+        if (QuizPanel.Instance is not null) GameTheme.ApplyFontScaleRecursive(QuizPanel.Instance, scale);
+    }
+
     private void BuildFeatureSection(VBoxContainer vbox)
     {
         vbox.AddChild(new HSeparator());
         vbox.AddChild(GameTheme.MakeLabel("-- 功能设置 --", 22, SectionColor));
 
         var cfg = VocabConfig.Instance;
+
+        // 界面字体大小（作用于设置面板 + 答题面板）
+        var fontRow = new HBoxContainer();
+        fontRow.AddThemeConstantOverride("separation", 10);
+        vbox.AddChild(fontRow);
+        fontRow.AddChild(GameTheme.MakeLabel("界面字体大小：", 14, White));
+        var fontSel = new OptionButton { CustomMinimumSize = new Vector2(120, 0) };
+        var scales = new (float Scale, string Name)[]
+        {
+            (0.85f, "小 (85%)"), (1.0f, "标准 (100%)"), (1.15f, "大 (115%)"),
+            (1.3f, "特大 (130%)"), (1.45f, "超大 (145%)")
+        };
+        var pick = 1;
+        for (var i = 0; i < scales.Length; i++)
+        {
+            fontSel.AddItem(scales[i].Name, i);
+            if (System.Math.Abs(scales[i].Scale - cfg.UiFontScale) < 0.01f) pick = i;
+        }
+        fontSel.Selected = pick;
+        fontSel.ItemSelected += i =>
+        {
+            VocabConfig.Instance.UiFontScale = scales[(int)i].Scale;
+            VocabConfig.Instance.Save();
+            ApplyUiFontScale();   // 立即生效，所见即所得
+        };
+        fontRow.AddChild(fontSel);
 
         _combatSummaryToggle = new CheckButton { Text = " 战斗结束后显示错题回顾", ButtonPressed = cfg.ShowCombatSummary };
         _combatSummaryToggle.Toggled += on =>
@@ -1538,6 +1575,7 @@ public partial class VocabSettingsPanel : Control
             _bankChecksContainer.AddChild(cb);
         }
         GameTheme.ApplyFontRecursive(_bankChecksContainer);
+        GameTheme.ApplyFontScaleRecursive(_bankChecksContainer, VocabConfig.Instance.UiFontScale);
     }
 
     private void OnExportTemplate()

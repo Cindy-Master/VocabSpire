@@ -179,6 +179,9 @@ public partial class QuizPanel : Control
 
     public void ShowQuiz(QuizQuestion question, Action<bool> onAnswered)
     {
+        // 应用界面字体倍率（幂等，按基准字号重算；保证没开过设置面板也生效）
+        GameTheme.ApplyFontScaleRecursive(this, VocabConfig.Instance.UiFontScale);
+
         _currentQuestion = question;
         _onAnswered = onAnswered;
         _answered = false;

@@ -112,6 +112,9 @@ public sealed class VocabConfig
     /// <summary>上次看过更新弹窗的版本号。与当前 mod 版本不同时进游戏弹一次更新说明，然后记录 → 每版只弹一次。</summary>
     public string LastSeenChangelogVersion { get; set; } = "";
 
+    /// <summary>界面字体缩放倍率（作用于设置面板与答题面板）。1.0 = 默认。</summary>
+    public float UiFontScale { get; set; } = 1.0f;
+
     /// <summary>拼写简单模式：在单词中间挖空让玩家填（挖空数量按字母数）。false=困难模式（从零拼写）。</summary>
     public bool SpellingEasyMode { get; set; }
 
@@ -302,6 +305,7 @@ public sealed class VocabConfig
             OptionPlayAudio = data.OptionPlayAudio ?? true;   // 老存档无此字段 → 默认开
             EnableMultiSelect = data.EnableMultiSelect ?? true;
             LastSeenChangelogVersion = data.LastSeenChangelogVersion ?? "";
+            UiFontScale = Math.Clamp(data.UiFontScale ?? 1.0f, 0.7f, 1.6f);
             SpellingEasyMode = data.SpellingEasyMode;
             if (data.ReviewQuizMode > 0) ReviewQuizMode = (QuizModeFlags)data.ReviewQuizMode;
             ReviewMaxCount = Math.Max(0, data.ReviewMaxCount);
@@ -409,6 +413,7 @@ public sealed class VocabConfig
                 OptionPlayAudio = OptionPlayAudio,
                 EnableMultiSelect = EnableMultiSelect,
                 LastSeenChangelogVersion = LastSeenChangelogVersion,
+                UiFontScale = UiFontScale,
                 SpellingEasyMode = SpellingEasyMode,
                 ReviewQuizMode = (int)ReviewQuizMode,
                 ReviewMaxCount = ReviewMaxCount,
@@ -541,6 +546,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("last_seen_changelog_version")]
         public string? LastSeenChangelogVersion { get; set; }
+
+        [JsonPropertyName("ui_font_scale")]
+        public float? UiFontScale { get; set; }
 
         [JsonPropertyName("en_to_cn_play_audio")]
         public bool EnToCnPlayAudio { get; set; }

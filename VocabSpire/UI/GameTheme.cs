@@ -252,6 +252,34 @@ public static class GameTheme
         return bar;
     }
 
+    // ── 字体缩放 ──
+    private const string BaseFontSizeMeta = "vs_base_fs";
+
+    /// <summary>
+    /// 递归按倍率缩放所有控件字号。首次访问把控件当前 font_size 记为基准（存 meta），
+    /// 之后每次都从基准 × scale 重算 —— 重复调用/改倍率不会叠乘。
+    /// includeInternal 才能拿到 SpinBox 内部的 LineEdit 等内部子节点。
+    /// </summary>
+    public static void ApplyFontScaleRecursive(Node node, float scale)
+    {
+        if (node is Control c && c.HasThemeFontSizeOverride("font_size"))
+        {
+            int baseFs;
+            if (c.HasMeta(BaseFontSizeMeta))
+            {
+                baseFs = (int)c.GetMeta(BaseFontSizeMeta);
+            }
+            else
+            {
+                baseFs = c.GetThemeFontSize("font_size");
+                c.SetMeta(BaseFontSizeMeta, baseFs);
+            }
+            c.AddThemeFontSizeOverride("font_size", Math.Max(8, (int)Math.Round(baseFs * scale)));
+        }
+        foreach (var child in node.GetChildren(includeInternal: true))
+            ApplyFontScaleRecursive(child, scale);
+    }
+
     /// <summary>递归为所有子控件应用游戏字体（包括 PopupMenu 弹出菜单）。</summary>
     public static void ApplyFontRecursive(Node node)
     {
