@@ -141,6 +141,13 @@ public partial class VocabSettingsPanel : Control
         hotkeyRow.AddChild(hotkeyBind);
 
         hotkeyRow.AddChild(GameTheme.MakeLabel(" / Esc \u5173\u95ED", 12, Grey));
+
+        // \u2715 \u5173\u95ED\u6309\u94AE\uFF08\u4E0D\u7528\u53EA\u9760 Esc\uFF09
+        var closeBtn = GameTheme.MakeButton("  \u2715  ", 18, GameTheme.Red);
+        closeBtn.TooltipText = "\u5173\u95ED\u8BBE\u7F6E\u9762\u677F";
+        closeBtn.Pressed += () => Visible = false;
+        titleRow.AddChild(closeBtn);
+
         vbox.AddChild(new HSeparator());
     }
 
