@@ -526,14 +526,18 @@ public static class GetResultPileTypePatch
         Log.Info($"[VocabSpire] Patched {count} GetResultPileType(ForCardPlay) methods.");
     }
 
-    public static void Postfix(ref PileType __result)
+    public static void Postfix(CardModel __instance, ref PileType __result)
     {
         if (QuizState.ReturnToHand)
         {
             // 答错回手：能力牌/复制牌(IsDupe)的原结果是 PileType.None —— OnPlayWrapper 会对 None
             // 调 RemoveFromCombat 把它移出战斗（=凭空消失）。开了回手就必须把 None 也改成 Hand，
             // 否则能力牌答错后既没上 buff 也没回手，直接消失。
-            __result = PileType.Hand;
+            // 例外：多人模式下能力牌回手会卡在打出位、再也进不了牌堆（MP 手牌同步不接受打出牌回手），
+            // 改进弃牌堆 —— 不消失、洗回后可再抽。
+            __result = GameBridge.IsMultiplayer() && __instance.Type == CardType.Power
+                ? PileType.Discard
+                : PileType.Hand;
         }
     }
 }
@@ -567,11 +571,14 @@ public static class GetResultPileTypeAndPositionPatch
         Log.Info($"[VocabSpire] Patched {count} GetResultPileTypeAndPositionForCardPlay methods (v0.108+).");
     }
 
-    public static void Postfix(ref (PileType, CardPilePosition) __result)
+    public static void Postfix(CardModel __instance, ref (PileType, CardPilePosition) __result)
     {
         if (QuizState.ReturnToHand)
         {
-            __result.Item1 = PileType.Hand;   // 只改归堆，保留位置分量
+            // 只改归堆，保留位置分量；MP 能力牌同 0.107 版补丁：回手会卡死 → 改弃牌堆
+            __result.Item1 = GameBridge.IsMultiplayer() && __instance.Type == CardType.Power
+                ? PileType.Discard
+                : PileType.Hand;
         }
     }
 }
@@ -588,10 +595,11 @@ public static class PowerCardFlyVfxSkipPatch
 {
     public static bool Prefix(ref Task __result)
     {
-        if (QuizState.ReturnToHand)
+        // 仅单机跳过：MP 下能力牌答错改进弃牌堆（不回手），VFX 正常播、节点被动画消耗，无残留。
+        if (QuizState.ReturnToHand && !GameBridge.IsMultiplayer())
         {
             __result = Task.CompletedTask;
-            return false; // 跳过原 VFX，保留卡牌节点
+            return false; // 跳过原 VFX，保留卡牌节点（回手后牌面完整）
         }
         return true;
     }
