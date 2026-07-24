@@ -237,10 +237,18 @@ public static class SinglePlayerPatch
         QuizState.SkipEffect = true;
         QuizState.SkipCardExtras = true; // 附魔/词缀效果随卡牌效果一并跳过（"伶俐"附魔的起防即在此触发）
 
+        // 归堆补丁没挂上（游戏版本改了 API）→ 回手功能整体禁用：设了 ReturnToHand 却改不了归堆，
+        // 只会造成「VFX 被跳过节点卡打出位 + 能力牌 None 被移出战斗」的半残状态（v0.109 实锤）。
+        var canReturnToHand = ReturnPileState.PatchActive;
+        if (!canReturnToHand && (cfg.WrongCardReturnToHand || BattleStateTracker.Instance.CanUseTolerance()))
+        {
+            Log.Warn("[VocabSpire] 归堆补丁未挂载（游戏版本不兼容），答错回手已临时禁用，牌走正常结果堆。");
+        }
+
         if (BattleStateTracker.Instance.CanUseTolerance())
         {
             QuizState.NoCost = true;
-            QuizState.ReturnToHand = true;
+            QuizState.ReturnToHand = canReturnToHand;
             BattleStateTracker.Instance.ConsumeTolerance();
             // 关键：能量已在 PlayCardAction.ExecuteAction 中扣过（SpendResources 在 OnPlayWrapper 之前），
             // 这里要把实际花费的能量+星费补回。
@@ -249,7 +257,7 @@ public static class SinglePlayerPatch
         }
         else if (cfg.WrongCardReturnToHand)
         {
-            QuizState.ReturnToHand = true;
+            QuizState.ReturnToHand = canReturnToHand;
         }
 
         // Sly(奇巧「被丢弃时自动打出」)等自动打出的牌本就不在手牌里 —— 回手会把它塞进手牌 = 凭空多一张。
@@ -491,53 +499,58 @@ public static class ReplayCountPatch
 
 /// <summary>
 /// 拦截"决定打完后归到哪个牌堆"的方法 —— 答错回手时强制返回 Hand。
-/// 兼容 release (GetResultPileType) 和 beta v0.105+ (GetResultPileTypeForCardPlay)。
+/// 游戏逐版本改名（GetResultPileType → …ForCardPlay → …AndPositionForCardPlay，v0.109 又改），
+/// 不再绑死方法名：模糊匹配「名字含 ResultPileType + 无参」，按返回类型分派给两个补丁类。
+/// ReturnToHandPatchActive：任一归堆补丁成功挂上才为 true —— 未挂上时回手功能整体禁用
+/// （ApplyAnswerEffects 不设 ReturnToHand），避免「跳过VFX节点卡打出位 + 牌 None 移出战斗」的半残状态。
 /// </summary>
+public static class ReturnPileState
+{
+    internal static bool PatchActive;
+}
+
 [HarmonyPatch]
 public static class GetResultPileTypePatch
 {
-    /// <summary>release 旧名 + beta 新名都试一遍。</summary>
-    private static readonly string[] CandidateMethodNames =
-    {
-        "GetResultPileTypeForCardPlay", // beta v0.105.1+
-        "GetResultPileType"             // release / 旧版
-    };
-
-    static IEnumerable<MethodBase> TargetMethods()
+    /// <summary>模糊匹配：遍历 CardModel 及子类，名字含 filter、无参、返回类型匹配的方法。</summary>
+    internal static IEnumerable<MethodBase> FindResultPileMethods(System.Type returnType)
     {
         var baseType = typeof(CardModel);
         var flags = BindingFlags.Instance | BindingFlags.NonPublic
                   | BindingFlags.Public | BindingFlags.DeclaredOnly;
-        var count = 0;
-
         foreach (var type in baseType.Assembly.GetTypes())
         {
             if (!baseType.IsAssignableFrom(type)) continue;
-            foreach (var name in CandidateMethodNames)
+            foreach (var m in type.GetMethods(flags))
             {
-                var method = type.GetMethod(name, flags, null, System.Type.EmptyTypes, null);
-                if (method is null) continue;
-                count++;
-                yield return method;
-                break; // 同一类型同时存在新旧名时只 patch 一个
+                if (!m.Name.Contains("ResultPileType")) continue;
+                if (m.GetParameters().Length != 0) continue;
+                if (m.ReturnType != returnType) continue;
+                yield return m;
             }
         }
-
-        Log.Info($"[VocabSpire] Patched {count} GetResultPileType(ForCardPlay) methods.");
     }
 
-    public static void Postfix(CardModel __instance, ref PileType __result)
+    static IEnumerable<MethodBase> TargetMethods()
+    {
+        var count = 0;
+        foreach (var m in FindResultPileMethods(typeof(PileType)))
+        {
+            count++;
+            yield return m;
+        }
+        if (count > 0) ReturnPileState.PatchActive = true;
+        Log.Info($"[VocabSpire] Patched {count} ResultPileType(→PileType) methods (≤v0.107 形态).");
+    }
+
+    public static void Postfix(ref PileType __result)
     {
         if (QuizState.ReturnToHand)
         {
             // 答错回手：能力牌/复制牌(IsDupe)的原结果是 PileType.None —— OnPlayWrapper 会对 None
             // 调 RemoveFromCombat 把它移出战斗（=凭空消失）。开了回手就必须把 None 也改成 Hand，
             // 否则能力牌答错后既没上 buff 也没回手，直接消失。
-            // 例外：多人模式下能力牌回手会卡在打出位、再也进不了牌堆（MP 手牌同步不接受打出牌回手），
-            // 改进弃牌堆 —— 不消失、洗回后可再抽。
-            __result = GameBridge.IsMultiplayer() && __instance.Type == CardType.Power
-                ? PileType.Discard
-                : PileType.Hand;
+            __result = PileType.Hand;
         }
     }
 }
@@ -554,31 +567,21 @@ public static class GetResultPileTypeAndPositionPatch
 {
     static IEnumerable<MethodBase> TargetMethods()
     {
-        var baseType = typeof(CardModel);
-        var flags = BindingFlags.Instance | BindingFlags.NonPublic
-                  | BindingFlags.Public | BindingFlags.DeclaredOnly;
         var count = 0;
-
-        foreach (var type in baseType.Assembly.GetTypes())
+        foreach (var m in GetResultPileTypePatch.FindResultPileMethods(typeof((PileType, CardPilePosition))))
         {
-            if (!baseType.IsAssignableFrom(type)) continue;
-            var method = type.GetMethod("GetResultPileTypeAndPositionForCardPlay", flags, null, System.Type.EmptyTypes, null);
-            if (method is null) continue;
             count++;
-            yield return method;
+            yield return m;
         }
-
-        Log.Info($"[VocabSpire] Patched {count} GetResultPileTypeAndPositionForCardPlay methods (v0.108+).");
+        if (count > 0) ReturnPileState.PatchActive = true;
+        Log.Info($"[VocabSpire] Patched {count} ResultPileType(→元组) methods (v0.108+ 形态).");
     }
 
-    public static void Postfix(CardModel __instance, ref (PileType, CardPilePosition) __result)
+    public static void Postfix(ref (PileType, CardPilePosition) __result)
     {
         if (QuizState.ReturnToHand)
         {
-            // 只改归堆，保留位置分量；MP 能力牌同 0.107 版补丁：回手会卡死 → 改弃牌堆
-            __result.Item1 = GameBridge.IsMultiplayer() && __instance.Type == CardType.Power
-                ? PileType.Discard
-                : PileType.Hand;
+            __result.Item1 = PileType.Hand;   // 只改归堆，保留位置分量
         }
     }
 }
@@ -595,8 +598,9 @@ public static class PowerCardFlyVfxSkipPatch
 {
     public static bool Prefix(ref Task __result)
     {
-        // 仅单机跳过：MP 下能力牌答错改进弃牌堆（不回手），VFX 正常播、节点被动画消耗，无残留。
-        if (QuizState.ReturnToHand && !GameBridge.IsMultiplayer())
+        // ReturnToHand 只会在归堆补丁真正挂上（ReturnPileState.PatchActive）时被设置，
+        // 所以这里跳过 VFX 一定伴随成功回手，不会再出现「节点卡打出位 + 牌被移出战斗」的半残态。
+        if (QuizState.ReturnToHand)
         {
             __result = Task.CompletedTask;
             return false; // 跳过原 VFX，保留卡牌节点（回手后牌面完整）
