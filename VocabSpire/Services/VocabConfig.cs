@@ -106,6 +106,9 @@ public sealed class VocabConfig
     /// <summary>中→英题给每个英文选项显示小喇叭，点击听该选项发音（复用 TTS）。默认开。</summary>
     public bool OptionPlayAudio { get; set; } = true;
 
+    /// <summary>答完题（提交判定后）自动朗读本题单词发音（答题面板与篝火复习均生效）。默认开。</summary>
+    public bool AutoSpeakOnAnswer { get; set; } = true;
+
     /// <summary>是否出多选题（多义词在英→中/听力模式下有概率变多选）。默认开；关掉则多义词也只出单选。</summary>
     public bool EnableMultiSelect { get; set; } = true;
 
@@ -303,6 +306,7 @@ public sealed class VocabConfig
             SpellingPlayAudio = data.SpellingPlayAudio;
             EnToCnPlayAudio = data.EnToCnPlayAudio;
             OptionPlayAudio = data.OptionPlayAudio ?? true;   // 老存档无此字段 → 默认开
+            AutoSpeakOnAnswer = data.AutoSpeakOnAnswer ?? true;
             EnableMultiSelect = data.EnableMultiSelect ?? true;
             LastSeenChangelogVersion = data.LastSeenChangelogVersion ?? "";
             UiFontScale = Math.Clamp(data.UiFontScale ?? 1.0f, 0.7f, 1.6f);
@@ -411,6 +415,7 @@ public sealed class VocabConfig
                 SpellingPlayAudio = SpellingPlayAudio,
                 EnToCnPlayAudio = EnToCnPlayAudio,
                 OptionPlayAudio = OptionPlayAudio,
+                AutoSpeakOnAnswer = AutoSpeakOnAnswer,
                 EnableMultiSelect = EnableMultiSelect,
                 LastSeenChangelogVersion = LastSeenChangelogVersion,
                 UiFontScale = UiFontScale,
@@ -540,6 +545,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("option_play_audio")]
         public bool? OptionPlayAudio { get; set; }
+
+        [JsonPropertyName("auto_speak_on_answer")]
+        public bool? AutoSpeakOnAnswer { get; set; }
 
         [JsonPropertyName("enable_multi_select")]
         public bool? EnableMultiSelect { get; set; }

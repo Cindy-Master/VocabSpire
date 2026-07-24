@@ -201,6 +201,10 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         RevealDetails();
         foreach (var btn in _optionButtons) btn.Disabled = true;
 
+        // 答完自动朗读本题单词（选择题：QuizPanel 与篝火复习共用此处）
+        if (VocabConfig.Instance.AutoSpeakOnAnswer)
+            TtsService.Instance.Speak(_currentQuestion.TargetWord.English);
+
         // 拷贝一份给回调，避免外部使用我们后续清理的集合。
         var snapshot = _selected.ToArray();
         _onAnswered?.Invoke(correct, snapshot);

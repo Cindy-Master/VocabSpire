@@ -329,6 +329,10 @@ public partial class QuizPanel : Control
         _lastCorrect = _currentQuestion.CheckSpelling(userInput);
         VocabManager.Instance.RecordAnswer(_currentQuestion.TargetWord, _lastCorrect);
 
+        // 答完自动朗读本题单词（拼写题）
+        if (VocabConfig.Instance.AutoSpeakOnAnswer)
+            TtsService.Instance.Speak(_currentQuestion.TargetWord.English);
+
         _spellingInput.Editable = false;
         _spellingSubmitBtn.Disabled = true;
         _spellingHintLabel.Visible = false;

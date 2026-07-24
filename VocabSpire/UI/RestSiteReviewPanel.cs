@@ -95,6 +95,20 @@ public partial class RestSiteReviewPanel : Control
         _promptLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         mainVBox.AddChild(_promptLabel);
 
+        // 发音按钮：随时点随时读本题单词（复用 TTS）
+        var speakCenter = new CenterContainer();
+        mainVBox.AddChild(speakCenter);
+        var speakBtn = GameTheme.MakeButton("  🔊 发音  ", 16, Gold);
+        speakBtn.CustomMinimumSize = new Vector2(140, 44);
+        speakBtn.FocusMode = FocusModeEnum.None;   // 不抢键盘焦点（拼写输入/快捷键不受影响）
+        speakBtn.Pressed += () =>
+        {
+            var en = _currentReviewQuiz?.TargetWord.English
+                     ?? (_currentIndex >= 0 && _currentIndex < _records.Count ? _records[_currentIndex].Word.English : null);
+            if (!string.IsNullOrEmpty(en)) TtsService.Instance.Speak(en);
+        };
+        speakCenter.AddChild(speakBtn);
+
         // 选择题答题区（共享组件 —— 单选/多选共用、提交按钮内置）
         _choiceWidget = new ChoiceAnswerWidget { Visible = false };
         mainVBox.AddChild(_choiceWidget);
@@ -291,6 +305,10 @@ public partial class RestSiteReviewPanel : Control
 
         // 同上：拼写复习也回写记忆引擎。
         VocabManager.Instance.RecordAnswer(_currentReviewQuiz.TargetWord, correct);
+
+        // 答完自动朗读（篝火拼写题；选择题在 ChoiceAnswerWidget 内统一处理）
+        if (VocabConfig.Instance.AutoSpeakOnAnswer)
+            TtsService.Instance.Speak(_currentReviewQuiz.TargetWord.English);
 
         _spellingInput.Editable = false;
         _spellingSubmitBtn.Disabled = true;

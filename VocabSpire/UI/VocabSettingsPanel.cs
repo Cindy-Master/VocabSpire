@@ -428,6 +428,19 @@ public partial class VocabSettingsPanel : Control
         };
         vbox.AddChild(spellEasyToggle);
 
+        var autoSpeakToggle = new CheckButton
+        {
+            Text = " 🔊 答完题自动朗读本题单词（含篝火复习）",
+            ButtonPressed = cfg.AutoSpeakOnAnswer
+        };
+        autoSpeakToggle.AddThemeFontSizeOverride("font_size", 13);
+        autoSpeakToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.AutoSpeakOnAnswer = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(autoSpeakToggle);
+
         var optionAudioToggle = new CheckButton
         {
             Text = " 🔊 中→英题每个英文选项显示发音小喇叭",
