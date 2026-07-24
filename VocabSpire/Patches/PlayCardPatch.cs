@@ -524,6 +524,7 @@ public static class GetResultPileTypePatch
             foreach (var m in type.GetMethods(flags))
             {
                 if (!m.Name.Contains("ResultPileType")) continue;
+                if (m.Name.Contains("TurnEnd")) continue;   // 排除回合结束在手效果的归堆（GetResultPileTypeForOnTurnEndInHandEffect），与打牌无关
                 if (m.GetParameters().Length != 0) continue;
                 if (m.ReturnType != returnType) continue;
                 yield return m;
