@@ -18,8 +18,9 @@ public static class ChangelogPopup
     /// <summary>本版更新要点 —— 每次发版从 CHANGELOG.md 对应版本段派生（发版流程步骤 1）。</summary>
     private static readonly string[] ChangelogLines =
     {
-        "· 新增「界面字体大小」调节（85%~145% 五档），设置面板与答题面板均生效",
-        "· 近期：兼容游戏 v0.108 测试版（含手机移植版）、托业 TOEIC 词库",
+        "· 修复 v0.109 测试分支答错回手卡死（能力牌卡在打出位、抽不到）",
+        "· 设置面板新增 ✕ 关闭按钮",
+        "· 近期：界面字体大小调节 / 兼容 v0.108 与手机移植版",
     };
 
     /// <summary>若当前版本还没看过更新说明，延迟到主菜单就绪后用官方弹窗弹一次。</summary>
