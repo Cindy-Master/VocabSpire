@@ -29,6 +29,13 @@ public static class FileParser
 
         [JsonPropertyName("phonetic")]
         public string Phonetic { get; set; } = "";
+
+        // ── 固定选择题扩展（题库模式）：options 非空即为固定选择题，english=题干 ──
+        [JsonPropertyName("options")]
+        public List<string>? Options { get; set; }
+
+        [JsonPropertyName("answer")]
+        public int? Answer { get; set; }
     }
 
     public static WordBank? ParseJson(string filePath)
@@ -49,6 +56,18 @@ public static class FileParser
                 Words = dto.Words
                     .Select(w =>
                     {
+                        // 固定选择题条目：english=题干、options=选项、answer=正确索引；chinese 自动填正确答案文本
+                        if (w.Options is { Count: > 0 } && w.Answer is int ans && ans >= 0 && ans < w.Options.Count)
+                        {
+                            return new WordEntry
+                            {
+                                English = w.English.Trim(),
+                                Chinese = w.Options[ans].Trim(),
+                                Definitions = new List<string> { w.Options[ans].Trim() },
+                                Options = w.Options.Select(o => o.Trim()).ToList(),
+                                FixedCorrectIndex = ans
+                            };
+                        }
                         var (chinese, defs) = ParseChineseField(w.Chinese);
                         return CreateWordEntry(w.English, chinese, w.Phonetic, defs);
                     })

@@ -10,6 +10,16 @@ public sealed class WordEntry
     public bool HasMultipleDefinitions => Definitions.Count > 1;
     public bool HasPhonetic => !string.IsNullOrWhiteSpace(Phonetic);
 
+    // ── 固定选择题（题库模式）：Options 非空 = 本词条是一道自带选项的固定选择题 ──
+    /// <summary>固定选择题的选项列表（A/B/C…的文本，不含字母前缀）。普通单词条目为空。</summary>
+    public List<string> Options { get; init; } = new();
+
+    /// <summary>固定选择题的正确选项索引（指向 Options）。普通单词条目为 -1。</summary>
+    public int FixedCorrectIndex { get; init; } = -1;
+
+    /// <summary>是否为固定选择题条目（题干存 English、正确答案文本存 Chinese）。</summary>
+    public bool IsFixedChoice => Options.Count > 0 && FixedCorrectIndex >= 0 && FixedCorrectIndex < Options.Count;
+
     public int CorrectCount { get; set; }
     public int WrongCount { get; set; }
 

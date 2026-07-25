@@ -30,6 +30,9 @@ public sealed class QuizQuestion
     /// <summary>多选题：所有正确选项的索引。为空则为单选。</summary>
     public IReadOnlyList<int> CorrectIndices { get; init; } = Array.Empty<int>();
 
+    /// <summary>固定选择题（题库模式）：选项来自题库自带而非生成，题干/选项多为中文 → 发音/朗读功能跳过。</summary>
+    public bool IsFixedChoice { get; init; }
+
     public bool IsSpelling => Mode == QuizModeFlags.SpellEnglish;
     public bool IsListening => Mode == QuizModeFlags.ListenToChinese;
     public bool IsMultiSelect => CorrectIndices.Count > 1;

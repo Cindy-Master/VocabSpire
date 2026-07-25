@@ -83,9 +83,10 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _answered = false;
         _selected.Clear();
 
-        // 只有中→英题的选项是英文单词，才显示发音小喇叭（且开关开启）
+        // 只有中→英题的选项是英文单词，才显示发音小喇叭（且开关开启）；固定选择题选项是中文，不显示
         var showSpeakers = VocabConfig.Instance.OptionPlayAudio
-                           && question.Mode == QuizModeFlags.ChineseToEnglish;
+                           && question.Mode == QuizModeFlags.ChineseToEnglish
+                           && !question.IsFixedChoice;
         for (var i = 0; i < _optionButtons.Count; i++)
         {
             if (i < question.Options.Count)
@@ -201,8 +202,8 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         RevealDetails();
         foreach (var btn in _optionButtons) btn.Disabled = true;
 
-        // 答完自动朗读本题单词（选择题：QuizPanel 与篝火复习共用此处）
-        if (VocabConfig.Instance.AutoSpeakOnAnswer)
+        // 答完自动朗读本题单词（选择题：QuizPanel 与篝火复习共用此处）；固定选择题题干是中文不朗读
+        if (VocabConfig.Instance.AutoSpeakOnAnswer && !_currentQuestion.IsFixedChoice)
             TtsService.Instance.Speak(_currentQuestion.TargetWord.English);
 
         // 拷贝一份给回调，避免外部使用我们后续清理的集合。

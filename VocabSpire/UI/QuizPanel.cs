@@ -252,7 +252,8 @@ public partial class QuizPanel : Control
                 // 英→中选择题：可选朗读按钮（复用听力 TTS，不自动播放，玩家点击才发音）。
                 // 中→英不显示——题目是中文、答案才是英文，播放会直接读出答案。
                 _listenPlayTop.Visible = question.Mode == QuizModeFlags.EnglishToChinese
-                                         && VocabConfig.Instance.EnToCnPlayAudio;
+                                         && VocabConfig.Instance.EnToCnPlayAudio
+                                         && !question.IsFixedChoice;   // 固定选择题题干是中文，不显示朗读
             }
         }
 

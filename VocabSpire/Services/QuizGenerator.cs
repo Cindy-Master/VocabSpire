@@ -24,6 +24,9 @@ public sealed class QuizGenerator
         if (!bank.IsValid || enabledModes == QuizModeFlags.None) return null;
 
         var targetWord = SelectWeightedWord(bank.Words);
+        if (targetWord.IsFixedChoice)
+            return GenerateFixedChoiceQuestion(targetWord);   // 固定选择题：不走题型变换/干扰项生成
+
         var mode = PickMode(enabledModes, targetWord, tier);
         var effectiveOptionCount = GetEffectiveOptionCount(optionCount, tier);
 
@@ -42,6 +45,9 @@ public sealed class QuizGenerator
         if (wordPool.Count < 2 || enabledModes == QuizModeFlags.None) return null;
 
         var targetWord = SelectWeightedWord(wordPool);
+        if (targetWord.IsFixedChoice)
+            return GenerateFixedChoiceQuestion(targetWord);
+
         var mode = PickMode(enabledModes, targetWord, tier);
         var effectiveOptionCount = GetEffectiveOptionCount(optionCount, tier);
 
@@ -58,9 +64,39 @@ public sealed class QuizGenerator
     public QuizQuestion? GenerateForWord(WordEntry target, WordBank bank, QuizModeFlags mode, int optionCount = 4)
     {
         if (!bank.IsValid || target is null) return null;
+        if (target.IsFixedChoice)
+            return GenerateFixedChoiceQuestion(target);       // 篝火复习固定题：出原题
         if (mode == QuizModeFlags.SpellEnglish)
             return GenerateSpellingQuestion(target, tier: 1);
         return GenerateMultipleChoiceQuestion(target, bank, mode, optionCount, tier: 1);
+    }
+
+    // ── 固定选择题（题库模式）──
+
+    /// <summary>
+    /// 固定选择题：直接用词条自带选项，每次出题选项乱序（正确索引跟随）。
+    /// 题干/选项多为中文，题型变换（拼写/听力/反转）与干扰项生成均不适用。
+    /// </summary>
+    private QuizQuestion GenerateFixedChoiceQuestion(WordEntry target)
+    {
+        var pairs = new List<(string option, bool correct)>();
+        for (var i = 0; i < target.Options.Count; i++)
+            pairs.Add((target.Options[i], i == target.FixedCorrectIndex));
+        Shuffle(pairs);   // 乱序：每次出题选项顺序都随机
+
+        var options = pairs.Select(p => p.option).ToList();
+        var correctIndex = pairs.FindIndex(p => p.correct);
+
+        return new QuizQuestion
+        {
+            TargetWord = target,
+            Mode = QuizModeFlags.EnglishToChinese,   // 走普通单选 UI 路径
+            Prompt = target.English,                 // 题干（含案例共用题干）
+            Options = options.AsReadOnly(),
+            CorrectIndex = correctIndex,
+            CorrectText = target.Chinese,
+            IsFixedChoice = true
+        };
     }
 
     // ── 难度分层：模式选择 ──

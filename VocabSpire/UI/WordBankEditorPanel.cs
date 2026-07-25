@@ -66,6 +66,22 @@ public partial class WordBankEditorPanel : Control
     public void Open(WordBank bank)
     {
         if (bank is null) { Open(); return; }
+
+        // 固定选择题题库（词条带 options/answer）：本编辑器是「单词/释义」表单，保存会丢失选项与答案，
+        // 会直接毁掉题库 —— 明确拒绝编辑，提示改 json 文件。
+        if (bank.Words.Any(w => w.IsFixedChoice))
+        {
+            Visible = true;
+            _titleLabel.Text = $"编辑词库：{bank.Name}";
+            _nameInput.Text = bank.Name;
+            _descInput.Text = bank.Description;
+            _data.Clear();
+            _page = 0;
+            RenderPage();
+            _statusLabel.Text = "⚠ 该词库是「选择题题库」（含题干/选项/答案），暂不支持可视化编辑 —— 请直接修改 wordbanks 目录下的 json 文件。";
+            return;
+        }
+
         _editingPath = bank.SourcePath;
         _titleLabel.Text = $"编辑词库：{bank.Name}";
         Visible = true;
