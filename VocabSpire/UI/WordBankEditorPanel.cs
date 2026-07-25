@@ -33,6 +33,12 @@ public partial class WordBankEditorPanel : Control
     private Button _prevBtn = null!;
     private Button _nextBtn = null!;
 
+    // ── 选择题库模式 ──
+    private const int MaxChoiceOptions = 5;          // A-E
+    private bool _choiceMode;                        // 当前库类型（新建可切换；编辑按库内容判定）
+    private CheckButton _choiceModeToggle = null!;
+    private Label _headerLabel = null!;
+
     private static readonly Color Gold = GameTheme.Gold;
     private static readonly Color Cream = GameTheme.Cream;
     private static readonly Color DimGrey = GameTheme.MidGray;
@@ -47,7 +53,7 @@ public partial class WordBankEditorPanel : Control
         ProcessMode = ProcessModeEnum.Always;
     }
 
-    /// <summary>新建词库：空白表单。</summary>
+    /// <summary>新建词库：空白表单（可切换 单词库 / 选择题库 模式）。</summary>
     public void Open()
     {
         _editingPath = null;
@@ -55,6 +61,9 @@ public partial class WordBankEditorPanel : Control
         Visible = true;
         _nameInput.Text = "";
         _descInput.Text = "";
+        _choiceMode = false;
+        _choiceModeToggle.SetPressedNoSignal(false);
+        _choiceModeToggle.Disabled = false;
         _data.Clear();
         for (var i = 0; i < 3; i++) _data.Add(new WordData());
         _page = 0;
@@ -62,42 +71,44 @@ public partial class WordBankEditorPanel : Control
         _statusLabel.Text = "";
     }
 
-    /// <summary>编辑已有词库：载入名称/描述/全部词条到表单，保存时写回原文件（同 Id 替换、保留进度）。</summary>
+    /// <summary>编辑已有词库：载入名称/描述/全部词条到表单，保存时写回原文件（同 Id 替换、保留进度）。
+    /// 单词库与选择题题库均支持（按库内容自动切换行编辑模式）。</summary>
     public void Open(WordBank bank)
     {
         if (bank is null) { Open(); return; }
-
-        // 固定选择题题库（词条带 options/answer）：本编辑器是「单词/释义」表单，保存会丢失选项与答案，
-        // 会直接毁掉题库 —— 明确拒绝编辑，提示改 json 文件。
-        if (bank.Words.Any(w => w.IsFixedChoice))
-        {
-            Visible = true;
-            _titleLabel.Text = $"编辑词库：{bank.Name}";
-            _nameInput.Text = bank.Name;
-            _descInput.Text = bank.Description;
-            _data.Clear();
-            _page = 0;
-            RenderPage();
-            _statusLabel.Text = "⚠ 该词库是「选择题题库」（含题干/选项/答案），暂不支持可视化编辑 —— 请直接修改 wordbanks 目录下的 json 文件。";
-            return;
-        }
-
         _editingPath = bank.SourcePath;
         _titleLabel.Text = $"编辑词库：{bank.Name}";
         Visible = true;
         _nameInput.Text = bank.Name;
         _descInput.Text = bank.Description;
+
+        // 库类型按内容判定并锁定（编辑时不允许切换，防误转丢数据）
+        _choiceMode = bank.Words.Any(w => w.IsFixedChoice);
+        _choiceModeToggle.SetPressedNoSignal(_choiceMode);
+        _choiceModeToggle.Disabled = true;
+
         _data.Clear();
         foreach (var w in bank.Words)
         {
-            // 多义项用 "; " 拼回（保存时会按 ';' 拆分还原成数组）
-            var cnText = w.Definitions.Count > 0 ? string.Join("; ", w.Definitions) : w.Chinese;
-            _data.Add(new WordData { En = w.English, Cn = cnText, Phon = w.Phonetic });
+            if (w.IsFixedChoice)
+            {
+                var opts = new List<string>(w.Options);
+                while (opts.Count < MaxChoiceOptions) opts.Add("");
+                _data.Add(new WordData { IsChoice = true, En = w.English, Options = opts, Answer = w.FixedCorrectIndex });
+            }
+            else
+            {
+                // 多义项用 "; " 拼回（保存时会按 ';' 拆分还原成数组）
+                var cnText = w.Definitions.Count > 0 ? string.Join("; ", w.Definitions) : w.Chinese;
+                _data.Add(new WordData { En = w.English, Cn = cnText, Phon = w.Phonetic });
+            }
         }
-        if (_data.Count == 0) for (var i = 0; i < 3; i++) _data.Add(new WordData());
+        if (_data.Count == 0) for (var i = 0; i < 3; i++) _data.Add(new WordData { IsChoice = _choiceMode });
         _page = 0;
         RenderPage();
-        _statusLabel.Text = $"共 {_data.Count} 词 · 每页 {PageSize} 行 · 改完点「保存并启用」写回该词库。";
+        _statusLabel.Text = _choiceMode
+            ? $"共 {_data.Count} 题 · 每页 {PageSize} 行 · 每题：题干 + 选项 + 正确答案下拉。"
+            : $"共 {_data.Count} 词 · 每页 {PageSize} 行 · 改完点「保存并启用」写回该词库。";
     }
 
     private void BuildUI()
@@ -158,15 +169,26 @@ public partial class WordBankEditorPanel : Control
         _descInput.AddThemeFontSizeOverride("font_size", 14);
         descRow.AddChild(_descInput);
 
+        // 库类型切换（新建时可选；编辑已有库时按内容锁定）
+        _choiceModeToggle = new CheckButton { Text = " 选择题题库模式（每行 = 题干 + 选项 + 正确答案）" };
+        _choiceModeToggle.AddThemeFontSizeOverride("font_size", 13);
+        _choiceModeToggle.Toggled += on =>
+        {
+            if (_choiceMode == on) return;
+            _choiceMode = on;
+            // 切换类型：现有行转换为新类型的空行（避免两种行混杂看不懂）
+            _data.Clear();
+            for (var i = 0; i < 3; i++) _data.Add(new WordData { IsChoice = _choiceMode });
+            _page = 0;
+            RenderPage();
+        };
+        vbox.AddChild(_choiceModeToggle);
+
         vbox.AddChild(new HSeparator());
 
-        // 表头
-        var header = new HBoxContainer();
-        header.AddThemeConstantOverride("separation", 8);
-        vbox.AddChild(header);
-        header.AddChild(GameTheme.SizedLabel("英文", 180, 14, Gold));
-        header.AddChild(GameTheme.SizedLabel("中文释义 (多个用 ; 分隔)", 320, 14, Gold));
-        header.AddChild(GameTheme.SizedLabel("音标 (可选)", 160, 14, Gold));
+        // 表头（按库类型动态更新）
+        _headerLabel = GameTheme.MakeLabel("", 14, Gold);
+        vbox.AddChild(_headerLabel);
 
         // 滚动区
         var scroll = new ScrollContainer
@@ -225,6 +247,9 @@ public partial class WordBankEditorPanel : Control
     private void RenderPage()
     {
         ClearRows();
+        _headerLabel.Text = _choiceMode
+            ? "每题：题干  |  正确答案(下拉)  |  ✕ 删除；下方 A-E 选项（留空的选项自动忽略）"
+            : "英文  |  中文释义 (多个用 ; 分隔)  |  音标 (可选)";
         var total = _data.Count;
         var pageCount = System.Math.Max(1, (total + PageSize - 1) / PageSize);
         _page = System.Math.Clamp(_page, 0, pageCount - 1);
@@ -233,9 +258,10 @@ public partial class WordBankEditorPanel : Control
         for (var di = start; di < end; di++)
         {
             var d = _data[di];
-            AddRowWidget(d.En, d.Cn, d.Phon);
+            if (d.IsChoice) AddChoiceRowWidget(d);
+            else AddRowWidget(d.En, d.Cn, d.Phon);
         }
-        _pageLabel.Text = $"第 {_page + 1} / {pageCount} 页 · 共 {total} 词";
+        _pageLabel.Text = $"第 {_page + 1} / {pageCount} 页 · 共 {total} {(_choiceMode ? "题" : "词")}";
         _prevBtn.Disabled = _page <= 0;
         _nextBtn.Disabled = _page >= pageCount - 1;
     }
@@ -248,19 +274,46 @@ public partial class WordBankEditorPanel : Control
         {
             var di = start + i;
             if (di >= _data.Count) break;
-            _data[di].En = _rows[i].En.Text;
-            _data[di].Cn = _rows[i].Cn.Text;
-            _data[di].Phon = _rows[i].Phon.Text;
+            var row = _rows[i];
+            var d = _data[di];
+            d.En = row.En.Text;
+            if (row.IsChoice)
+            {
+                d.Options = row.OptionInputs.Select(o => o.Text).ToList();
+                d.Answer = row.AnswerSel?.Selected ?? -1;
+            }
+            else
+            {
+                d.Cn = row.Cn?.Text ?? "";
+                d.Phon = row.Phon?.Text ?? "";
+            }
         }
     }
 
-    /// <summary>末尾追加 n 个空行并跳到最后一页。</summary>
+    /// <summary>末尾追加 n 个空行（按当前库类型）并跳到最后一页。</summary>
     private void AddNewRows(int n)
     {
         FlushPage();
-        for (var i = 0; i < n; i++) _data.Add(new WordData());
+        for (var i = 0; i < n; i++) _data.Add(new WordData { IsChoice = _choiceMode });
         _page = (_data.Count - 1) / PageSize;
         RenderPage();
+    }
+
+    /// <summary>行内删除（两种行共用）。</summary>
+    private Button MakeDeleteButton(Control row)
+    {
+        var delBtn = new Button { Text = " ✕ ", CustomMinimumSize = new Vector2(36, 0) };
+        delBtn.AddThemeFontSizeOverride("font_size", 14);
+        delBtn.Pressed += () =>
+        {
+            FlushPage();
+            var pos = _rows.FindIndex(r => r.Row == row);
+            if (pos < 0) return;
+            var di = _page * PageSize + pos;
+            if (di < _data.Count) _data.RemoveAt(di);
+            RenderPage();
+        };
+        return delBtn;
     }
 
     private void AddRowWidget(string enText, string cnText, string phonText)
@@ -277,28 +330,68 @@ public partial class WordBankEditorPanel : Control
         var phon = new LineEdit { CustomMinimumSize = new Vector2(160, 0), Text = phonText };
         phon.AddThemeFontSizeOverride("font_size", 14);
 
-        var delBtn = new Button { Text = " ✕ ", CustomMinimumSize = new Vector2(36, 0) };
-        delBtn.AddThemeFontSizeOverride("font_size", 14);
-        delBtn.Pressed += () =>
-        {
-            FlushPage();
-            var pos = _rows.FindIndex(r => r.Row == row);
-            if (pos < 0) return;
-            var di = _page * PageSize + pos;
-            if (di < _data.Count) _data.RemoveAt(di);
-            RenderPage();
-        };
-
         row.AddChild(en);
         row.AddChild(cn);
         row.AddChild(phon);
-        row.AddChild(delBtn);
+        row.AddChild(MakeDeleteButton(row));
 
         _rowsContainer.AddChild(row);
         _rows.Add(new RowWidgets { Row = row, En = en, Cn = cn, Phon = phon });
 
         // 动态新增的行也要套上游戏字体，否则中文会糊
         GameTheme.ApplyFontRecursive(row);
+    }
+
+    /// <summary>选择题行：上行 = 题干 + 正确答案下拉 + 删除；下行 = A-E 选项输入框。</summary>
+    private void AddChoiceRowWidget(WordData d)
+    {
+        var box = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        box.AddThemeConstantOverride("separation", 4);
+
+        var top = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        top.AddThemeConstantOverride("separation", 8);
+        box.AddChild(top);
+
+        var en = new LineEdit
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = d.En,
+            PlaceholderText = "题干（案例题可用【案例】前缀 + \\n 换行）"
+        };
+        en.AddThemeFontSizeOverride("font_size", 14);
+        top.AddChild(en);
+
+        var ansSel = new OptionButton { CustomMinimumSize = new Vector2(96, 0), TooltipText = "正确答案" };
+        for (var i = 0; i < MaxChoiceOptions; i++) ansSel.AddItem($"答案 {(char)('A' + i)}", i);
+        ansSel.Selected = d.Answer >= 0 && d.Answer < MaxChoiceOptions ? d.Answer : 0;
+        top.AddChild(ansSel);
+        top.AddChild(MakeDeleteButton(box));
+
+        var optRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        optRow.AddThemeConstantOverride("separation", 6);
+        box.AddChild(optRow);
+
+        var optionInputs = new List<LineEdit>();
+        for (var i = 0; i < MaxChoiceOptions; i++)
+        {
+            var opt = new LineEdit
+            {
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                Text = i < d.Options.Count ? d.Options[i] : "",
+                PlaceholderText = $"{(char)('A' + i)} 选项"
+            };
+            opt.AddThemeFontSizeOverride("font_size", 13);
+            optRow.AddChild(opt);
+            optionInputs.Add(opt);
+        }
+
+        // 行间小分隔（选择题行较高，视觉分组）
+        box.AddChild(new HSeparator());
+
+        _rowsContainer.AddChild(box);
+        _rows.Add(new RowWidgets { Row = box, IsChoice = true, En = en, OptionInputs = optionInputs, AnswerSel = ansSel });
+
+        GameTheme.ApplyFontRecursive(box);
     }
 
     private void ClearRows()
@@ -318,12 +411,26 @@ public partial class WordBankEditorPanel : Control
 
         FlushPage();   // 先把当前页的编辑写回数据，再从全量 _data 收集
         var words = new List<object>();
+        var skippedChoice = 0;
         foreach (var r in _data)
         {
             var en = r.En.Trim();
+            if (string.IsNullOrEmpty(en)) continue;
+
+            if (r.IsChoice)
+            {
+                // 选择题行：压实非空选项，答案索引映射到压实后的位置
+                var answerText = r.Answer >= 0 && r.Answer < r.Options.Count ? r.Options[r.Answer].Trim() : "";
+                var opts = r.Options.Select(o => o.Trim()).Where(o => o.Length > 0).ToList();
+                var ans = string.IsNullOrEmpty(answerText) ? -1 : opts.IndexOf(answerText);
+                if (opts.Count < 2 || ans < 0) { skippedChoice++; continue; }   // 选项不足或答案指向空选项
+                words.Add(new { english = en, chinese = opts[ans], options = opts, answer = ans });
+                continue;
+            }
+
             var cn = r.Cn.Trim();
             var phon = r.Phon.Trim();
-            if (string.IsNullOrEmpty(en) || string.IsNullOrEmpty(cn)) continue;
+            if (string.IsNullOrEmpty(cn)) continue;
 
             if (cn.Contains(';'))
             {
@@ -336,11 +443,20 @@ public partial class WordBankEditorPanel : Control
             }
         }
 
-        if (words.Count < 4)
+        if (words.Count == 0)
         {
-            _statusLabel.Text = "至少需要 4 个有效单词（选择题需要）。";
+            _statusLabel.Text = _choiceMode
+                ? $"没有有效题目（每题需 ≥2 个非空选项且答案指向非空选项；已跳过 {skippedChoice} 题）。"
+                : "没有有效单词。";
             return;
         }
+        if (!_choiceMode && words.Count < 4)
+        {
+            _statusLabel.Text = "至少需要 4 个有效单词（选择题干扰项需要）。";
+            return;
+        }
+        if (skippedChoice > 0)
+            Log.Warn($"[VocabSpire] 保存题库：{skippedChoice} 题因选项不足/答案无效被跳过。");
 
         try
         {
@@ -411,19 +527,27 @@ public partial class WordBankEditorPanel : Control
         });
     }
 
-    /// <summary>全量数据项（纯字符串，不占 UI 节点，几千词也不卡）。</summary>
+    /// <summary>全量数据项（纯字符串，不占 UI 节点，几千词/题也不卡）。</summary>
     private sealed class WordData
     {
-        public string En = "";
+        public string En = "";     // 单词 / 选择题题干
         public string Cn = "";
         public string Phon = "";
+
+        // ── 固定选择题行 ──
+        public bool IsChoice;
+        public List<string> Options = new();   // 最多 MaxChoiceOptions 项（空位表示未填）
+        public int Answer = -1;                // 正确选项索引（对应 Options 原始位置）
     }
 
     private sealed class RowWidgets
     {
-        public HBoxContainer Row = null!;
-        public LineEdit En = null!;
-        public LineEdit Cn = null!;
-        public LineEdit Phon = null!;
+        public Control Row = null!;
+        public bool IsChoice;
+        public LineEdit En = null!;                       // 单词 / 题干
+        public LineEdit? Cn;                              // 普通行
+        public LineEdit? Phon;                            // 普通行
+        public List<LineEdit> OptionInputs = new();       // 选择题行：A-E 选项
+        public OptionButton? AnswerSel;                   // 选择题行：正确答案下拉
     }
 }
