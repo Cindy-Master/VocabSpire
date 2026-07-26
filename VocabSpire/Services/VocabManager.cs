@@ -217,20 +217,35 @@ public sealed class VocabManager
         {
             var parsed = ApkgImporter.Import(apkgPath);
 
-            // 多义项写成数组，单义项写成字符串，与现有词库 json 格式一致
-            var dto = new
+            var wordDtos = parsed.Words.Select<WordEntry, object>(w =>
             {
-                name = parsed.Name,
-                description = parsed.Description,
-                words = parsed.Words.Select(w => new
+                if (w.IsFixedChoice)
                 {
-                    english = w.English,
-                    chinese = w.Definitions.Count > 1
+                    return new Dictionary<string, object>
+                    {
+                        ["english"] = w.English,
+                        ["chinese"] = w.Chinese,
+                        ["options"] = w.Options,
+                        ["answer"] = w.FixedCorrectIndex
+                    };
+                }
+                return new Dictionary<string, object>
+                {
+                    ["english"] = w.English,
+                    ["chinese"] = w.Definitions.Count > 1
                         ? (object)w.Definitions
                         : (w.Definitions.Count == 1 ? w.Definitions[0] : w.Chinese),
-                    phonetic = w.Phonetic
-                })
+                    ["phonetic"] = w.Phonetic
+                };
+            }).ToList();
+
+            var dto = new Dictionary<string, object>
+            {
+                ["name"] = parsed.Name,
+                ["description"] = parsed.Description,
+                ["words"] = wordDtos
             };
+
             var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true });
             var jsonPath = Path.Combine(GetWordBanksDirectory(), parsed.Id + ".json");
             File.WriteAllText(jsonPath, json);

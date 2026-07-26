@@ -4,6 +4,15 @@
 > GitHub Release notes、Steam changeNote 全部从对应版本段落派生，不得凭记忆另写。
 > 未发布的改动先记在 [Unreleased]，发版时把该段定稿为 vX.Y.Z。
 
+## v2.7.22（2026-07-25）
+
+### 新增
+- Anki 加密题库解密导入支持（AnkiChinasDecryptor）
+- ApkgImporter 集成加密解密 + 选择题题库格式自动识别
+
+### 修复
+- visitor ID 改为确定性设备指纹，避免浪费设备槽位
+
 ## v2.7.21（2026-07-25）
 
 ### 新增
