@@ -18,9 +18,10 @@ public static class ChangelogPopup
     /// <summary>本版更新要点 —— 每次发版从 CHANGELOG.md 对应版本段派生（发版流程步骤 1）。</summary>
     private static readonly string[] ChangelogLines =
     {
-        "· 支持导入加密 Anki 选择题题库（自动解密 + 选择题格式识别）",
-        "· 修复设备指纹重复问题",
-        "· 近期：选择题题库模式 / 护理学题库 / 答完自动朗读",
+        "· 拉起手牌时在卡牌上方显示连对次数与奖励还差几题触发",
+        "· CSV 也能导入选择题题库（Options 单列或 optionA-H 分列）",
+        "· 选择题选项上限提到 8 个（A-H）",
+        "· 加密 Anki 题库导入兼容性修复 + 失败原因提示",
     };
 
     /// <summary>若当前版本还没看过更新说明，延迟到主菜单就绪后用官方弹窗弹一次。</summary>
