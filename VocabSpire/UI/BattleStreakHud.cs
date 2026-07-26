@@ -1,6 +1,7 @@
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.Combat;
 using VocabSpire.Models;
 using VocabSpire.Services;
 
@@ -27,7 +28,8 @@ public partial class BattleStreakHud : Control
         if (Instance is not null && GodotObject.IsInstanceValid(Instance)) return;
         if (!VocabConfig.Instance.Enabled) return;
         var root = GameBridge.GetUIRoot();
-        if (root is null) return;
+        if (root is null) { MegaCrit.Sts2.Core.Logging.Log.Warn("[VocabSpire] BattleStreakHud: UI root null"); return; }
+        MegaCrit.Sts2.Core.Logging.Log.Info("[VocabSpire] BattleStreakHud: creating");
         root.CallDeferred(Node.MethodName.AddChild, new BattleStreakHud());
     }
 
@@ -45,8 +47,10 @@ public partial class BattleStreakHud : Control
         TopLevel = true;
         ZIndex = 85;
         MouseFilter = MouseFilterEnum.Ignore;
+        Visible = true;
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);   // 铺满，否则子节点可能因父尺寸0不渲染
 
-        _panel = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
+        _panel = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore, TopLevel = true };
         var style = new StyleBoxFlat
         {
             BgColor = new Color(0.04f, 0.04f, 0.07f, 0.88f),
@@ -68,11 +72,12 @@ public partial class BattleStreakHud : Control
         _panel.Visible = false;
     }
 
+    private int _diagCount;
+
     public override void _Process(double delta)
     {
         if (!CombatManager.Instance.IsInProgress) { _panel.Visible = false; return; }
 
-        // 找场景树中的 NSelectedHandCardHolder（拉起卡牌时存在）
         var selected = FindSelectedHolder();
         if (selected is null)
         {
@@ -80,36 +85,63 @@ public partial class BattleStreakHud : Control
             return;
         }
 
+        var diagThisFrame = _diagCount < 3;
+        if (diagThisFrame) _diagCount++;
+
         UpdateContent();
         if (_label.Text.Length == 0) { _panel.Visible = false; return; }
 
-        // 定位到拉起卡牌的上方
-        var cardPos = selected.GlobalPosition;
         _panel.Visible = true;
-        // 等布局完成再定位（首帧 Size 可能为 0）
-        _panel.GlobalPosition = new Vector2(
-            cardPos.X + selected.Size.X / 2f - _panel.Size.X / 2f,
-            cardPos.Y - _panel.Size.Y - 12
-        );
+
+        // 定位：拉起卡牌的正上方。holder.Size 常为 (0,0)（卡牌节点自己有尺寸），
+        // 所以不依赖它 —— 用卡牌位置 + 固定偏移（卡牌高约 300，提示放其上方）。
+        var cardPos = selected.GlobalPosition;
+        var panelSize = _panel.Size;                    // 首帧可能为 0，下一帧就正常
+        var vp = GetViewportRect().Size;
+        var x = Mathf.Clamp(cardPos.X - panelSize.X / 2f, 8f, Mathf.Max(8f, vp.X - panelSize.X - 8f));
+        var y = Mathf.Clamp(cardPos.Y - 320f, 8f, Mathf.Max(8f, vp.Y - panelSize.Y - 8f));
+        _panel.GlobalPosition = new Vector2(x, y);
+
+        if (diagThisFrame)
+            MegaCrit.Sts2.Core.Logging.Log.Info(
+                $"[VocabSpire] BattleStreakHud: card={cardPos} panelSize={panelSize} → panelPos=({x},{y}) " +
+                $"vp={vp} visible={_panel.Visible} selfVisible={Visible} text='{_label.Text}' zIndex={ZIndex}");
     }
 
-    private NSelectedHandCardHolder? FindSelectedHolder()
+    private NPlayerHand? _cachedHand;
+
+    /// <summary>
+    /// 找到「正在拉起的卡牌」节点。
+    /// 依据 NPlayerHand.cs:870-873（0.107/0.108 一致）：正常打牌拉起卡牌时
+    /// holder.BeginDrag() + AddChildSafely(NCardPlay)，NCardPlay 挂在 NPlayerHand 下、
+    /// 其 public Holder 属性即被拉起的卡牌 holder；松手后 NCardPlay 被销毁。
+    /// （NSelectedHandCardHolder 只用于「选牌弹窗」，正常打牌不走那条路 —— 实测踩过的坑）
+    /// </summary>
+    private Control? FindSelectedHolder()
     {
         try
         {
-            var root = GetTree()?.CurrentScene;
-            if (root is null) return null;
-            return FindNode<NSelectedHandCardHolder>(root);
+            if (_cachedHand is null || !GodotObject.IsInstanceValid(_cachedHand))
+                _cachedHand = FindNode<NPlayerHand>(GetTree()?.Root, 0, 15);
+            if (_cachedHand is null) return null;
+
+            foreach (var child in _cachedHand.GetChildren())
+            {
+                if (child is NCardPlay play && play.Holder is { } h && GodotObject.IsInstanceValid(h))
+                    return h;
+            }
+            return null;
         }
         catch { return null; }
     }
 
-    private static T? FindNode<T>(Node node) where T : Node
+    private static T? FindNode<T>(Node? node, int depth, int maxDepth) where T : Node
     {
+        if (node is null || depth >= maxDepth) return null;
         if (node is T t) return t;
         foreach (var child in node.GetChildren())
         {
-            var found = FindNode<T>(child);
+            var found = FindNode<T>(child, depth + 1, maxDepth);
             if (found is not null) return found;
         }
         return null;
