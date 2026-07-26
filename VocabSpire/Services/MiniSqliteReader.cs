@@ -24,6 +24,8 @@ public sealed class MiniSqliteReader
 
     private const int LeafTable = 13;
     private const int InteriorTable = 5;
+    private const int LeafIndex = 10;
+    private const int InteriorIndex = 2;
 
     public MiniSqliteReader(byte[] dbBytes)
     {
@@ -91,7 +93,7 @@ public sealed class MiniSqliteReader
     private void WalkTableBtree(int pageNum, List<(long rowid, object?[] vals)> rows)
     {
         int baseOff = (pageNum - 1) * _pageSize;
-        int hdr = baseOff + (pageNum == 1 ? 100 : 0); // page 1 前 100 字节是 db header
+        int hdr = baseOff + (pageNum == 1 ? 100 : 0);
         byte type = _d[hdr];
         int numCells = U16(hdr + 3);
 
@@ -110,22 +112,93 @@ public sealed class MiniSqliteReader
             for (int i = 0; i < numCells; i++)
             {
                 int cellOff = baseOff + U16(cellPtr + i * 2);
-                int child = (int)U32(cellOff); // 左孩子页号
+                int child = (int)U32(cellOff);
                 WalkTableBtree(child, rows);
             }
             int rightMost = (int)U32(hdr + 8);
             WalkTableBtree(rightMost, rows);
         }
-        // 其它类型（index b-tree）我们不需要，忽略
+        else if (type == LeafIndex)
+        {
+            int cellPtr = hdr + 8;
+            for (int i = 0; i < numCells; i++)
+            {
+                int cellOff = baseOff + U16(cellPtr + i * 2);
+                rows.Add(ParseIndexLeafCell(cellOff));
+            }
+        }
+        else if (type == InteriorIndex)
+        {
+            int cellPtr = hdr + 12;
+            for (int i = 0; i < numCells; i++)
+            {
+                int cellOff = baseOff + U16(cellPtr + i * 2);
+                int child = (int)U32(cellOff);
+                WalkTableBtree(child, rows);
+                rows.Add(ParseIndexInteriorCell(cellOff));
+            }
+            int rightMost = (int)U32(hdr + 8);
+            WalkTableBtree(rightMost, rows);
+        }
     }
 
     private (long rowid, object?[] vals) ParseTableLeafCell(int cellOff)
     {
         int p = cellOff;
         long payloadLen = ReadVarint(_d, ref p);
-        long rowid = ReadVarint(_d, ref p); // rowid（INTEGER PRIMARY KEY 列的真实值在这里）
+        long rowid = ReadVarint(_d, ref p);
         byte[] payload = ReadPayload(p, (int)payloadLen);
         return (rowid, ParseRecord(payload));
+    }
+
+    /// <summary>WITHOUT ROWID 表的 leaf index cell：无 rowid，payload 即 record。</summary>
+    private (long rowid, object?[] vals) ParseIndexLeafCell(int cellOff)
+    {
+        int p = cellOff;
+        long payloadLen = ReadVarint(_d, ref p);
+        byte[] payload = ReadIndexPayload(p, (int)payloadLen);
+        return (0, ParseRecord(payload));
+    }
+
+    /// <summary>WITHOUT ROWID 表的 interior index cell：4 字节左孩子 + payload。</summary>
+    private (long rowid, object?[] vals) ParseIndexInteriorCell(int cellOff)
+    {
+        int p = cellOff + 4; // skip left child page number
+        long payloadLen = ReadVarint(_d, ref p);
+        byte[] payload = ReadIndexPayload(p, (int)payloadLen);
+        return (0, ParseRecord(payload));
+    }
+
+    /// <summary>读取 index cell payload（overflow 公式与 table 不同）。</summary>
+    private byte[] ReadIndexPayload(int localOff, int payloadLen)
+    {
+        int maxLocal = ((_usable - 12) * 64 / 255) - 23;
+        if (payloadLen <= maxLocal)
+        {
+            var only = new byte[payloadLen];
+            Array.Copy(_d, localOff, only, 0, payloadLen);
+            return only;
+        }
+
+        int minLocal = ((_usable - 12) * 32 / 255) - 23;
+        int k = minLocal + (payloadLen - minLocal) % (_usable - 4);
+        int localSize = k <= maxLocal ? k : minLocal;
+
+        var buf = new byte[payloadLen];
+        Array.Copy(_d, localOff, buf, 0, localSize);
+        int got = localSize;
+        int overflowPage = (int)U32(localOff + localSize);
+
+        while (overflowPage != 0 && got < payloadLen)
+        {
+            int pOff = (overflowPage - 1) * _pageSize;
+            int next = (int)U32(pOff);
+            int chunk = Math.Min(_usable - 4, payloadLen - got);
+            Array.Copy(_d, pOff + 4, buf, got, chunk);
+            got += chunk;
+            overflowPage = next;
+        }
+        return buf;
     }
 
     /// <summary>读取 cell payload，处理 overflow page 链。</summary>

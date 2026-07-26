@@ -106,21 +106,9 @@ public static class ApkgImporter
         // ── AnkiChinas 加密检测与解密 ──
         if (AnkiChinasDecryptor.IsEncrypted(notes))
         {
-            var notetypes = reader.ReadTable("notetypes");
-            byte[]? configBlob = null;
-            foreach (var nt in notetypes)
-            {
-                if (nt.GetValueOrDefault("config") is byte[] blob && blob.Length > 1000)
-                {
-                    configBlob = blob;
-                    break;
-                }
-            }
-            if (configBlob == null)
-                throw new InvalidDataException("加密牌组缺少 notetype config（无法提取解密参数）。");
-
-            var encParams = AnkiChinasDecryptor.ExtractParams(configBlob)
-                ?? throw new InvalidDataException("无法从 notetype config 提取加密参数（_ck/cpk/spk/ankiUrl 缺失）。");
+            var encParams = ExtractEncryptionParams(reader);
+            if (encParams == null)
+                throw new InvalidDataException("检测到加密内容但无法提取解密参数（_ck/cpk/spk 缺失）。");
 
             string aesKey = AnkiChinasDecryptor.FetchAesKey(encParams);
             AnkiChinasDecryptor.DecryptNotes(notes, aesKey, encParams.AesIv);
@@ -334,6 +322,35 @@ public static class ApkgImporter
         public string English = "";
         public readonly List<string> Defs = new();
         public string Phonetic = "";
+    }
+
+    /// <summary>
+    /// 从多个来源提取 AnkiChinas 加密参数：
+    /// 1. 新版 anki21b：notetypes.config blob（protobuf 内嵌 JS）
+    /// 2. 旧版 anki2/anki21：col.models JSON（模板 CSS/qfmt/afmt 内嵌 JS）
+    /// </summary>
+    private static AnkiChinasDecryptor.EncryptionParams? ExtractEncryptionParams(MiniSqliteReader reader)
+    {
+        // 来源 1：notetypes.config blob（新版 anki21b）
+        var notetypes = reader.ReadTable("notetypes");
+        foreach (var nt in notetypes)
+        {
+            if (nt.GetValueOrDefault("config") is byte[] blob && blob.Length > 1000)
+            {
+                var p = AnkiChinasDecryptor.ExtractParams(blob);
+                if (p != null) return p;
+            }
+        }
+
+        // 来源 2：col.models JSON 内的模板内容（旧版 anki2/anki21）
+        var col = reader.ReadTable("col");
+        if (col.Count > 0 && col[0].GetValueOrDefault("models") is string modelsJson && modelsJson.Length > 100)
+        {
+            var p = AnkiChinasDecryptor.ExtractParams(Encoding.UTF8.GetBytes(modelsJson));
+            if (p != null) return p;
+        }
+
+        return null;
     }
 
     // ── apkg 解压 ───────────────────────────────────────────────────────────
