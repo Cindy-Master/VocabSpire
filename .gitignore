@@ -5,6 +5,9 @@ obj/
 *.suo
 *.userprefs
 
+# AnkiChinas 解密密钥缓存（用户本地生成，绝不入仓）
+.ankichinas_sk_*.cache
+
 # IDE
 .vs/
 .idea/
