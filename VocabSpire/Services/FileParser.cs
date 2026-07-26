@@ -97,7 +97,7 @@ public static class FileParser
 
             // 选择题分列：optionA ~ optionE（或 option_a ~ option_e / a ~ e）
             var optionIndices = new List<int>();
-            for (var oi = 0; oi < 5; oi++)
+            for (var oi = 0; oi < 8; oi++)
             {
                 var letter = ((char)('a' + oi)).ToString();
                 var upperLetter = ((char)('A' + oi)).ToString();

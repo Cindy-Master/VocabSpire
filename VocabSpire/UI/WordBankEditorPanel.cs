@@ -34,7 +34,7 @@ public partial class WordBankEditorPanel : Control
     private Button _nextBtn = null!;
 
     // ── 选择题库模式 ──
-    private const int MaxChoiceOptions = 5;          // A-E
+    private const int MaxChoiceOptions = 8;          // A-H（与 QuizGenerator.MaxOptionCount / ChoiceAnswerWidget.Prefixes 一致）
     private bool _choiceMode;                        // 当前库类型（新建可切换；编辑按库内容判定）
     private CheckButton _choiceModeToggle = null!;
     private Label _headerLabel = null!;
