@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Net.NetworkInformation;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -60,7 +61,7 @@ public static class AnkiChinasDecryptor
     /// <summary>向 AnkiChinas 服务器换取 AES 会话密钥。</summary>
     public static string FetchAesKey(EncryptionParams p)
     {
-        var visitorId = Guid.NewGuid().ToString("N")[..20];
+        var visitorId = GetStableDeviceId();
         var payload = JsonSerializer.Serialize(new { k = p.ClientKey, i = visitorId });
 
         string encryptedPayload;
@@ -195,6 +196,29 @@ public static class AnkiChinasDecryptor
         }
 
         return (iv, spkSuffix);
+    }
+
+    /// <summary>
+    /// 生成稳定的设备标识，模拟 FingerprintJS 的行为：同一台机器始终返回相同 ID，
+    /// 只占用一个设备槽位，避免反复生成随机 ID 导致「超出设备限制」。
+    /// </summary>
+    private static string GetStableDeviceId()
+    {
+        var sb = new StringBuilder();
+        sb.Append(Environment.MachineName);
+        sb.Append('|');
+        sb.Append(Environment.UserName);
+        try
+        {
+            var nic = NetworkInterface.GetAllNetworkInterfaces()
+                .FirstOrDefault(n => n.OperationalStatus == OperationalStatus.Up
+                    && n.NetworkInterfaceType != NetworkInterfaceType.Loopback);
+            if (nic != null) sb.Append('|').Append(nic.GetPhysicalAddress());
+        }
+        catch { /* 网络接口不可用时忽略 */ }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
+        return Convert.ToHexString(hash)[..20].ToLowerInvariant();
     }
 
     // ── 参数容器 ──────────────────────────────────────────────────────────────
