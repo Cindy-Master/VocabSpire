@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using MegaCrit.Sts2.Core.Logging;
 using VocabSpire.Models;
 
 namespace VocabSpire.Services;
@@ -104,14 +105,19 @@ public static class ApkgImporter
             throw new InvalidDataException("apkg 内没有任何卡片（notes 表为空）。");
 
         // ── AnkiChinas 加密检测与解密 ──
-        if (AnkiChinasDecryptor.IsEncrypted(notes))
+        bool encrypted = AnkiChinasDecryptor.IsEncrypted(notes);
+        Log.Info($"[VocabSpire] 加密检测: encrypted={encrypted}, notes={notes.Count}");
+        if (encrypted)
         {
             var encParams = ExtractEncryptionParams(reader);
             if (encParams == null)
                 throw new InvalidDataException("检测到加密内容但无法提取解密参数（_ck/cpk/spk 缺失）。");
 
+            Log.Info($"[VocabSpire] 加密参数提取成功: ck={encParams.ClientKey[..8]}..., iv={encParams.AesIv}, url={encParams.ApiBaseUrl}");
             string aesKey = AnkiChinasDecryptor.FetchAesKey(encParams);
+            Log.Info($"[VocabSpire] AES密钥获取成功: key_len={aesKey.Length}");
             AnkiChinasDecryptor.DecryptNotes(notes, aesKey, encParams.AesIv);
+            Log.Info("[VocabSpire] 解密完成");
         }
 
         // 按 model 分组
@@ -140,9 +146,11 @@ public static class ApkgImporter
             var quiz = TryParseQuizBank(fnames, rows);
             if (quiz != null)
             {
+                Log.Info($"[VocabSpire] 题库格式识别成功: model={mid}, 题数={quiz.Count}");
                 quizWords.AddRange(quiz);
                 continue;
             }
+            Log.Info($"[VocabSpire] 非题库格式 model={mid}, fnames=[{string.Join(", ", fnames)}], 尝试词汇模式");
 
             var (en, cn, ph) = DetectRoles(fnames, rows);
             if (en < 0 || cn < 0) continue;
@@ -244,7 +252,17 @@ public static class ApkgImporter
         int qi = NameHitExact(low, QuestionNames);
         int oi = NameHitExact(low, OptionsNames);
         int ai = NameHitExact(low, AnswersNames);
+        Log.Info($"[VocabSpire] TryParseQuizBank: qi={qi} oi={oi} ai={ai} (fnames=[{string.Join(",", low)}])");
         if (qi < 0 || oi < 0 || ai < 0) return null;
+
+        if (rows.Count > 0)
+        {
+            var sample = rows[0];
+            string sq = qi < sample.Length ? sample[qi] : "N/A";
+            string so = oi < sample.Length ? sample[oi] : "N/A";
+            string sa = ai < sample.Length ? sample[ai] : "N/A";
+            Log.Info($"[VocabSpire] 题库首条采样: Q=[{sq[..Math.Min(60, sq.Length)]}] O=[{so[..Math.Min(60, so.Length)]}] A=[{sa}]");
+        }
 
         int ri = NameHitExact(low, RemarksNames);
         var result = new List<WordEntry>(rows.Count);

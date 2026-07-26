@@ -58,8 +58,36 @@ public static class AnkiChinasDecryptor
         };
     }
 
-    /// <summary>向 AnkiChinas 服务器换取 AES 会话密钥。</summary>
+    /// <summary>AES 密钥缓存路径（按 _ck 前8字符分文件）。</summary>
+    private static string GetCachePath(string ck)
+    {
+        var dir = Path.GetDirectoryName(typeof(AnkiChinasDecryptor).Assembly.Location) ?? ".";
+        return Path.Combine(dir, $".ankichinas_sk_{ck[..Math.Min(8, ck.Length)]}.cache");
+    }
+
+    /// <summary>向 AnkiChinas 服务器换取 AES 会话密钥。失败时尝试本地缓存。</summary>
     public static string FetchAesKey(EncryptionParams p)
+    {
+        try
+        {
+            var key = FetchAesKeyFromServer(p);
+            File.WriteAllText(GetCachePath(p.ClientKey), key);
+            return key;
+        }
+        catch (Exception ex)
+        {
+            var cachePath = GetCachePath(p.ClientKey);
+            if (File.Exists(cachePath))
+            {
+                var cached = File.ReadAllText(cachePath).Trim();
+                if (cached.Length >= 16) return cached;
+            }
+            throw new InvalidOperationException($"{ex.Message}\n且无本地缓存可用。" +
+                "\n可先用 Python 脚本 decrypt_apkg.py 成功解密一次以建立缓存，或联系 AnkiChinas 解锁设备。");
+        }
+    }
+
+    private static string FetchAesKeyFromServer(EncryptionParams p)
     {
         var visitorId = GetStableDeviceId();
         var payload = JsonSerializer.Serialize(new { k = p.ClientKey, i = visitorId });
