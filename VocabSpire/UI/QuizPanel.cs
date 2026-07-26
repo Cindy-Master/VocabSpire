@@ -500,7 +500,56 @@ public partial class QuizPanel : Control
     {
         var c = VocabConfig.Instance;
         var pct = c.TotalAnswered > 0 ? $"{c.OverallAccuracy:P0}" : "--";
-        _statsLabel.Text = $"已答题：{c.TotalAnswered}  |  正确率：{pct}";
+        var bt = BattleStateTracker.Instance;
+        var parts = new List<string>();
+
+        // 连对 / 连错
+        if (bt.CorrectStreak > 0) parts.Add($"🔥连对 {bt.CorrectStreak}");
+        if (bt.WrongStreak > 0) parts.Add($"💔连错 {bt.WrongStreak}");
+
+        // 奖励规则：算出每条还差几次触发（只显示已启用 + 距离最近的前 2 条）
+        if (c.RewardEnabled)
+        {
+            var hints = new List<(int gap, string text)>();
+            foreach (var rule in c.RewardRules)
+            {
+                if (!rule.Enabled || rule.Kind == RewardType.None || rule.Amount <= 0 || rule.Streak <= 0) continue;
+                var streak = bt.CorrectStreak;
+                int gap;
+                switch (rule.Mode)
+                {
+                    case Models.RewardTriggerMode.Once:
+                        gap = rule.Streak - streak;
+                        if (gap <= 0) continue;
+                        break;
+                    case Models.RewardTriggerMode.Recurring:
+                        gap = rule.Streak - streak;
+                        if (gap <= 0) gap = 0;
+                        break;
+                    case Models.RewardTriggerMode.EveryN:
+                        gap = rule.Streak <= 0 ? 999 : rule.Streak - (streak % rule.Streak);
+                        if (gap == rule.Streak && streak > 0 && streak % rule.Streak == 0) gap = rule.Streak;
+                        break;
+                    default: continue;
+                }
+                var kindName = rule.Kind switch
+                {
+                    RewardType.Hp => "回血", RewardType.Energy => "能量", RewardType.Gold => "金币",
+                    RewardType.Strength => "力量", RewardType.Dexterity => "敏捷", RewardType.Block => "覆甲",
+                    RewardType.Draw => "抽牌", RewardType.Replay => "重放", _ => rule.Kind.ToString()
+                };
+                if (gap <= 0)
+                    hints.Add((0, $"✨{kindName}+{rule.Amount}"));
+                else
+                    hints.Add((gap, $"{kindName} 还差{gap}题"));
+            }
+            hints.Sort((a, b) => a.gap.CompareTo(b.gap));
+            foreach (var h in hints.Take(2)) parts.Add(h.text);
+        }
+
+        parts.Add($"已答题：{c.TotalAnswered}");
+        parts.Add($"正确率：{pct}");
+        _statsLabel.Text = string.Join("  |  ", parts);
     }
 
     public static void Create()
