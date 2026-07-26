@@ -64,6 +64,16 @@ public static class ApkgImporter
         "audio", "sound", "example", "passage", "url", "媒体", "video", "image"
     };
 
+    // 题库字段名匹配（Question/Options/Answers 及中文变体）
+    private static readonly string[] QuestionNames =
+        { "question", "题干", "题目", "问题", "stem" };
+    private static readonly string[] OptionsNames =
+        { "options", "option", "选项", "choices", "choice" };
+    private static readonly string[] AnswersNames =
+        { "answers", "answer", "答案", "correct", "正确答案" };
+    private static readonly string[] RemarksNames =
+        { "remarks", "remark", "备注", "解析", "explanation", "解答", "notes" };
+
     /// <summary>导入 apkg，返回 WordBank。失败抛异常（调用方负责 Log）。</summary>
     public static WordBank Import(string apkgPath)
     {
@@ -81,6 +91,29 @@ public static class ApkgImporter
         if (notes.Count == 0)
             throw new InvalidDataException("apkg 内没有任何卡片（notes 表为空）。");
 
+        // ── AnkiChinas 加密检测与解密 ──
+        if (AnkiChinasDecryptor.IsEncrypted(notes))
+        {
+            var notetypes = reader.ReadTable("notetypes");
+            byte[]? configBlob = null;
+            foreach (var nt in notetypes)
+            {
+                if (nt.GetValueOrDefault("config") is byte[] blob && blob.Length > 1000)
+                {
+                    configBlob = blob;
+                    break;
+                }
+            }
+            if (configBlob == null)
+                throw new InvalidDataException("加密牌组缺少 notetype config（无法提取解密参数）。");
+
+            var encParams = AnkiChinasDecryptor.ExtractParams(configBlob)
+                ?? throw new InvalidDataException("无法从 notetype config 提取加密参数（_ck/cpk/spk/ankiUrl 缺失）。");
+
+            string aesKey = AnkiChinasDecryptor.FetchAesKey(encParams);
+            AnkiChinasDecryptor.DecryptNotes(notes, aesKey, encParams.AesIv);
+        }
+
         // 按 model 分组
         var byModel = new Dictionary<string, List<string[]>>();
         foreach (var n in notes)
@@ -95,6 +128,7 @@ public static class ApkgImporter
         // 聚合：english.lower → 条目（保持首次出现顺序）
         var order = new List<string>();
         var agg = new Dictionary<string, Agg>(StringComparer.OrdinalIgnoreCase);
+        var quizWords = new List<WordEntry>();
 
         foreach (var (mid, rows) in byModel)
         {
@@ -102,8 +136,16 @@ public static class ApkgImporter
                 ? fn
                 : DefaultFieldNames(rows);
 
+            // ── 优先尝试题库格式（Question/Options/Answers） ──
+            var quiz = TryParseQuizBank(fnames, rows);
+            if (quiz != null)
+            {
+                quizWords.AddRange(quiz);
+                continue;
+            }
+
             var (en, cn, ph) = DetectRoles(fnames, rows);
-            if (en < 0 || cn < 0) continue; // 这个 note type 找不到英文词或中文释义，跳过
+            if (en < 0 || cn < 0) continue;
 
             foreach (var parts in rows)
             {
@@ -113,10 +155,8 @@ public static class ApkgImporter
                 string word = Clean(parts[en]);
                 string cdef = Clean(parts[cn]);
                 if (word.Length == 0 || cdef.Length == 0) continue;
-                if (word == cdef) continue; // 单词列与释义列取到同一值（方向退化/脏行），跳过
+                if (word == cdef) continue;
 
-                // 表头行特征：单词字段的值恰好等于它的字段名（如值="Word"）。
-                // 用「值==字段名」精确判定，避免把 term/word/front 这类真实单词误当表头。
                 if (string.Equals(word, fnames[en], StringComparison.OrdinalIgnoreCase)) continue;
                 string lower = word.ToLowerInvariant();
 
@@ -135,7 +175,7 @@ public static class ApkgImporter
             }
         }
 
-        var words = new List<WordEntry>(order.Count);
+        var words = new List<WordEntry>(order.Count + quizWords.Count);
         foreach (var key in order)
         {
             var a = agg[key];
@@ -148,20 +188,108 @@ public static class ApkgImporter
                 Phonetic = a.Phonetic
             });
         }
+        words.AddRange(quizWords);
 
         if (words.Count < 2)
             throw new InvalidDataException(
-                "未能从该 apkg 提取出有效词条（无法识别「单词 + 释义」两列，可能是单字段/填空卡）。");
+                "未能从该 apkg 提取出有效词条（无法识别「单词 + 释义」或「题干 + 选项 + 答案」）。");
 
         string id = Path.GetFileNameWithoutExtension(apkgPath);
+        string desc = quizWords.Count > 0
+            ? $"从 Anki 题库 {Path.GetFileName(apkgPath)} 导入（{words.Count} 题）。"
+            : $"从 Anki 词库 {Path.GetFileName(apkgPath)} 导入（{words.Count} 词）。";
+
         return new WordBank
         {
             Id = id,
             Name = id.Replace('_', ' ').Replace('-', ' '),
-            Description = $"从 Anki 词库 {Path.GetFileName(apkgPath)} 导入（{words.Count} 词）。",
+            Description = desc,
             SourcePath = apkgPath,
             Words = words
         };
+    }
+
+    /// <summary>
+    /// 尝试按题库格式（Question/Options/Answers）解析。
+    /// 字段名匹配到 question + options + answers 即识别为题库，返回固定选择题列表；否则 null。
+    /// </summary>
+    private static List<WordEntry>? TryParseQuizBank(List<string> fnames, List<string[]> rows)
+    {
+        var low = fnames.ConvertAll(f => f.ToLowerInvariant());
+        int qi = NameHitExact(low, QuestionNames);
+        int oi = NameHitExact(low, OptionsNames);
+        int ai = NameHitExact(low, AnswersNames);
+        if (qi < 0 || oi < 0 || ai < 0) return null;
+
+        int ri = NameHitExact(low, RemarksNames);
+        var result = new List<WordEntry>(rows.Count);
+
+        foreach (var parts in rows)
+        {
+            if (qi >= parts.Length || oi >= parts.Length || ai >= parts.Length) continue;
+
+            string question = Clean(parts[qi]);
+            string rawOpts = Clean(parts[oi]);
+            string rawAns = Clean(parts[ai]);
+            if (question.Length == 0 || rawOpts.Length == 0 || rawAns.Length == 0) continue;
+
+            // 选项分隔：||  或  \n  或  <br>（AnkiChinas 用 ||）
+            var opts = rawOpts.Contains("||")
+                ? rawOpts.Split("||", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList()
+                : rawOpts.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+
+            if (opts.Count < 2) continue;
+
+            // 答案解析：数字（1-based 或 0-based）、字母（A/B/C/D）
+            int ansIdx = ParseAnswerIndex(rawAns, opts.Count);
+            if (ansIdx < 0 || ansIdx >= opts.Count) continue;
+
+            string remark = ri >= 0 && ri < parts.Length ? Clean(parts[ri]) : "";
+            string correctText = opts[ansIdx];
+            var defs = new List<string> { correctText };
+            if (remark.Length > 0) defs.Add(remark);
+
+            result.Add(new WordEntry
+            {
+                English = question,
+                Chinese = correctText,
+                Definitions = defs,
+                Options = opts,
+                FixedCorrectIndex = ansIdx
+            });
+        }
+
+        return result.Count > 0 ? result : null;
+    }
+
+    /// <summary>解析答案索引：支持数字（1-based）和字母（A=0, B=1, ...）。</summary>
+    private static int ParseAnswerIndex(string raw, int optCount)
+    {
+        raw = raw.Trim();
+        if (raw.Length == 1 && char.IsLetter(raw[0]))
+        {
+            char c = char.ToUpper(raw[0]);
+            return c - 'A';
+        }
+        if (int.TryParse(raw, out int num))
+        {
+            // 1-based 更常见（AnkiChinas 用 1-based），但也兼容 0-based
+            if (num >= 1 && num <= optCount) return num - 1;
+            if (num >= 0 && num < optCount) return num;
+        }
+        return -1;
+    }
+
+    /// <summary>精确字段名匹配（不含 exclude 检查的简化版本）。</summary>
+    private static int NameHitExact(List<string> low, string[] pats)
+    {
+        for (int i = 0; i < low.Count; i++)
+        {
+            string f = low[i];
+            foreach (var p in pats)
+                if (f.Contains(p)) return i;
+        }
+        return -1;
     }
 
     private sealed class Agg
