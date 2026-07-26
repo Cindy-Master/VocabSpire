@@ -93,9 +93,9 @@ public static class FileParser
             var englishIdx = FindColumnIndex(header, "english", "en", "word", "question");
             var chineseIdx = FindColumnIndex(header, "chinese", "cn", "zh", "meaning");
             var phoneticIdx = FindColumnIndex(header, "phonetic", "pronunciation");
-            var answerIdx = FindColumnIndex(header, "answer");
+            var answerIdx = FindColumnIndex(header, "answer", "answers");
 
-            // 选择题分列：optionA ~ optionE（或 option_a ~ option_e / a ~ e）
+            // 方案 B：选择题分列 optionA ~ optionH
             var optionIndices = new List<int>();
             for (var oi = 0; oi < 8; oi++)
             {
@@ -104,7 +104,11 @@ public static class FileParser
                 var idx = FindColumnIndex(header, $"option{upperLetter}", $"option_{letter}", $"option{letter}", upperLetter);
                 if (idx >= 0) optionIndices.Add(idx);
             }
-            var isChoiceCsv = optionIndices.Count >= 2 && answerIdx >= 0;
+            // 方案 A：选项合并在一列（Options，用 || 或换行分隔）
+            var optionsMergedIdx = optionIndices.Count < 2
+                ? FindColumnIndex(header, "options", "choices")
+                : -1;
+            var isChoiceCsv = (optionIndices.Count >= 2 || optionsMergedIdx >= 0) && answerIdx >= 0;
 
             if (englishIdx < 0 || (!isChoiceCsv && chineseIdx < 0))
             {
@@ -126,12 +130,23 @@ public static class FileParser
 
                 if (isChoiceCsv)
                 {
-                    // 选择题行：收集非空选项 + 映射答案索引
+                    // 选择题行：方案 B（分列）或方案 A（合并列，|| 或换行分隔）
                     var opts = new List<string>();
-                    foreach (var oi in optionIndices)
+                    if (optionsMergedIdx >= 0 && optionsMergedIdx < fields.Length)
                     {
-                        var t = oi < fields.Length ? fields[oi].Trim() : "";
-                        if (t.Length > 0) opts.Add(t);
+                        var raw = fields[optionsMergedIdx].Trim();
+                        var split = raw.Contains("||")
+                            ? raw.Split("||", System.StringSplitOptions.RemoveEmptyEntries)
+                            : raw.Split('\n', System.StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var s in split) { var t = s.Trim(); if (t.Length > 0) opts.Add(t); }
+                    }
+                    else
+                    {
+                        foreach (var oi in optionIndices)
+                        {
+                            var t = oi < fields.Length ? fields[oi].Trim() : "";
+                            if (t.Length > 0) opts.Add(t);
+                        }
                     }
                     if (opts.Count < 2) continue;
 
