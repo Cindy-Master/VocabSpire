@@ -90,13 +90,25 @@ public static class FileParser
             if (lines.Length < 2) return null;
 
             var header = ParseCsvLine(lines[0]);
-            var englishIdx = FindColumnIndex(header, "english", "en", "word");
+            var englishIdx = FindColumnIndex(header, "english", "en", "word", "question");
             var chineseIdx = FindColumnIndex(header, "chinese", "cn", "zh", "meaning");
             var phoneticIdx = FindColumnIndex(header, "phonetic", "pronunciation");
+            var answerIdx = FindColumnIndex(header, "answer");
 
-            if (englishIdx < 0 || chineseIdx < 0)
+            // 选择题分列：optionA ~ optionE（或 option_a ~ option_e / a ~ e）
+            var optionIndices = new List<int>();
+            for (var oi = 0; oi < 5; oi++)
             {
-                Log.Error($"[VocabSpire] CSV missing required columns (english/chinese): {filePath}");
+                var letter = ((char)('a' + oi)).ToString();
+                var upperLetter = ((char)('A' + oi)).ToString();
+                var idx = FindColumnIndex(header, $"option{upperLetter}", $"option_{letter}", $"option{letter}", upperLetter);
+                if (idx >= 0) optionIndices.Add(idx);
+            }
+            var isChoiceCsv = optionIndices.Count >= 2 && answerIdx >= 0;
+
+            if (englishIdx < 0 || (!isChoiceCsv && chineseIdx < 0))
+            {
+                Log.Error($"[VocabSpire] CSV missing required columns (english/chinese or english/optionA-E/answer): {filePath}");
                 return null;
             }
 
@@ -107,11 +119,48 @@ public static class FileParser
                 if (string.IsNullOrEmpty(line)) continue;
 
                 var fields = ParseCsvLine(line);
-                if (fields.Length <= Math.Max(englishIdx, chineseIdx)) continue;
+                if (fields.Length <= englishIdx) continue;
 
                 var english = fields[englishIdx].Trim();
+                if (string.IsNullOrEmpty(english)) continue;
+
+                if (isChoiceCsv)
+                {
+                    // 选择题行：收集非空选项 + 映射答案索引
+                    var opts = new List<string>();
+                    foreach (var oi in optionIndices)
+                    {
+                        var t = oi < fields.Length ? fields[oi].Trim() : "";
+                        if (t.Length > 0) opts.Add(t);
+                    }
+                    if (opts.Count < 2) continue;
+
+                    var ansRaw = answerIdx < fields.Length ? fields[answerIdx].Trim() : "";
+                    var ans = -1;
+                    // 支持数字索引（0-based）或字母（A-E）
+                    if (ansRaw.Length == 1 && ansRaw[0] >= 'A' && ansRaw[0] <= 'E')
+                        ans = ansRaw[0] - 'A';
+                    else if (ansRaw.Length == 1 && ansRaw[0] >= 'a' && ansRaw[0] <= 'e')
+                        ans = ansRaw[0] - 'a';
+                    else if (int.TryParse(ansRaw, out var ni))
+                        ans = ni;
+                    if (ans < 0 || ans >= opts.Count) continue;
+
+                    words.Add(new WordEntry
+                    {
+                        English = english,
+                        Chinese = opts[ans],
+                        Definitions = new List<string> { opts[ans] },
+                        Options = opts,
+                        FixedCorrectIndex = ans
+                    });
+                    continue;
+                }
+
+                // 普通单词行
+                if (chineseIdx < 0 || fields.Length <= chineseIdx) continue;
                 var chinese = fields[chineseIdx].Trim();
-                if (string.IsNullOrEmpty(english) || string.IsNullOrEmpty(chinese)) continue;
+                if (string.IsNullOrEmpty(chinese)) continue;
 
                 var phonetic = phoneticIdx >= 0 && phoneticIdx < fields.Length
                     ? fields[phoneticIdx].Trim()
