@@ -84,7 +84,19 @@ public static class ApkgImporter
         // 新版(anki21b)在 notetypes+fields 表
         var modelFields = GetModelFields(reader);
         if (modelFields.Count == 0)
-            throw new InvalidDataException("apkg 缺少 note type 字段定义（col.models 与 notetypes 表均为空）。");
+        {
+            // 诊断：列出 DB 里有哪些表、col.models 长什么样、notetypes/fields 表有几行
+            var tables = new[] { "col", "notes", "notetypes", "fields" }; // 只列关键表
+            var col = reader.ReadTable("col");
+            var modelsRaw = col.Count > 0 && col[0].TryGetValue("models", out var mv) ? (mv as string ?? "(非字符串)") : "(无)";
+            var ntCount = reader.ReadTable("notetypes").Count;
+            var fldsCount = reader.ReadTable("fields").Count;
+            MegaCrit.Sts2.Core.Logging.Log.Error(
+                $"[VocabSpire] apkg 字段定义诊断: 表=[{string.Join(",", tables)}] " +
+                $"col.models前100字={modelsRaw[..Math.Min(100, modelsRaw.Length)]} " +
+                $"notetypes行数={ntCount} fields行数={fldsCount}");
+            throw new InvalidDataException("apkg 缺少 note type 字段定义（col.models 与 notetypes 表均为空）。详细诊断已写入日志。");
+        }
 
         // 所有 note：mid（note type id）+ flds（各字段值，\x1f 分隔）
         var notes = reader.ReadTable("notes");
@@ -191,8 +203,33 @@ public static class ApkgImporter
         words.AddRange(quizWords);
 
         if (words.Count < 2)
+        {
+            // 详细诊断日志：帮定位为什么识别不出
+            var diag = new System.Text.StringBuilder();
+            diag.AppendLine("=== ApkgImporter 导入失败诊断 ===");
+            diag.AppendLine($"  notes 总数: {notes.Count} | modelFields 数: {modelFields.Count}");
+            foreach (var (mid, fn) in modelFields)
+                diag.AppendLine($"  model {mid}: 字段名=[{string.Join(", ", fn)}]");
+            foreach (var (mid, rows) in byModel)
+            {
+                var fn = modelFields.TryGetValue(mid, out var f) ? f : DefaultFieldNames(rows);
+                diag.AppendLine($"  model {mid}: 行数={rows.Count} 字段数={fn.Count}");
+                if (rows.Count > 0)
+                {
+                    var sample = rows[0];
+                    for (var ci = 0; ci < Math.Min(fn.Count, sample.Length); ci++)
+                    {
+                        var raw = sample[ci];
+                        var isEnc = raw.Contains("≯#") || raw.Contains("#≮");
+                        var preview = raw.Length > 60 ? raw[..60] + "…" : raw;
+                        diag.AppendLine($"    [{fn[ci]}] len={raw.Length} enc={isEnc} → {preview}");
+                    }
+                }
+            }
+            MegaCrit.Sts2.Core.Logging.Log.Error($"[VocabSpire] {diag}");
             throw new InvalidDataException(
-                "未能从该 apkg 提取出有效词条（无法识别「单词 + 释义」或「题干 + 选项 + 答案」）。");
+                "未能从该 apkg 提取出有效词条（无法识别「单词 + 释义」或「题干 + 选项 + 答案」）。详细诊断已写入日志。");
+        }
 
         string id = Path.GetFileNameWithoutExtension(apkgPath);
         string desc = quizWords.Count > 0
