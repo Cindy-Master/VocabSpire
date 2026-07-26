@@ -1485,6 +1485,21 @@ public partial class VocabSettingsPanel : Control
                 VocabManager.Instance.SetActiveBank(bank.Id);
                 RefreshUI();
             }
+            else
+            {
+                var reason = VocabManager.Instance.LastImportError ?? "未知错误";
+                var dlg = new AcceptDialog
+                {
+                    Title = "导入失败",
+                    DialogText = reason,
+                    ProcessMode = ProcessModeEnum.Always,
+                    Size = new Vector2I(520, 0),
+                };
+                AddChild(dlg);
+                dlg.PopupCentered();
+                dlg.Confirmed += () => dlg.QueueFree();
+                dlg.Canceled += () => dlg.QueueFree();
+            }
         };
         AddChild(_fileDialog);
     }

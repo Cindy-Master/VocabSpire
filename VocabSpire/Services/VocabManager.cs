@@ -165,12 +165,14 @@ public sealed class VocabManager
         Log.Info($"[VocabSpire] Merged pool: {order.Count} unique words from {_activeBanks.Count} bank(s).");
     }
 
+    /// <summary>上一次导入失败的原因（UI 层读取后弹窗展示）。</summary>
+    public string? LastImportError { get; private set; }
+
     public WordBank? ImportBank(string filePath)
     {
+        LastImportError = null;
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
 
-        // apkg 特殊处理：解析为词条后序列化成 json 存入 wordbanks
-        // （apkg 是二进制，LoadAllBanks 只扫描 json/csv，必须先转 json）
         if (ext == ".apkg")
             return ImportApkg(filePath);
 
@@ -183,6 +185,7 @@ public sealed class VocabManager
 
         if (bank is null)
         {
+            LastImportError = $"无法解析文件（格式不支持或内容为空）：\n{Path.GetFileName(filePath)}";
             Log.Error($"[VocabSpire] Failed to import: {filePath}");
             return null;
         }
@@ -260,6 +263,7 @@ public sealed class VocabManager
         catch (Exception ex)
         {
             Log.Error($"[VocabSpire] apkg import failed: {apkgPath} - {ex.Message}");
+            LastImportError = ex.Message;
             return null;
         }
     }
