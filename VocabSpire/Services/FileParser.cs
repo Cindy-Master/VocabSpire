@@ -34,8 +34,9 @@ public static class FileParser
         [JsonPropertyName("options")]
         public List<string>? Options { get; set; }
 
+        /// <summary>正确答案：数字索引（0-based；等于选项数时按 1-based 容错）或字母 "A"-"H"。</summary>
         [JsonPropertyName("answer")]
-        public int? Answer { get; set; }
+        public JsonElement Answer { get; set; }
     }
 
     public static WordBank? ParseJson(string filePath)
@@ -56,22 +57,31 @@ public static class FileParser
                 Words = dto.Words
                     .Select(w =>
                     {
-                        // 固定选择题条目：english=题干、options=选项、answer=正确索引；chinese 自动填正确答案文本
-                        if (w.Options is { Count: > 0 } && w.Answer is int ans && ans >= 0 && ans < w.Options.Count)
+                        // 固定选择题条目：english=题干、options=选项、answer=正确答案；chinese 自动填正确答案文本
+                        if (w.Options is { Count: >= 2 })
                         {
-                            return new WordEntry
+                            var opts = w.Options.Select(o => o.Trim()).Where(o => o.Length > 0).ToList();
+                            var ans = ParseJsonAnswer(w.Answer, opts.Count);
+                            if (ans >= 0)
                             {
-                                English = w.English.Trim(),
-                                Chinese = w.Options[ans].Trim(),
-                                Definitions = new List<string> { w.Options[ans].Trim() },
-                                Options = w.Options.Select(o => o.Trim()).ToList(),
-                                FixedCorrectIndex = ans
-                            };
+                                return new WordEntry
+                                {
+                                    English = w.English.Trim(),
+                                    Chinese = opts[ans],
+                                    Definitions = new List<string> { opts[ans] },
+                                    Options = opts,
+                                    FixedCorrectIndex = ans
+                                };
+                            }
+                            // 有 options 但答案无效 → 是坏掉的题，不要掉进单词解析产生垃圾词条
+                            Log.Warn($"[VocabSpire] 跳过无效选择题（answer 解析失败）：{Truncate(w.English, 40)}");
+                            return null;
                         }
                         var (chinese, defs) = ParseChineseField(w.Chinese);
                         return CreateWordEntry(w.English, chinese, w.Phonetic, defs);
                     })
-                    .Where(w => !string.IsNullOrEmpty(w.English) && !string.IsNullOrEmpty(w.Chinese))
+                    .Where(w => w is not null && !string.IsNullOrEmpty(w.English) && !string.IsNullOrEmpty(w.Chinese))
+                    .Select(w => w!)
                     .ToList()
             };
         }
@@ -151,15 +161,8 @@ public static class FileParser
                     if (opts.Count < 2) continue;
 
                     var ansRaw = answerIdx < fields.Length ? fields[answerIdx].Trim() : "";
-                    var ans = -1;
-                    // 支持数字索引（0-based）或字母（A-E）
-                    if (ansRaw.Length == 1 && ansRaw[0] >= 'A' && ansRaw[0] <= 'E')
-                        ans = ansRaw[0] - 'A';
-                    else if (ansRaw.Length == 1 && ansRaw[0] >= 'a' && ansRaw[0] <= 'e')
-                        ans = ansRaw[0] - 'a';
-                    else if (int.TryParse(ansRaw, out var ni))
-                        ans = ni;
-                    if (ans < 0 || ans >= opts.Count) continue;
+                    var ans = ParseAnswerIndex(ansRaw, opts.Count);
+                    if (ans < 0) continue;
 
                     words.Add(new WordEntry
                     {
@@ -281,6 +284,58 @@ public static class FileParser
         }
         fields.Add(current);
         return fields.ToArray();
+    }
+
+    /// <summary>
+    /// 解析 JSON 的 answer 字段 → 0-based 选项索引。
+    /// 规范是 0-based（本 mod 的工具与内置题库均按此生成）；但对人手写的 1-based 做容错：
+    /// answer 恰好等于选项数时（0-based 下必然越界）按 1-based 解释。也接受字符串 "A"-"H" / 数字串。
+    /// </summary>
+    private static int ParseJsonAnswer(JsonElement answer, int optionCount)
+    {
+        if (optionCount <= 0) return -1;
+        switch (answer.ValueKind)
+        {
+            case JsonValueKind.Number when answer.TryGetInt32(out var n):
+                if (n >= 0 && n < optionCount) return n;          // 0-based（规范）
+                if (n == optionCount) return n - 1;               // 只可能是 1-based 的最后一项
+                return -1;
+            case JsonValueKind.String:
+                return ParseAnswerIndex(answer.GetString() ?? "", optionCount);
+            default:
+                return -1;
+        }
+    }
+
+    private static string Truncate(string s, int n) => s.Length <= n ? s : s[..n] + "…";
+
+    /// <summary>
+    /// 解析选择题答案列 → 0-based 选项索引。与 ApkgImporter.ParseAnswerIndex 保持一致的语义：
+    /// 字母 A-H（大小写皆可）按 0-based；数字**优先按 1-based**（题库最常见，如「5」= 第5个选项 E），
+    /// 仅当按 1-based 越界时才退回 0-based。返回 -1 表示无法解析。
+    /// （踩过的坑：曾把数字当 0-based，导致整库答案偏移一位、最后一个选项的题被整题丢弃。）
+    /// </summary>
+    private static int ParseAnswerIndex(string raw, int optionCount)
+    {
+        raw = raw.Trim();
+        if (raw.Length == 0 || optionCount <= 0) return -1;
+
+        if (raw.Length == 1)
+        {
+            var c = char.ToUpperInvariant(raw[0]);
+            if (c >= 'A' && c <= 'H')
+            {
+                var li = c - 'A';
+                return li < optionCount ? li : -1;
+            }
+        }
+
+        if (int.TryParse(raw, out var num))
+        {
+            if (num >= 1 && num <= optionCount) return num - 1;   // 1-based（优先）
+            if (num >= 0 && num < optionCount) return num;        // 0-based（退路）
+        }
+        return -1;
     }
 
     private static int FindColumnIndex(string[] header, params string[] names)
