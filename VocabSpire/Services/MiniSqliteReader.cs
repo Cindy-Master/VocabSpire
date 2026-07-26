@@ -340,6 +340,10 @@ public sealed class MiniSqliteReader
     {
         var cols = new List<string>();
         int rowidAlias = -1;
+
+        // 去除 SQL 行内注释 /* ... */（某些 Anki 版本的 CREATE TABLE 带列序号注释）
+        createSql = System.Text.RegularExpressions.Regex.Replace(createSql, @"/\*.*?\*/", " ");
+
         int lp = createSql.IndexOf('(');
         int rp = createSql.LastIndexOf(')');
         if (lp < 0 || rp <= lp) return (cols, rowidAlias);

@@ -105,6 +105,16 @@ public static class ApkgImporter
             throw new InvalidDataException("apkg 内没有任何卡片（notes 表为空）。");
 
         // ── AnkiChinas 加密检测与解密 ──
+        // 诊断：检查 MiniSqliteReader 实际返回的 flds 数据
+        if (notes.Count > 0)
+        {
+            var sampleNote = notes[0];
+            var keys = string.Join(",", sampleNote.Keys);
+            var fldsVal = sampleNote.GetValueOrDefault("flds");
+            var fldsType = fldsVal?.GetType().Name ?? "null";
+            var fldsPreview = fldsVal is string s ? s[..Math.Min(100, s.Length)] : fldsVal?.ToString()?[..Math.Min(100, fldsVal.ToString()!.Length)] ?? "(null)";
+            Log.Info($"[VocabSpire] notes[0] keys=[{keys}] flds type={fldsType} preview=[{fldsPreview}]");
+        }
         bool encrypted = AnkiChinasDecryptor.IsEncrypted(notes);
         Log.Info($"[VocabSpire] 加密检测: encrypted={encrypted}, notes={notes.Count}");
         if (encrypted)
