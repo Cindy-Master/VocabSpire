@@ -172,12 +172,15 @@ public static class AnkiChinasDecryptor
         }
     }
 
-    /// <summary>从 JS 明文区提取带引号的常量值（支持 let/const/var，单双引号）。</summary>
+    /// <summary>从 JS 明文区提取带引号的常量值（支持 let/const/var，单双引号，含 JSON 转义）。</summary>
     private static string? ExtractQuoted(string text, string varName)
     {
-        // 匹配: let _ck = "VALUE"  /  const cpk = 'VALUE'  /  var ankiUrl = "VALUE"
-        var pattern = $@"(?:let|const|var)\s+{Regex.Escape(varName)}\s*=\s*([""'])(.+?)\1";
-        var m = Regex.Match(text, pattern, RegexOptions.Singleline);
+        var esc = Regex.Escape(varName);
+        // 原始引号: let _ck = "VALUE" / const cpk = 'VALUE'
+        var m = Regex.Match(text, $@"(?:let|const|var)\s+{esc}\s*=\s*([""'])(.+?)\1", RegexOptions.Singleline);
+        if (m.Success) return m.Groups[2].Value;
+        // JSON 转义引号: let _ck = \"VALUE\" (双引号在 JSON 字符串内被转义为 \")
+        m = Regex.Match(text, $@"(?:let|const|var)\s+{esc}\s*=\s*\\([""'])(.+?)\\\1", RegexOptions.Singleline);
         return m.Success ? m.Groups[2].Value : null;
     }
 
