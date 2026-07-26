@@ -24,12 +24,16 @@ public static class CombatEndHandler
         WrongAnswerTracker.Instance.ClearCombatAnswers();
         // 连对机制：战斗开始重置「每场战斗 / 每回合」范围计数（永久范围不动）。
         BattleStateTracker.Instance.OnCombatReset();
+        // 战斗 HUD：拉起卡牌时浮动显示连对/奖励进度
+        BattleStreakHud.CreateIfNeeded();
         // 前几局战斗开始时提示玩家：按快捷键可打开设置、配置奖励/惩罚/词库等。
         UI.EntryHintToast.MaybeShow();
     }
 
     private static void OnCombatEnded(CombatRoom _)
     {
+        BattleStreakHud.Remove();
+
         if (!VocabConfig.Instance.Enabled) return;
         if (!VocabConfig.Instance.ShowCombatSummary) return;
 
