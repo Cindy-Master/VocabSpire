@@ -29,6 +29,8 @@ public partial class VocabCollectionPanel : NSubmenu
     private OptionButton _exportSortSelector = null!;
     private VBoxContainer _wordListContainer = null!;
 
+    private FileDialog? _progressDialog;
+
     // 分页（词表可能几千词，多词库合并后更多，一次性全渲染会崩）
     private const int WordsPerPage = 60;
     private int _wordPage;
@@ -224,6 +226,21 @@ public partial class VocabCollectionPanel : NSubmenu
         exportJsonBtn.CustomMinimumSize = new Vector2(90, 32);
         exportJsonBtn.Pressed += () => ExportErrorBook("json");
         filterRow.AddChild(exportJsonBtn);
+
+        // \u2500\u2500 \u8DE8\u8BBE\u5907\u8FDB\u5EA6\u8F6C\u79FB\uFF08\u4E0E\u9519\u9898\u672C\u5BFC\u51FA\u65E0\u5173\uFF1A\u90A3\u4E2A\u53EA\u5BFC\u9519\u9898\uFF0C\u4E0D\u80FD\u7528\u6765\u642C\u8FDB\u5EA6\uFF09\u2500\u2500
+        var progExportBtn = GameTheme.MakeButton("  \u5BFC\u51FA\u8FDB\u5EA6  ", 12, GameTheme.Gold);
+        progExportBtn.CustomMinimumSize = new Vector2(90, 32);
+        progExportBtn.TooltipText = "\u628A\u5168\u90E8\u8BCD\u5E93\u7684\u5B66\u4E60\u8FDB\u5EA6\u5BFC\u51FA\u4E3A .vsprog \u6587\u4EF6\uFF0C\u7528\u4E8E\u8F6C\u79FB\u5230\u53E6\u4E00\u53F0\u8BBE\u5907";
+        progExportBtn.Pressed += OnExportProgress;
+        filterRow.AddChild(progExportBtn);
+
+        var progImportBtn = GameTheme.MakeButton("  \u5BFC\u5165\u8FDB\u5EA6  ", 12, GameTheme.Gold);
+        progImportBtn.CustomMinimumSize = new Vector2(90, 32);
+        progImportBtn.TooltipText = "\u4ECE .vsprog \u6587\u4EF6\u5BFC\u5165\u8FDB\u5EA6\uFF08\u9ED8\u8BA4\u5408\u5E76\uFF1A\u53CC\u7AEF\u90FD\u7EC3\u8FC7\u65F6\u53D6\u66F4\u9AD8\u638C\u63E1\u5EA6\uFF0C\u5BFC\u5165\u524D\u81EA\u52A8\u5907\u4EFD\uFF09";
+        progImportBtn.Pressed += () => _progressDialog?.PopupCentered();
+        filterRow.AddChild(progImportBtn);
+
+        BuildProgressDialog();
 
         // 列表表头
         var headerRow = new HBoxContainer();
@@ -516,6 +533,57 @@ public partial class VocabCollectionPanel : NSubmenu
         vbox.AddChild(GameTheme.MakeLabel(label, 14, GameTheme.LightGray));
 
         return (valLabel, card);
+    }
+
+    // ── 跨设备进度转移 ──
+
+    private void BuildProgressDialog()
+    {
+        _progressDialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.OpenFile,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Title = "选择进度文件（.vsprog）",
+            ProcessMode = ProcessModeEnum.Always,
+            Size = new Vector2I(820, 560)
+        };
+        _progressDialog.AddFilter("*.vsprog", "VocabSpire 进度文件");
+        _progressDialog.FileSelected += OnProgressFileSelected;
+        AddChild(_progressDialog);
+    }
+
+    private void OnExportProgress()
+    {
+        try
+        {
+            var path = Services.ProgressTransfer.Export();
+            SetStatus($"进度已导出：{System.IO.Path.GetFileName(path)}（在 wordbanks 目录，拷到另一台设备后点「导入进度」）", GameTheme.Green);
+        }
+        catch (System.Exception ex)
+        {
+            SetStatus($"导出进度失败：{ex.Message}", GameTheme.Red);
+        }
+    }
+
+    private void OnProgressFileSelected(string path)
+    {
+        try
+        {
+            // 合并模式：双端都练过也不会互相冲掉（覆盖模式留给以后需要时再暴露）
+            var r = Services.ProgressTransfer.Import(path, Services.ProgressTransfer.ImportMode.Merge);
+            Refresh();
+            SetStatus(r.Message, GameTheme.Green);
+        }
+        catch (System.Exception ex)
+        {
+            SetStatus($"导入进度失败：{ex.Message}", GameTheme.Red);
+        }
+    }
+
+    private void SetStatus(string text, Color color)
+    {
+        _remainLabel.Text = text;
+        _remainLabel.AddThemeColorOverride("font_color", color);
     }
 
     // ── 导出错题本 ──
