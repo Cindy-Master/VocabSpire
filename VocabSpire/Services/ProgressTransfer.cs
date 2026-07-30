@@ -89,6 +89,17 @@ public static class ProgressTransfer
             }
         }
 
+        // 时钟兜底：本机 config 若已损坏（比数据里的 DueTick 还小），导出时就修正，
+        // 避免把坏时钟传播到目标设备（实测遇到过 totalAnswered=36 / maxDueTick=7942 的档）
+        long maxDue = payload.TotalAnswered;
+        foreach (var e in payload.Entries)
+            if (e.DueTick > maxDue) maxDue = e.DueTick;
+        if (maxDue > payload.TotalAnswered)
+        {
+            Log.Warn($"[VocabSpire] 导出时发现本机调度时钟偏小（{payload.TotalAnswered} < maxDueTick {maxDue}），已在导出文件中修正。");
+            payload.TotalAnswered = (int)Math.Min(maxDue, int.MaxValue);
+        }
+
         var dir = VocabManager.Instance.GetWordBanksDirectory();
         var name = $"_progress_{DateTime.Now:yyyyMMdd_HHmmss}{FileExtension}";
         var path = Path.Combine(dir, name);
@@ -164,9 +175,19 @@ public static class ProgressTransfer
             result.Applied++;
         }
 
-        // 调度时钟：取两边较大值，避免导入后所有词都被判成"还没到期"而不再出现
+        // 调度时钟：取「本机 / 文件记录 / 数据里最大 DueTick」三者的最大值。
+        // 加上 maxDueTick 这一项是必须的 —— 导出源设备的 config 可能本身就是坏的（实测遇到
+        // totalAnswered=36 但 DueTick 已到 7942），只取前两者会把坏时钟原样传播过来，
+        // 导致导入后所有词判「还没到期」+ 新词被节流挡死，掌握量冻结。
+        long maxDue = payload.TotalAnswered;
+        foreach (var e in payload.Entries)
+            if (e.DueTick > maxDue) maxDue = e.DueTick;
+
         var cfg = VocabConfig.Instance;
-        cfg.TotalAnswered = Math.Max(cfg.TotalAnswered, payload.TotalAnswered);
+        var newTick = (int)Math.Min(Math.Max(cfg.TotalAnswered, maxDue), int.MaxValue);
+        if (newTick > cfg.TotalAnswered)
+            Log.Info($"[VocabSpire] 调度时钟 {cfg.TotalAnswered} → {newTick}（文件记录 {payload.TotalAnswered}，数据最大 DueTick {maxDue}）");
+        cfg.TotalAnswered = newTick;
         cfg.TotalCorrect = Math.Max(cfg.TotalCorrect, payload.TotalCorrect);
         cfg.Save();
 

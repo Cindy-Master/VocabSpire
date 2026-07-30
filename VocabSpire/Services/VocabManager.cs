@@ -422,11 +422,42 @@ public sealed class VocabManager
             }
 
             Log.Info($"[VocabSpire] Loaded progress for {data.Count} words.");
+            RepairScheduleClock();
         }
         catch (Exception ex)
         {
             Log.Error($"[VocabSpire] Failed to load progress: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 修复「调度时钟落后于进度数据」的错位 —— 进度冻结（已掌握量不再增长）的根因。
+    ///
+    /// DueTick 是「答到第几题时该复习」的绝对刻度，基准是 VocabConfig.TotalAnswered。
+    /// 但两者存在**不同文件**里（进度在 _word_progress.json、时钟在 vocabspire_config.json），
+    /// 手动只拷进度、或重装 mod 导致 config 被重置时就会错位。实测案例：DueTick 已到 7942
+    /// 而时钟只有 36 → 所有词判「还没到期」（权重降到 0.02/0.05）+ 学习中词数超过新词节流上限
+    /// → 新词权重为 0 永不引入 → 看起来就是"进度一直不涨"。
+    ///
+    /// 修法：把时钟推进到 max(DueTick)。相对间隔不变、到期判定立刻恢复正常；
+    /// 且跨设备累计答题数本就该是较大的那个，统计显示也更接近真实。
+    /// </summary>
+    private void RepairScheduleClock()
+    {
+        long maxDue = 0;
+        foreach (var bank in _banks)
+            foreach (var w in bank.Words)
+                if (w.DueTick > maxDue) maxDue = w.DueTick;
+
+        var cfg = VocabConfig.Instance;
+        if (maxDue <= cfg.TotalAnswered) return;
+
+        var repaired = (int)Math.Min(maxDue, int.MaxValue);
+        Log.Warn($"[VocabSpire] 检测到调度时钟落后于进度数据（TotalAnswered={cfg.TotalAnswered} < maxDueTick={maxDue}）"
+               + $"，已自动推进到 {repaired} 修复。常见于跨设备手动拷贝 _word_progress.json 或重装 mod 后配置被重置；"
+               + "若不修复，所有词会被判成「还没到期」且新词被节流挡住，掌握量将停止增长。");
+        cfg.TotalAnswered = repaired;
+        cfg.Save();
     }
 
     private void DetectRunBoundary()
