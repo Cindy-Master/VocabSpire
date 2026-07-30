@@ -18,9 +18,9 @@ public static class ChangelogPopup
     /// <summary>本版更新要点 —— 每次发版从 CHANGELOG.md 对应版本段派生（发版流程步骤 1）。</summary>
     private static readonly string[] ChangelogLines =
     {
-        "· 新增跨设备进度转移：词汇图鉴 →「导出进度」/「导入进度」",
-        "· 双端都在玩也不怕：默认合并，按更高掌握度取，导入前自动备份",
-        "· 上一版：修复 CSV 导入选择题「选对判错」（CSV 导入的题库请重导）",
+        "· 【重要】修复跨设备后「掌握量不再增长」——复习调度时钟错位已能自愈",
+        "· 手机端手动拷 _word_progress.json 后，进游戏会自动修好，无需再动配置",
+        "· 上一版：新增跨设备进度导出/导入（词汇图鉴）",
     };
 
     /// <summary>若当前版本还没看过更新说明，延迟到主菜单就绪后用官方弹窗弹一次。</summary>
