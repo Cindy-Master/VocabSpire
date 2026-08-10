@@ -70,7 +70,7 @@
   {
    "english": "mantle",
    "chinese": [
-    "n. 职责，衣钵；地幔；披⻛",
+    "n. 职责，衣钵；地幔；披风",
     "vt. 覆盖，遮盖"
    ],
    "phonetic": "/'mæntl/"
@@ -92,7 +92,7 @@
   {
    "english": "horizon",
    "chinese": [
-    "n. 地平线；范围，眼界，⻅识"
+    "n. 地平线；范围，眼界，见识"
    ],
    "phonetic": "/hә'raizәn/"
   },
@@ -226,15 +226,15 @@
   {
    "english": "gust",
    "chinese": [
-    "n. 一阵狂⻛；(感情的) 迸发",
-    "vi. (⻛) 猛刮"
+    "n. 一阵狂风；(感情的) 迸发",
+    "vi. (风) 猛刮"
    ],
    "phonetic": "/gʌst/"
   },
   {
    "english": "breeze",
    "chinese": [
-    "n. 微⻛；轻而易举的事",
+    "n. 微风；轻而易举的事",
     "vi. 轻盈而自信地走"
    ],
    "phonetic": "/bri:z/"
@@ -242,35 +242,35 @@
   {
    "english": "monsoon",
    "chinese": [
-    "n. 季⻛季节，雨季；季⻛"
+    "n. 季风季节，雨季；季风"
    ],
    "phonetic": "/mɒn'su:n/"
   },
   {
    "english": "gale",
    "chinese": [
-    "n. 大⻛"
+    "n. 大风"
    ],
    "phonetic": "/geil/"
   },
   {
    "english": "hurricane",
    "chinese": [
-    "n. 飓⻛"
+    "n. 飓风"
    ],
    "phonetic": "/'hә:rikәn/"
   },
   {
    "english": "tornado",
    "chinese": [
-    "n. ⻰卷⻛，旋⻛"
+    "n. 龙卷风，旋风"
    ],
    "phonetic": "/tɒ:'neidәu/"
   },
   {
    "english": "typhoon",
    "chinese": [
-    "n. 台⻛"
+    "n. 台风"
    ],
    "phonetic": "/tai'fu:n/"
   },
@@ -387,7 +387,7 @@
   {
    "english": "landscape",
    "chinese": [
-    "n. ⻛景，景观；乡村⻛景画；形势",
+    "n. 风景，景观；乡村风景画；形势",
     "vt. 美化…的环境"
    ],
    "phonetic": "/'lændskeip/"
@@ -432,7 +432,7 @@
   {
    "english": "delta",
    "chinese": [
-    "n. (河口) 三⻆洲"
+    "n. (河口) 三角洲"
    ],
    "phonetic": "/'deltә/"
   },
@@ -552,7 +552,7 @@
   {
    "english": "erode",
    "chinese": [
-    "vt. vi. (使) 侵蚀，(使) ⻛化；逐步削弱"
+    "vt. vi. (使) 侵蚀，(使) 风化；逐步削弱"
    ],
    "phonetic": "/i'rәud/"
   },
@@ -740,7 +740,7 @@
    "english": "steep",
    "chinese": [
     "adj. 陡的；急剧的；(价格等) 过高的",
-    "vt. 浸泡 (⻝物)"
+    "vt. 浸泡 (食物)"
    ],
    "phonetic": "/sti:p/"
   },
@@ -786,7 +786,7 @@
   {
    "english": "climate",
    "chinese": [
-    "n. 气候；气候带；局势，⻛气"
+    "n. 气候；气候带；局势，风气"
    ],
    "phonetic": "/'klaimit/"
   },
@@ -794,7 +794,7 @@
    "english": "weather",
    "chinese": [
     "n. 天气；气象预报",
-    "vi. vt. (受⻛吹雨打而) 褪色，变形",
+    "vi. vt. (受风吹雨打而) 褪色，变形",
     "vt. 平安地渡过 (难关)"
    ],
    "phonetic": "/'weðә/"
@@ -901,7 +901,7 @@
   {
    "english": "hail",
    "chinese": [
-    "vt. 赞扬；招手 (停⻋)；朝…呼喊",
+    "vt. 赞扬；招手 (停车)；朝…呼喊",
     "vi. 下冰雹；来自，出生于",
     "n. 冰雹；雹子般的一阵"
    ],
@@ -979,7 +979,7 @@
   {
    "english": "stormy",
    "chinese": [
-    "adj. 暴⻛雨的；争吵激烈的；汹涌的"
+    "adj. 暴风雨的；争吵激烈的；汹涌的"
    ],
    "phonetic": "/'stɒ:mi/"
   },
@@ -1138,7 +1138,7 @@
    "chinese": [
     "n. 西南方；西南部",
     "adv. 向西南",
-    "adj. 西南部的；(⻛) 从西南来的"
+    "adj. 西南部的；(风) 从西南来的"
    ],
    "phonetic": "/sauθ'west/"
   },
@@ -1155,7 +1155,7 @@
    "english": "northwest",
    "chinese": [
     "n. 西北方，西北地区",
-    "adj. 西北部的；(⻛) 从西北方吹来的",
+    "adj. 西北部的；(风) 从西北方吹来的",
     "adv. 向西北地；在西北"
    ],
    "phonetic": "/.nɒ:θ'west/"
@@ -1336,7 +1336,7 @@
   {
    "english": "border",
    "chinese": [
-    "n. 边界，国界；镶边；狭⻓花坛",
+    "n. 边界，国界；镶边；狭长花坛",
     "vt. 与…接壤；沿…的边"
    ],
    "phonetic": "/'bɒ:dә/"
@@ -1344,7 +1344,7 @@
   {
    "english": "margin",
    "chinese": [
-    "n. ⻚边空白处；差额；利润；余地"
+    "n. 页边空白处；差额；利润；余地"
    ],
    "phonetic": "/'mɑ:dʒin/"
   },
@@ -1360,7 +1360,7 @@
   {
    "english": "plate",
    "chinese": [
-    "n. 盘；一盘；金属牌；⻋牌；板块",
+    "n. 盘；一盘；金属牌；车牌；板块",
     "vt. 电镀"
    ],
    "phonetic": "/pleit/"
@@ -1401,7 +1401,7 @@
    "english": "grand",
    "chinese": [
     "adj. 壮丽的；宏伟的；极好的",
-    "n. 一千英镑 (或美元)；三⻆钢琴"
+    "n. 一千英镑 (或美元)；三角钢琴"
    ],
    "phonetic": "/grænd/"
   },
@@ -1519,7 +1519,7 @@
   {
    "english": "eclipse",
    "chinese": [
-    "n. 日⻝，月⻝；(权势等的) 丧失",
+    "n. 日食，月食；(权势等的) 丧失",
     "vt. 遮住…的光；使黯然失色"
    ],
    "phonetic": "/i'klips/"
@@ -1527,7 +1527,7 @@
   {
    "english": "dusk",
    "chinese": [
-    "n. ⻩昏，傍晚"
+    "n. 黄昏，傍晚"
    ],
    "phonetic": "/dʌsk/"
   },
@@ -1676,8 +1676,8 @@
   {
    "english": "blow",
    "chinese": [
-    "vt. vi. 吹 (气)；刮 (⻛)；吹动；吹奏",
-    "vt. 擤；送⻜吻；炸开；挥霍；吹出",
+    "vt. vi. 吹 (气)；刮 (风)；吹动；吹奏",
+    "vt. 擤；送飞吻；炸开；挥霍；吹出",
     "n. 猛击；打击；吹"
    ],
    "phonetic": "/blәu/"
@@ -1734,7 +1734,7 @@
    "chinese": [
     "vi. vt. (使) 闪光；用光发出信号；闪现",
     "vt. (快速地) 出示；快速发送 (信息)",
-    "vi. ⻜速运动；猛然想起；突然显露",
+    "vi. 飞速运动；猛然想起；突然显露",
     "n. 闪光；闪光灯；闪现；情感突发"
    ],
    "phonetic": "/flæʃ/"
@@ -1745,7 +1745,7 @@
     "vi. 漂浮；飘浮；轻盈走动",
     "vt. 使浮动；提出 (想法或计划)",
     "vt. vi. (使货币汇率) 自由浮动",
-    "n. 彩⻋；⻥漂；浮板；备用零钱"
+    "n. 彩车；鱼漂；浮板；备用零钱"
    ],
    "phonetic": "/flәut/"
   },
@@ -1875,7 +1875,7 @@
   {
    "english": "perennial",
    "chinese": [
-    "adj. ⻓久的，反复出现的；多年生的",
+    "adj. 长久的，反复出现的；多年生的",
     "n. 多年生植物"
    ],
    "phonetic": "/pә'reniәl/"
@@ -2038,7 +2038,7 @@
    "english": "yield",
    "chinese": [
     "vt. 出产；产生；放弃，缴出",
-    "vi. 屈服，让步；给 (⻋辆) 让路",
+    "vi. 屈服，让步；给 (车辆) 让路",
     "n. 产量，产出；(投资的) 收益"
    ],
    "phonetic": "/ji:ld/"
@@ -2049,7 +2049,7 @@
     "n. 后部",
     "adj. 后面的，后部的",
     "vt. 抚养，养育；饲养",
-    "vi. (尤指⻢) 用后腿直立；巍然耸立"
+    "vi. (尤指马) 用后腿直立；巍然耸立"
    ],
    "phonetic": "/riә/"
   },
@@ -2087,8 +2087,8 @@
   {
    "english": "stack",
    "chinese": [
-    "n. (整⻬的) 一堆；大量；大烟囱",
-    "vt. vi. (使) 放成整⻬的一叠",
+    "n. (整齐的) 一堆；大量；大烟囱",
+    "vt. vi. (使) 放成整齐的一叠",
     "vt. 使成叠地放在"
    ],
    "phonetic": "/stæk/"
@@ -2096,7 +2096,7 @@
   {
    "english": "heap",
    "chinese": [
-    "n. (凌乱的) 一堆；许多；破旧的⻋",
+    "n. (凌乱的) 一堆；许多；破旧的车",
     "vt. 堆放；对…大加赞扬 (或批评)"
    ],
    "phonetic": "/hi:p/"
@@ -2171,7 +2171,7 @@
   {
    "english": "germinate",
    "chinese": [
-    "vi. vt. (使) 发芽，(使) 开始生⻓"
+    "vi. vt. (使) 发芽，(使) 开始生长"
    ],
    "phonetic": "/'dʒә:mineit/"
   },
@@ -2186,7 +2186,7 @@
   {
    "english": "burgeon",
    "chinese": [
-    "vi. 迅速生⻓，快速发展"
+    "vi. 迅速生长，快速发展"
    ],
    "phonetic": "/'bә:dʒәn/"
   },
@@ -2194,7 +2194,7 @@
    "english": "bud",
    "chinese": [
     "n. 芽，苞，花蕾；老兄，伙计",
-    "vi. 发芽，⻓出花蕾"
+    "vi. 发芽，长出花蕾"
    ],
    "phonetic": "/bʌd/"
   },
@@ -2218,7 +2218,7 @@
    "english": "bloom",
    "chinese": [
     "vi. 开花，绽放；精神焕发，繁荣",
-    "n. 花，花朵；⻘春焕发"
+    "n. 花，花朵；青春焕发"
    ],
    "phonetic": "/blu:m/"
   },
@@ -2301,7 +2301,7 @@
   {
    "english": "jungle",
    "chinese": [
-    "n. 热带丛林；弱肉强⻝的环境"
+    "n. 热带丛林；弱肉强食的环境"
    ],
    "phonetic": "/'dʒʌŋgl/"
   },
@@ -2406,7 +2406,7 @@
   {
    "english": "straw",
    "chinese": [
-    "n. ⻨秆，稻草；吸管"
+    "n. 麦秆，稻草；吸管"
    ],
    "phonetic": "/strɒ:/"
   },
@@ -2435,7 +2435,7 @@
   {
    "english": "grass",
    "chinese": [
-    "n. 草，⻘草；草地，草坪",
+    "n. 草，青草；草地，草坪",
     "vi. (向警方) 告密，告发"
    ],
    "phonetic": "/græs/"
@@ -2620,8 +2620,8 @@
   {
    "english": "preserve",
    "chinese": [
-    "vt. 维护，保护；保持；保存 (⻝物)",
-    "n. 专⻔领域；蜜饯，果酱；保护区"
+    "vt. 维护，保护；保持；保存 (食物)",
+    "n. 专门领域；蜜饯，果酱；保护区"
    ],
    "phonetic": "/pri'zә:v/"
   },
@@ -2845,7 +2845,7 @@
   {
    "english": "primate",
    "chinese": [
-    "n. 灵⻓目动物；大主教"
+    "n. 灵长目动物；大主教"
    ],
    "phonetic": "/'praimit/"
   },
@@ -2873,14 +2873,14 @@
   {
    "english": "carnivore",
    "chinese": [
-    "n. ⻝肉动物"
+    "n. 食肉动物"
    ],
    "phonetic": "/'kɑ:nivɒ:/"
   },
   {
    "english": "herbivore",
    "chinese": [
-    "n. ⻝草动物"
+    "n. 食草动物"
    ],
    "phonetic": "/'hә:bivɒ:/"
   },
@@ -2930,7 +2930,7 @@
   {
    "english": "herd",
    "chinese": [
-    "n. 兽群，牧群；一般⺠众",
+    "n. 兽群，牧群；一般民众",
     "vi. vt. (把…) 赶到一起，聚到一起",
     "vt. 放牧"
    ],
@@ -2939,7 +2939,7 @@
   {
    "english": "swarm",
    "chinese": [
-    "n. 一大群 (⻜虫或人)",
+    "n. 一大群 (飞虫或人)",
     "vi. 成群移动，涌向，蜂拥"
    ],
    "phonetic": "/swɒ:m/"
@@ -3040,7 +3040,7 @@
    "chinese": [
     "vt. 喂养；养活；施肥；灌输",
     "vt. 将…塞进机器；满足；供给",
-    "vi. (婴儿或动物) 进⻝",
+    "vi. (婴儿或动物) 进食",
     "n. (婴儿或动物) 一餐；饲料，肥料"
    ],
    "phonetic": "/fi:d/"
@@ -3111,7 +3111,7 @@
    "chinese": [
     "vi. 孵出；(蛋) 孵化",
     "vt. 使…孵出；策划，密谋",
-    "n. 舱口；⻜机舱⻔；开口，⻔"
+    "n. 舱口；飞机舱门；开口，门"
    ],
    "phonetic": "/hætʃ/"
   },
@@ -3120,16 +3120,16 @@
    "chinese": [
     "vi. 沉思，忧伤",
     "vi. vt. 孵 (蛋)，抱窝",
-    "n. 一窝雏⻦；一家孩子"
+    "n. 一窝雏鸟；一家孩子"
    ],
    "phonetic": "/bru:d/"
   },
   {
    "english": "spawn",
    "chinese": [
-    "vi. vt. (⻥、蛙等) 产卵",
+    "vi. vt. (鱼、蛙等) 产卵",
     "vt. 引发，导致",
-    "n. (⻥、蛙等的) 卵"
+    "n. (鱼、蛙等的) 卵"
    ],
    "phonetic": "/spɒ:n/"
   },
@@ -3170,14 +3170,14 @@
   {
    "english": "beak",
    "chinese": [
-    "n. ⻦嘴，喙；鹰钩鼻"
+    "n. 鸟嘴，喙；鹰钩鼻"
    ],
    "phonetic": "/bi:k/"
   },
   {
    "english": "fin",
    "chinese": [
-    "n. ⻥鳍；鳍状物，翼"
+    "n. 鱼鳍；鳍状物，翼"
    ],
    "phonetic": "/fin/"
   },
@@ -3243,7 +3243,7 @@
   {
    "english": "pest",
    "chinese": [
-    "n. 害虫，有害动物；讨厌⻤"
+    "n. 害虫，有害动物；讨厌鬼"
    ],
    "phonetic": "/pest/"
   },
@@ -3365,7 +3365,7 @@
   {
    "english": "horn",
    "chinese": [
-    "n. (动物的) ⻆；(乐器) 号；喇叭"
+    "n. (动物的) 角；(乐器) 号；喇叭"
    ],
    "phonetic": "/hɒ:n/"
   },
@@ -3389,7 +3389,7 @@
   {
    "english": "dragon",
    "chinese": [
-    "n. ⻰"
+    "n. 龙"
    ],
    "phonetic": "/'drægәn/"
   },
@@ -3461,14 +3461,14 @@
   {
    "english": "horse",
    "chinese": [
-    "n. ⻢；赛⻢"
+    "n. 马；赛马"
    ],
    "phonetic": "/hɒ:s/"
   },
   {
    "english": "zebra",
    "chinese": [
-    "n. 斑⻢"
+    "n. 斑马"
    ],
    "phonetic": "/'zi:brә/"
   },
@@ -3482,7 +3482,7 @@
   {
    "english": "saddle",
    "chinese": [
-    "n. ⻢鞍；⻋座；脊肉",
+    "n. 马鞍；车座；脊肉",
     "vt. vi. 给…配鞍；使肩负重担"
    ],
    "phonetic": "/'sædl/"
@@ -3490,8 +3490,8 @@
   {
    "english": "harness",
    "chinese": [
-    "vt. 控制，利用；给 (⻢等) 上挽具",
-    "n. ⻢具，挽具；保护带，背带"
+    "vt. 控制，利用；给 (马等) 上挽具",
+    "n. 马具，挽具；保护带，背带"
    ],
    "phonetic": "/'hɑ:nis/"
   },
@@ -3607,14 +3607,14 @@
    "english": "hare",
    "chinese": [
     "n. 野兔",
-    "vi. ⻜跑，⻜奔"
+    "vi. 飞跑，飞奔"
    ],
    "phonetic": "/hєә/"
   },
   {
    "english": "frog",
    "chinese": [
-    "n. 蛙，⻘蛙；(蔑称) 法国佬"
+    "n. 蛙，青蛙；(蔑称) 法国佬"
    ],
    "phonetic": "/frɒg/"
   },
@@ -3630,7 +3630,7 @@
    "chinese": [
     "vi. vt. 咬；叮，蜇",
     "vi. 上钩，咬钩；产生严重影响",
-    "n. 咬；(⻝物) 一口；(被叮后的) 包"
+    "n. 咬；(食物) 一口；(被叮后的) 包"
    ],
    "phonetic": "/bait/"
   },
@@ -3674,7 +3674,7 @@
    "english": "creep",
    "chinese": [
     "vi. 悄悄行进；匍匐行进；渐渐出现",
-    "n. 讨厌⻤；(对既定目标的) 偏离"
+    "n. 讨厌鬼；(对既定目标的) 偏离"
    ],
    "phonetic": "/kri:p/"
   },
@@ -3689,14 +3689,14 @@
   {
    "english": "habitat",
    "chinese": [
-    "n. 栖息地，生⻓地"
+    "n. 栖息地，生长地"
    ],
    "phonetic": "/'hæbitæt/"
   },
   {
    "english": "nest",
    "chinese": [
-    "n. ⻦巢；巢穴；家；一套物件",
+    "n. 鸟巢；巢穴；家；一套物件",
     "vi. 筑巢，巢居"
    ],
    "phonetic": "/nest/"
@@ -3728,8 +3728,8 @@
    "english": "stable",
    "chinese": [
     "adj. 稳定的，稳固的；(人) 稳重的",
-    "n. ⻢厩；养⻢场",
-    "vt. 使 (⻢) 入厩"
+    "n. 马厩；养马场",
+    "vt. 使 (马) 入厩"
    ],
    "phonetic": "/'steibl/"
   },
@@ -3744,7 +3744,7 @@
    "english": "hedge",
    "chinese": [
     "n. 树篱；防止损失的手段",
-    "vi. 避免正面回答，拐弯抹⻆",
+    "vi. 避免正面回答，拐弯抹角",
     "vt. 用树篱围住；包围，限制",
     "vi. vt. 防备，防范 (尤指金钱损失)"
    ],
@@ -3761,7 +3761,7 @@
    "english": "bar",
    "chinese": [
     "n. 酒吧；吧台；小馆；棒；律师界",
-    "vt. 闩上 (⻔或窗)；阻挡；禁止",
+    "vt. 闩上 (门或窗)；阻挡；禁止",
     "prep. 除…之外"
    ],
    "phonetic": "/bɑ:/"
@@ -3974,14 +3974,14 @@
    "english": "prey",
    "chinese": [
     "n. 猎物；受害者",
-    "vi. 捕⻝；坑骗"
+    "vi. 捕食；坑骗"
    ],
    "phonetic": "/prei/"
   },
   {
    "english": "predator",
    "chinese": [
-    "n. 捕⻝者，捕⻝性动物；掠夺者"
+    "n. 捕食者，捕食性动物；掠夺者"
    ],
    "phonetic": "/'predәtә/"
   },
@@ -4169,7 +4169,7 @@
   {
    "english": "ash",
    "chinese": [
-    "n. 灰，灰烬；废墟；⻣灰"
+    "n. 灰，灰烬；废墟；骨灰"
    ],
    "phonetic": "/æʃ/"
   },
@@ -4190,14 +4190,14 @@
   {
    "english": "spacecraft",
    "chinese": [
-    "n. 宇宙⻜船，航天器"
+    "n. 宇宙飞船，航天器"
    ],
    "phonetic": "/'speiskræft/"
   },
   {
    "english": "spaceship",
    "chinese": [
-    "n. 宇宙⻜船，载人航天器"
+    "n. 宇宙飞船，载人航天器"
    ],
    "phonetic": "/'speisʃip/"
   },
@@ -4205,7 +4205,7 @@
    "english": "probe",
    "chinese": [
     "vt. vi. 追问，探究，打探",
-    "vt. (用细⻓工具) 探查",
+    "vt. (用细长工具) 探查",
     "n. 详细调查；航天探测器；探针"
    ],
    "phonetic": "/prәub/"
@@ -4251,7 +4251,7 @@
   {
    "english": "vent",
    "chinese": [
-    "n. 通⻛孔，排放口；开衩",
+    "n. 通风孔，排放口；开衩",
     "vt. 发泄，宣泄"
    ],
    "phonetic": "/vent/"
@@ -4260,7 +4260,7 @@
    "english": "tail",
    "chinese": [
     "n. 尾巴；尾部；尾状物；末尾部分",
-    "vt. (⻋辆) 跟踪，尾随"
+    "vt. (车辆) 跟踪，尾随"
    ],
    "phonetic": "/teil/"
   },
@@ -4289,7 +4289,7 @@
   {
    "english": "flyby",
    "chinese": [
-    "n. 近天体探测⻜行"
+    "n. 近天体探测飞行"
    ],
    "phonetic": "/'flaibai/"
   },
@@ -4304,7 +4304,7 @@
    "english": "telescope",
    "chinese": [
     "n. 望远镜",
-    "vt. 缩短 (⻓度或时间)"
+    "vt. 缩短 (长度或时间)"
    ],
    "phonetic": "/'teliskәup/"
   },
@@ -4326,7 +4326,7 @@
   {
    "english": "ecliptic",
    "chinese": [
-    "n. ⻩道"
+    "n. 黄道"
    ],
    "phonetic": "/i'kliptik/"
   },
@@ -4340,7 +4340,7 @@
   {
    "english": "radius",
    "chinese": [
-    "n. 半径；半径范围；桡⻣"
+    "n. 半径；半径范围；桡骨"
    ],
    "phonetic": "/'reidiәs/"
   },
@@ -4510,7 +4510,7 @@
   {
    "english": "antenna",
    "chinese": [
-    "n. 触⻆，触须；天线"
+    "n. 触角，触须；天线"
    ],
    "phonetic": "/æn'tenә/"
   },
@@ -4559,7 +4559,7 @@
   {
    "english": "invisible",
    "chinese": [
-    "adj. 看不⻅的，隐形的"
+    "adj. 看不见的，隐形的"
    ],
    "phonetic": "/in'vizәbl/"
   },
@@ -4707,14 +4707,14 @@
   {
    "english": "expertise",
    "chinese": [
-    "n. 专⻔技术，专⻔知识，专⻓"
+    "n. 专门技术，专门知识，专长"
    ],
    "phonetic": "/.ekspә:'ti:z/"
   },
   {
    "english": "novice",
    "chinese": [
-    "n. 新手；⻅习修士 (或修女)"
+    "n. 新手；见习修士 (或修女)"
    ],
    "phonetic": "/'nɒvis/"
   },
@@ -4870,7 +4870,7 @@
   {
    "english": "spur",
    "chinese": [
-    "n. ⻢刺；鞭策，激励；山嘴",
+    "n. 马刺；鞭策，激励；山嘴",
     "vt. 鞭策，激励；促进，加速"
    ],
    "phonetic": "/spә:/"
@@ -4894,7 +4894,7 @@
    "english": "spoil",
    "chinese": [
     "vt. 破坏，毁掉；宠坏，溺爱；善待",
-    "vi. (⻝物) 变质",
+    "vi. (食物) 变质",
     "n. 赃物，战利品"
    ],
    "phonetic": "/spɒil/"
@@ -4969,7 +4969,7 @@
   {
    "english": "wit",
    "chinese": [
-    "n. 机智⻛趣 (的人)；头脑；明智"
+    "n. 机智风趣 (的人)；头脑；明智"
    ],
    "phonetic": "/wit/"
   },
@@ -5094,7 +5094,7 @@
   {
    "english": "headmaster",
    "chinese": [
-    "n. 校⻓"
+    "n. 校长"
    ],
    "phonetic": "/'hed'mɑ:stә/"
   },
@@ -5102,14 +5102,14 @@
    "english": "principal",
    "chinese": [
     "adj. 主要的，最重要的",
-    "n. 校⻓；本金，资金；主⻆"
+    "n. 校长；本金，资金；主角"
    ],
    "phonetic": "/'prinsipәl/"
   },
   {
    "english": "dean",
    "chinese": [
-    "n. 院⻓，系主任；教⻓；泰斗"
+    "n. 院长，系主任；教长；泰斗"
    ],
    "phonetic": "/di:n/"
   },
@@ -5305,8 +5305,8 @@
   {
    "english": "junior",
    "chinese": [
-    "adj. 级别 (或职位) 低的；⻘少年的",
-    "n. 职位较低者；⻘少年；大三学生"
+    "adj. 级别 (或职位) 低的；青少年的",
+    "n. 职位较低者；青少年；大三学生"
    ],
    "phonetic": "/'dʒu:njә/"
   },
@@ -5315,7 +5315,7 @@
    "chinese": [
     "adj. 级别高的；成人的；老年的",
     "adj. 中学的；毕业年级的",
-    "n. 年⻓者；毕业班学生"
+    "n. 年长者；毕业班学生"
    ],
    "phonetic": "/'si:njә/"
   },
@@ -5361,7 +5361,7 @@
    "chinese": [
     "vt. vi. 注册，登记；流露出；注意到",
     "vt. vi. 显示 (读数)，记录",
-    "vt. (正式地) 发表意⻅；挂号邮寄",
+    "vt. (正式地) 发表意见；挂号邮寄",
     "n. 登记表；音区；现金收纳机"
    ],
    "phonetic": "/'redʒistә/"
@@ -5405,14 +5405,14 @@
   {
    "english": "dining hall",
    "chinese": [
-    "n. 餐厅，⻝堂"
+    "n. 餐厅，食堂"
    ],
    "phonetic": "/ˈdaɪnɪŋ hɔ:l/"
   },
   {
    "english": "canteen",
    "chinese": [
-    "n. ⻝堂，餐厅；水壶"
+    "n. 食堂，餐厅；水壶"
    ],
    "phonetic": "/kæn'ti:n/"
   },
@@ -5604,7 +5604,7 @@
   {
    "english": "draft",
    "chinese": [
-    "n. 草稿；征兵；汇票；穿堂⻛",
+    "n. 草稿；征兵；汇票；穿堂风",
     "vt. 起草，草拟；征募；选派"
    ],
    "phonetic": "/dræft. drɑ:ft/"
@@ -5723,7 +5723,7 @@
   {
    "english": "subject",
    "chinese": [
-    "n. 主题；学科；对象；主语；臣⺠",
+    "n. 主题；学科；对象；主语；臣民",
     "adj. 易遭…的；取决于…的；受…支配",
     "vt. 使臣服，使顺从；使遭受"
    ],
@@ -5766,7 +5766,7 @@
   {
    "english": "politics",
    "chinese": [
-    "n. 政治；权力斗争；政⻅；政治学"
+    "n. 政治；权力斗争；政见；政治学"
    ],
    "phonetic": "/'pɒlitiks/"
   },
@@ -5937,7 +5937,7 @@
    "english": "plus",
    "chinese": [
     "prep. (数量) 加；和，外加",
-    "n. 优势，⻓处；加号",
+    "n. 优势，长处；加号",
     "adj. 零上的；优点的；(数字后) 多的",
     "conj. 此外，况且"
    ],
@@ -6175,7 +6175,7 @@
   {
    "english": "rectangle",
    "chinese": [
-    "n. ⻓方形，矩形"
+    "n. 长方形，矩形"
    ],
    "phonetic": "/'rektæŋgl/"
   },
@@ -6183,30 +6183,30 @@
    "english": "cube",
    "chinese": [
     "n. 立方体；立方形的东西；立方",
-    "vt. 将 (⻝物) 切成小方块"
+    "vt. 将 (食物) 切成小方块"
    ],
    "phonetic": "/kju:b/"
   },
   {
    "english": "angle",
    "chinese": [
-    "n. ⻆；⻆度；立场，观点",
-    "vt. 斜移，斜置；以(某⻆度)报道"
+    "n. 角；角度；立场，观点",
+    "vt. 斜移，斜置；以(某角度)报道"
    ],
    "phonetic": "/'æŋgl/"
   },
   {
    "english": "triangle",
    "chinese": [
-    "n. 三⻆形；三⻆铁；三⻆关系"
+    "n. 三角形；三角铁；三角关系"
    ],
    "phonetic": "/'traiæŋgl/"
   },
   {
    "english": "diagonal",
    "chinese": [
-    "adj. 斜线的，对⻆线的",
-    "n. 对⻆线，斜线"
+    "adj. 斜线的，对角线的",
+    "n. 对角线，斜线"
    ],
    "phonetic": "/dai'ægәnl/"
   },
@@ -6277,7 +6277,7 @@
   {
    "english": "length",
    "chinese": [
-    "n. ⻓度；时间的⻓短；篇幅，片⻓"
+    "n. 长度；时间的长短；篇幅，片长"
    ],
    "phonetic": "/leŋθ/"
   },
@@ -6451,7 +6451,7 @@
    "chinese": [
     "vi. vt. (使) 沸腾，烧开；烹煮",
     "vi. 怒火中烧",
-    "n. 沸腾，沸点；疖，⻩水疮"
+    "n. 沸腾，沸点；疖，黄水疮"
    ],
    "phonetic": "/bɒil/"
   },
@@ -7017,7 +7017,7 @@
   {
    "english": "opinion",
    "chinese": [
-    "n. 看法，观点；舆论；专家意⻅"
+    "n. 看法，观点；舆论；专家意见"
    ],
    "phonetic": "/ә'pinjәn/"
   },
@@ -7836,7 +7836,7 @@
   {
    "english": "specialise",
    "chinese": [
-    "vi. 专⻔从事，专⻔研究"
+    "vi. 专门从事，专门研究"
    ],
    "phonetic": "/'speʃә,laiz/"
   },
@@ -8184,7 +8184,7 @@
   {
    "english": "screen",
    "chinese": [
-    "n. 屏幕；银幕；电影；隔板，屏⻛",
+    "n. 屏幕；银幕；电影；隔板，屏风",
     "vt. 放映；掩藏；筛查；审查"
    ],
    "phonetic": "/skri:n/"
@@ -8199,7 +8199,7 @@
   {
    "english": "microphone",
    "chinese": [
-    "n. 话筒，⻨克⻛"
+    "n. 话筒，麦克风"
    ],
    "phonetic": "/'maikrәfәun/"
   },
@@ -8259,7 +8259,7 @@
   {
    "english": "vision",
    "chinese": [
-    "n. 视力，视野；设想；幻象；远⻅"
+    "n. 视力，视野；设想；幻象；远见"
    ],
    "phonetic": "/'viʒәn/"
   },
@@ -8297,7 +8297,7 @@
   {
    "english": "gear",
    "chinese": [
-    "n. 挡位；⻮轮；设备，装置；衣服",
+    "n. 挡位；齿轮；设备，装置；衣服",
     "vi. vt. (使) 适合；为…做好准备"
    ],
    "phonetic": "/giә/"
@@ -8334,7 +8334,7 @@
   {
    "english": "ventilation",
    "chinese": [
-    "n. 空气流通，通⻛系统"
+    "n. 空气流通，通风系统"
    ],
    "phonetic": "/.venti'leiʃәn/"
   },
@@ -8395,7 +8395,7 @@
   {
    "english": "mode",
    "chinese": [
-    "n. 方式，⻛格；模式，状态"
+    "n. 方式，风格；模式，状态"
    ],
    "phonetic": "/mәud/"
   },
@@ -8490,10 +8490,10 @@
   {
    "english": "turn",
    "chinese": [
-    "vi. vt. (使) 旋转；转身；转弯；翻 (⻚)",
+    "vi. vt. (使) 旋转；转身；转弯；翻 (页)",
     "vt. 把…翻过来；(使) 松开；折起",
     "vlink. (使) 变成，成为；到达 (年龄等)",
-    "n. 旋转；(⻋) 转弯；机会；转变"
+    "n. 旋转；(车) 转弯；机会；转变"
    ],
    "phonetic": "/tә:n/"
   },
@@ -8631,7 +8631,7 @@
    "english": "epic",
    "chinese": [
     "n. 史诗；史诗般的电影或书；壮举",
-    "adj. 史诗般的；漫⻓艰难的；壮丽的"
+    "adj. 史诗般的；漫长艰难的；壮丽的"
    ],
    "phonetic": "/'epik/"
   },
@@ -8659,7 +8659,7 @@
   {
    "english": "custom",
    "chinese": [
-    "n. ⻛俗；个人习惯；惠顾；海关",
+    "n. 风俗；个人习惯；惠顾；海关",
     "adj. 定做的"
    ],
    "phonetic": "/'kʌstәm/"
@@ -8703,7 +8703,7 @@
   {
    "english": "aboriginal",
    "chinese": [
-    "adj. 澳大利亚土著的；土生土⻓的",
+    "adj. 澳大利亚土著的；土生土长的",
     "n. (尤指澳大利亚的) 土著，土人"
    ],
    "phonetic": "/.æbә'ridʒәnәl/"
@@ -8711,7 +8711,7 @@
   {
    "english": "inhabitant",
    "chinese": [
-    "n. 居⺠，栖居的动物"
+    "n. 居民，栖居的动物"
    ],
    "phonetic": "/in'hæbitәnt/"
   },
@@ -8734,7 +8734,7 @@
   {
    "english": "exotic",
    "chinese": [
-    "adj. 异国⻛情的，外来的"
+    "adj. 异国风情的，外来的"
    ],
    "phonetic": "/ig'zɒtik/"
   },
@@ -8748,7 +8748,7 @@
   {
    "english": "alien",
    "chinese": [
-    "n. 外星生物；外国人，侨⺠",
+    "n. 外星生物；外国人，侨民",
     "adj. 陌生的；外国的；与…不相容的",
     "adj. 外星的"
    ],
@@ -9072,7 +9072,7 @@
   {
    "english": "knight",
    "chinese": [
-    "n. 骑士；爵士；(国际象棋) ⻢",
+    "n. 骑士；爵士；(国际象棋) 马",
     "vt. 封…为爵士"
    ],
    "phonetic": "/nait/"
@@ -9179,7 +9179,7 @@
   {
    "english": "language",
    "chinese": [
-    "n. 语言；语言⻛格；计算机语言"
+    "n. 语言；语言风格；计算机语言"
    ],
    "phonetic": "/'læŋgwidʒ/"
   },
@@ -9641,7 +9641,7 @@
   {
    "english": "brainstorm",
    "chinese": [
-    "vt. vi. 头脑⻛暴，集思广益",
+    "vt. vi. 头脑风暴，集思广益",
     "n. 突然想到的好主意；一时糊涂"
    ],
    "phonetic": "/'breinstɒ:m/"
@@ -9797,7 +9797,7 @@
   {
    "english": "foresee",
    "chinese": [
-    "vt. 预⻅，预知，预料"
+    "vt. 预见，预知，预料"
    ],
    "phonetic": "/fɒ:'si:/"
   },
@@ -9856,7 +9856,7 @@
    "english": "gossip",
    "chinese": [
     "n. 流言蜚语；闲聊；爱说闲话的人",
-    "vi. 闲聊，说⻓道短"
+    "vi. 闲聊，说长道短"
    ],
    "phonetic": "/'gɒsip/"
   },
@@ -9939,7 +9939,7 @@
   {
    "english": "circus",
    "chinese": [
-    "n. ⻢戏团；⻢戏表演；环形广场"
+    "n. 马戏团；马戏表演；环形广场"
    ],
    "phonetic": "/'sә:kәs/"
   },
@@ -10034,7 +10034,7 @@
   {
    "english": "X-rated",
    "chinese": [
-    "adj. X 级的，⻘少年不宜的"
+    "adj. X 级的，青少年不宜的"
    ],
    "phonetic": "/'eks,reitid/"
   },
@@ -10062,7 +10062,7 @@
   {
    "english": "role",
    "chinese": [
-    "n. 作用，职能；⻆色"
+    "n. 作用，职能；角色"
    ],
    "phonetic": "/rәul/"
   },
@@ -10084,7 +10084,7 @@
   {
    "english": "gallery",
    "chinese": [
-    "n. 展览馆，画廊；走廊，⻓廊"
+    "n. 展览馆，画廊；走廊，长廊"
    ],
    "phonetic": "/'gælәri/"
   },
@@ -10141,7 +10141,7 @@
    "english": "portrait",
    "chinese": [
     "n. 肖像，半身画像；详细的描述",
-    "adj. (文件⻚面) 竖式的"
+    "adj. (文件页面) 竖式的"
    ],
    "phonetic": "/'pɒ:treit/"
   },
@@ -10301,7 +10301,7 @@
   {
    "english": "tone",
    "chinese": [
-    "n. 语气；音色；⻛格；色调",
+    "n. 语气；音色；风格；色调",
     "n. 健壮度",
     "vt. 使更健壮，使更结实"
    ],
@@ -10378,7 +10378,7 @@
   {
    "english": "flute",
    "chinese": [
-    "n. ⻓笛；细⻓香槟杯"
+    "n. 长笛；细长香槟杯"
    ],
    "phonetic": "/flu:t/"
   },
@@ -10421,7 +10421,7 @@
   {
    "english": "athlete",
    "chinese": [
-    "n. 运动员；擅⻓运动的人"
+    "n. 运动员；擅长运动的人"
    ],
    "phonetic": "/'æθli:t/"
   },
@@ -10535,7 +10535,7 @@
    "english": "mobile",
    "chinese": [
     "adj. 可移动的；行动方便的；流动的",
-    "n. 手机；⻛铃，悬挂饰物"
+    "n. 手机；风铃，悬挂饰物"
    ],
    "phonetic": "/'mәubil/"
   },
@@ -10564,7 +10564,7 @@
   {
    "english": "stretch",
    "chinese": [
-    "vt. vi. 拉⻓，撑大；伸展；伸出",
+    "vt. vi. 拉长，撑大；伸展；伸出",
     "vi. (织物) 有弹性；绵延；延续",
     "vt. 拉紧；消耗；使竭尽所能；滥用",
     "n. 一段；一段时间；伸展；弹性"
@@ -10647,7 +10647,7 @@
   {
    "english": "goal",
    "chinese": [
-    "n. 目标；进球得分；球⻔"
+    "n. 目标；进球得分；球门"
    ],
    "phonetic": "/gәul/"
   },
@@ -10698,7 +10698,7 @@
   {
    "english": "pitch",
    "chinese": [
-    "n. 球场；音高；沥⻘；宣传论点",
+    "n. 球场；音高；沥青；宣传论点",
     "vt. 用力扔；搭 (帐篷)；定音高",
     "vi. vt. 投球；推销",
     "vi. 颠簸，上下飘荡"
@@ -10780,7 +10780,7 @@
   {
    "english": "cycling",
    "chinese": [
-    "n. 骑自行⻋，自行⻋运动"
+    "n. 骑自行车，自行车运动"
    ],
    "phonetic": "/'saikliŋ/"
   },
@@ -10805,7 +10805,7 @@
    "english": "jump",
    "chinese": [
     "vi. 跳；突然快速移动；激增；略过",
-    "vt. 跳过，越过；跳上 (⻋辆)",
+    "vt. 跳过，越过；跳上 (车辆)",
     "n. 跳，跃；突升，激增"
    ],
    "phonetic": "/dʒʌmp/"
@@ -10840,7 +10840,7 @@
    "english": "hop",
    "chinese": [
     "vi. 跳跃；快速前往；换来换去",
-    "vt. 登上 (⻜机、汽⻋、火⻋等)",
+    "vt. 登上 (飞机、汽车、火车等)",
     "n. 跳跃；短途旅行；啤酒花；舞会"
    ],
    "phonetic": "/hɒp/"
@@ -10873,7 +10873,7 @@
   {
    "english": "picnic",
    "chinese": [
-    "n. 野餐；野餐吃的⻝物",
+    "n. 野餐；野餐吃的食物",
     "vi. 去野餐"
    ],
    "phonetic": "/'piknik/"
@@ -10898,8 +10898,8 @@
   {
    "english": "marathon",
    "chinese": [
-    "n. ⻢拉松赛跑；⻢拉松式的活动",
-    "adj. ⻢拉松式的，耗时且累人的"
+    "n. 马拉松赛跑；马拉松式的活动",
+    "adj. 马拉松式的，耗时且累人的"
    ],
    "phonetic": "/'mærәθәn/"
   },
@@ -11015,7 +11015,7 @@
    "english": "climb",
    "chinese": [
     "vt. vi. 爬，攀登",
-    "vi. 爬升，上升；增⻓",
+    "vi. 爬升，上升；增长",
     "n. 攀登；增值"
    ],
    "phonetic": "/klaim/"
@@ -11023,7 +11023,7 @@
   {
    "english": "pull",
    "chinese": [
-    "vt. vi. 拉，拽；移开；(使⻋) 转向",
+    "vt. vi. 拉，拽；移开；(使车) 转向",
     "vt. 拔出；拖；拉上；扭伤；扳动",
     "n. 拉，拽；引力；诱惑；影响力"
    ],
@@ -11205,7 +11205,7 @@
   {
    "english": "junk",
    "chinese": [
-    "n. 废品，垃圾；垃圾⻝品；舢板",
+    "n. 废品，垃圾；垃圾食品；舢板",
     "vt. 丢弃，抛弃，废弃"
    ],
    "phonetic": "/dʒʌŋk/"
@@ -11257,7 +11257,7 @@
   {
    "english": "tub",
    "chinese": [
-    "n. 盆，桶；(盛⻝物的) 小盒；浴缸"
+    "n. 盆，桶；(盛食物的) 小盒；浴缸"
    ],
    "phonetic": "/tʌb/"
   },
@@ -11272,7 +11272,7 @@
   {
    "english": "tap",
    "chinese": [
-    "n. 水⻰头；轻敲，轻拍；电话窃听",
+    "n. 水龙头；轻敲，轻拍；电话窃听",
     "vt. vi. 轻敲，轻拍；轻叩；利用，发掘",
     "vt. (在电话上) 安装窃听器；委任"
    ],
@@ -11402,7 +11402,7 @@
    "chinese": [
     "n. 海绵；海绵动物；海绵蛋糕",
     "vt. 用海绵擦拭",
-    "vi. 吃白⻝，揩油"
+    "vi. 吃白食，揩油"
    ],
    "phonetic": "/spʌndʒ/"
   },
@@ -11418,7 +11418,7 @@
    "english": "staple",
    "chinese": [
     "adj. 主要的，基本的，重要的",
-    "n. 订书钉；基本⻝物；支柱产品",
+    "n. 订书钉；基本食物；支柱产品",
     "vt. 用订书钉装订"
    ],
    "phonetic": "/'steipl/"
@@ -11676,10 +11676,10 @@
   {
    "english": "bolt",
    "chinese": [
-    "n. (⻔窗) 插销；螺栓；一道 (闪电)",
-    "vt. vi. 闩上 (⻔、窗)",
+    "n. (门窗) 插销；螺栓；一道 (闪电)",
+    "vt. vi. 闩上 (门、窗)",
     "vt. 用螺栓固定；狼吞虎咽",
-    "vi. (⻢等) 脱缰；(人) 跑开"
+    "vi. (马等) 脱缰；(人) 跑开"
    ],
    "phonetic": "/bәult/"
   },
@@ -11701,7 +11701,7 @@
   {
    "english": "shutter",
    "chinese": [
-    "n. 百叶窗；快⻔",
+    "n. 百叶窗；快门",
     "vt. 打烊，停业"
    ],
    "phonetic": "/'ʃʌtә/"
@@ -11709,7 +11709,7 @@
   {
    "english": "curtain",
    "chinese": [
-    "n. 窗帘，⻔帘；幕布；覆盖物"
+    "n. 窗帘，门帘；幕布；覆盖物"
    ],
    "phonetic": "/'kә:tәn/"
   },
@@ -11740,7 +11740,7 @@
    "english": "barrel",
    "chinese": [
     "n. 桶；枪管",
-    "vi. 高速行驶，⻜驰"
+    "vi. 高速行驶，飞驰"
    ],
    "phonetic": "/'bærәl/"
   },
@@ -11842,8 +11842,8 @@
   {
    "english": "fan",
    "chinese": [
-    "n. 粉丝，狂热爱好者；⻛扇；扇子",
-    "vt. 扇 (⻛)；煽起，激起"
+    "n. 粉丝，狂热爱好者；风扇；扇子",
+    "vt. 扇 (风)；煽起，激起"
    ],
    "phonetic": "/fæn/"
   },
@@ -11877,7 +11877,7 @@
    "english": "pedal",
    "chinese": [
     "n. 踏板",
-    "vi. vt. 骑 (自行⻋)；踩 (踏板)"
+    "vi. vt. 骑 (自行车)；踩 (踏板)"
    ],
    "phonetic": "/'pedl/"
   },
@@ -11898,10 +11898,10 @@
   {
    "english": "lift",
    "chinese": [
-    "vt. vi. (被) 提起；高兴起来；(使) 增⻓",
+    "vt. vi. (被) 提起；高兴起来；(使) 增长",
     "vt. 移开；空运；解除 (限制)；偷盗",
     "vi. 消散，消失",
-    "n. 电梯；搭便⻋；提，抬，举"
+    "n. 电梯；搭便车；提，抬，举"
    ],
    "phonetic": "/lift/"
   },
@@ -11946,7 +11946,7 @@
    "chinese": [
     "modal. 能，会；懂得；可以",
     "n. 金属罐；一罐的量",
-    "vt. 把 (⻝品) 装罐保存"
+    "vt. 把 (食品) 装罐保存"
    ],
    "phonetic": "/kæn/"
   },
@@ -11963,7 +11963,7 @@
    "chinese": [
     "vt. 缔造，建立；伪造；锻造，制作",
     "vi. 稳步前进",
-    "n. 铁匠铺；锻造炉，锻造⻋间"
+    "n. 铁匠铺；锻造炉，锻造车间"
    ],
    "phonetic": "/fɒ:dʒ/"
   },
@@ -12004,15 +12004,15 @@
   {
    "english": "brass",
    "chinese": [
-    "n. ⻩铜；铜管乐器；要员"
+    "n. 黄铜；铜管乐器；要员"
    ],
    "phonetic": "/bræs.brɑ:s/"
   },
   {
    "english": "bronze",
    "chinese": [
-    "n. ⻘铜；⻘铜色；⻘铜制品；铜牌",
-    "adj. ⻘铜色的"
+    "n. 青铜；青铜色；青铜制品；铜牌",
+    "adj. 青铜色的"
    ],
    "phonetic": "/brɒnz/"
   },
@@ -12027,7 +12027,7 @@
   {
    "english": "pitch",
    "chinese": [
-    "n. 球场；音高；沥⻘；宣传论点",
+    "n. 球场；音高；沥青；宣传论点",
     "vt. 用力扔；搭 (帐篷)；定音高",
     "vi. vt. 投球；推销",
     "vi. 颠簸，上下飘荡"
@@ -12119,7 +12119,7 @@
   {
    "english": "nylon",
    "chinese": [
-    "n. 尼⻰；尼⻰⻓袜"
+    "n. 尼龙；尼龙长袜"
    ],
    "phonetic": "/'nailɒn/"
   },
@@ -12161,7 +12161,7 @@
    "english": "fuel",
    "chinese": [
     "n. 燃料；刺激因素",
-    "vt. 给…提供燃料；助⻓，加剧",
+    "vt. 给…提供燃料；助长，加剧",
     "vt. vi. 加油"
    ],
    "phonetic": "/'fjuәl/"
@@ -12254,7 +12254,7 @@
   {
    "english": "style",
    "chinese": [
-    "n. 方式；款式；时髦；⻛度；⻛格",
+    "n. 方式；款式；时髦；风度；风格",
     "vt. 把…设计成某种式样；称呼"
    ],
    "phonetic": "/stail/"
@@ -12292,14 +12292,14 @@
   {
    "english": "vogue",
    "chinese": [
-    "n. 流行，时尚，⻛尚"
+    "n. 流行，时尚，风尚"
    ],
    "phonetic": "/vәug/"
   },
   {
    "english": "prevail",
    "chinese": [
-    "vi. 盛行；占优势，占上⻛"
+    "vi. 盛行；占优势，占上风"
    ],
    "phonetic": "/pri'veil/"
   },
@@ -12467,7 +12467,7 @@
   {
    "english": "grace",
    "chinese": [
-    "n. (动作) 优雅；文雅；⻛度；恩典",
+    "n. (动作) 优雅；文雅；风度；恩典",
     "n. 宽限期；阁下",
     "vt. 为…增色；使生辉，承蒙光临"
    ],
@@ -12610,7 +12610,7 @@
   {
    "english": "robe",
    "chinese": [
-    "n. ⻓袍；浴袍；晨袍"
+    "n. 长袍；浴袍；晨袍"
    ],
    "phonetic": "/rәub/"
   },
@@ -12683,7 +12683,7 @@
   {
    "english": "hat",
    "chinese": [
-    "n. 帽子；职位，⻆色"
+    "n. 帽子；职位，角色"
    ],
    "phonetic": "/hæt/"
   },
@@ -12736,7 +12736,7 @@
   {
    "english": "vest",
    "chinese": [
-    "n. 背心；(特殊用途的) ⻢甲",
+    "n. 背心；(特殊用途的) 马甲",
     "vt. 授予，赋予"
    ],
    "phonetic": "/vest/"
@@ -12745,14 +12745,14 @@
    "english": "wrap",
    "chinese": [
     "vt. 包，裹；用…缠绕 (或围紧)",
-    "n. 披肩，围巾；包装材料；杀⻘"
+    "n. 披肩，围巾；包装材料；杀青"
    ],
    "phonetic": "/ræp/"
   },
   {
    "english": "cloak",
    "chinese": [
-    "n. 斗篷，披⻛；遮盖物，掩盖物",
+    "n. 斗篷，披风；遮盖物，掩盖物",
     "vt. 遮盖，掩盖"
    ],
    "phonetic": "/klәuk/"
@@ -12783,7 +12783,7 @@
   {
    "english": "stocking",
    "chinese": [
-    "n. ⻓筒袜"
+    "n. 长筒袜"
    ],
    "phonetic": "/'stɒkiŋ/"
   },
@@ -12798,7 +12798,7 @@
    "english": "boot",
    "chinese": [
     "n. 靴子；后备箱；猛踢",
-    "vt. 猛踢；给 (违停⻋辆) 上夹锁",
+    "vt. 猛踢；给 (违停车辆) 上夹锁",
     "vi. vt. 启动 (计算机)"
    ],
    "phonetic": "/bu:t/"
@@ -12832,7 +12832,7 @@
    "chinese": [
     "vi. vt. (使) 快速旋转；(使) 急转身；纺",
     "vt. 吐丝，作茧；有倾向性地陈述",
-    "n. 高速旋转；兜⻛；旋转 (球)"
+    "n. 高速旋转；兜风；旋转 (球)"
    ],
    "phonetic": "/spin/"
   },
@@ -13010,9 +13010,9 @@
   {
    "english": "yellow",
    "chinese": [
-    "adj. ⻩色的；⻩皮肤的",
-    "n. ⻩色",
-    "vi. vt. (使) 变⻩"
+    "adj. 黄色的；黄皮肤的",
+    "n. 黄色",
+    "vi. vt. (使) 变黄"
    ],
    "phonetic": "/'jelәu/"
   },
@@ -13097,7 +13097,7 @@
   {
    "english": "slender",
    "chinese": [
-    "adj. 苗条的；细⻓的；微薄的"
+    "adj. 苗条的；细长的；微薄的"
    ],
    "phonetic": "/'slendә/"
   },
@@ -13113,15 +13113,15 @@
   {
    "english": "food",
    "chinese": [
-    "n. ⻝物"
+    "n. 食物"
    ],
    "phonetic": "/fu:d/"
   },
   {
    "english": "diet",
    "chinese": [
-    "n. 日常饮⻝；(减肥等的) 特别饮⻝",
-    "vi. 节⻝",
+    "n. 日常饮食；(减肥等的) 特别饮食",
+    "vi. 节食",
     "adj. 低糖的，低脂肪的"
    ],
    "phonetic": "/'daiәt/"
@@ -13129,7 +13129,7 @@
   {
    "english": "appetite",
    "chinese": [
-    "n. 胃口，⻝欲；强烈欲望，渴望"
+    "n. 胃口，食欲；强烈欲望，渴望"
    ],
    "phonetic": "/'æpitait/"
   },
@@ -13144,7 +13144,7 @@
   {
    "english": "cater",
    "chinese": [
-    "vi. vt. 提供饮⻝，承办酒席",
+    "vi. vt. 提供饮食，承办酒席",
     "vi. 满足，迎合"
    ],
    "phonetic": "/'keitә/"
@@ -13160,15 +13160,15 @@
   {
    "english": "edible",
    "chinese": [
-    "adj. 可⻝用的，能吃的",
-    "n. ⻝品"
+    "adj. 可食用的，能吃的",
+    "n. 食品"
    ],
    "phonetic": "/'edibl/"
   },
   {
    "english": "recipe",
    "chinese": [
-    "n. ⻝谱，烹饪法；原因，秘诀"
+    "n. 食谱，烹饪法；原因，秘诀"
    ],
    "phonetic": "/'resipi/"
   },
@@ -13182,7 +13182,7 @@
   {
    "english": "refectory",
    "chinese": [
-    "n. (英国宗教或教育机构的) ⻝堂"
+    "n. (英国宗教或教育机构的) 食堂"
    ],
    "phonetic": "/ri'fektәri/"
   },
@@ -13190,7 +13190,7 @@
    "english": "bar",
    "chinese": [
     "n. 酒吧；吧台；小馆；棒；律师界",
-    "vt. 闩上 (⻔或窗)；阻挡；禁止",
+    "vt. 闩上 (门或窗)；阻挡；禁止",
     "prep. 除…之外"
    ],
    "phonetic": "/bɑ:/"
@@ -13198,15 +13198,15 @@
   {
    "english": "cafeteria",
    "chinese": [
-    "n. 自助餐厅，⻝堂"
+    "n. 自助餐厅，食堂"
    ],
    "phonetic": "/.kæfi'tiәriә/"
   },
   {
    "english": "buffet",
    "chinese": [
-    "n. 自助餐；(火⻋上的) 餐⻋",
-    "vt. (⻛、雨等) 连续猛击，打击"
+    "n. 自助餐；(火车上的) 餐车",
+    "vt. (风、雨等) 连续猛击，打击"
    ],
    "phonetic": "/'bʌfit/"
   },
@@ -13235,14 +13235,14 @@
   {
    "english": "refreshment",
    "chinese": [
-    "n. 茶点；⻝品和饮料；恢复精力"
+    "n. 茶点；食品和饮料；恢复精力"
    ],
    "phonetic": "/ri'freʃmәnt/"
   },
   {
    "english": "snack",
    "chinese": [
-    "n. 零⻝，小吃",
+    "n. 零食，小吃",
     "vi. 吃小吃，吃点心"
    ],
    "phonetic": "/snæk/"
@@ -13257,7 +13257,7 @@
   {
    "english": "cuisine",
    "chinese": [
-    "n. 烹饪 (法)，⻛味；菜肴"
+    "n. 烹饪 (法)，风味；菜肴"
    ],
    "phonetic": "/kwi:'zi:n/"
   },
@@ -13280,7 +13280,7 @@
   {
    "english": "takeaway",
    "chinese": [
-    "n. 外卖⻝品；外卖餐馆"
+    "n. 外卖食品；外卖餐馆"
    ],
    "phonetic": ""
   },
@@ -13294,7 +13294,7 @@
   {
    "english": "gourmet",
    "chinese": [
-    "n. 美⻝家",
+    "n. 美食家",
     "adj. 美味佳肴的"
    ],
    "phonetic": "/'guәmei/"
@@ -13302,7 +13302,7 @@
   {
    "english": "vegetarian",
    "chinese": [
-    "n. 素⻝者",
+    "n. 素食者",
     "adj. 无肉的，素的"
    ],
    "phonetic": "/.vedʒi'tєәriәn/"
@@ -13401,7 +13401,7 @@
   {
    "english": "mug",
    "chinese": [
-    "n. ⻢克杯，大杯；人脸",
+    "n. 马克杯，大杯；人脸",
     "vt. (公然) 行凶抢劫"
    ],
    "phonetic": "/mʌg/"
@@ -13454,7 +13454,7 @@
   {
    "english": "tin",
    "chinese": [
-    "n. 锡；罐头；金属⻝品盒；烤盘"
+    "n. 锡；罐头；金属食品盒；烤盘"
    ],
    "phonetic": "/tin/"
   },
@@ -13534,7 +13534,7 @@
    "english": "drunk",
    "chinese": [
     "adj. 喝醉的；沉醉的",
-    "n. 醉⻤，酗酒者"
+    "n. 醉鬼，酗酒者"
    ],
    "phonetic": "/drʌŋk/"
   },
@@ -13598,7 +13598,7 @@
   {
    "english": "cucumber",
    "chinese": [
-    "n. ⻩瓜"
+    "n. 黄瓜"
    ],
    "phonetic": "/'kju:kәmbә/"
   },
@@ -13620,7 +13620,7 @@
    "english": "mushroom",
    "chinese": [
     "n. 蘑菇",
-    "vi. 迅速成⻓，大量涌现"
+    "vi. 迅速成长，大量涌现"
    ],
    "phonetic": "/'mʌʃrum/"
   },
@@ -13673,7 +13673,7 @@
   {
    "english": "strip",
    "chinese": [
-    "n. (纸、布料等的) 条；狭⻓地带",
+    "n. (纸、布料等的) 条；狭长地带",
     "vt. 除去；全部拿走；拆卸；剥夺",
     "vi. vt. 脱光衣服，扒光…的衣服"
    ],
@@ -13766,22 +13766,22 @@
   {
    "english": "lemon",
    "chinese": [
-    "n. 柠檬；浅⻩色；废物",
-    "adj. 浅⻩色的"
+    "n. 柠檬；浅黄色；废物",
+    "adj. 浅黄色的"
    ],
    "phonetic": "/'lemәn/"
   },
   {
    "english": "kiwi",
    "chinese": [
-    "n. 猕猴桃；新西兰人；几维⻦"
+    "n. 猕猴桃；新西兰人；几维鸟"
    ],
    "phonetic": "/'ki:wi:/"
   },
   {
    "english": "crop",
    "chinese": [
-    "n. 庄稼；收成；一批；短⻢鞭",
+    "n. 庄稼；收成；一批；短马鞭",
     "vt. 剪短 (头发)；剪裁；啃吃",
     "vi. 有收成；(意外地) 出现，发生"
    ],
@@ -13804,7 +13804,7 @@
   {
    "english": "wheat",
    "chinese": [
-    "n. 小⻨"
+    "n. 小麦"
    ],
    "phonetic": "/hwi:t/"
   },
@@ -13826,7 +13826,7 @@
   {
    "english": "porridge",
    "chinese": [
-    "n. 燕⻨粥，⻨片粥"
+    "n. 燕麦粥，麦片粥"
    ],
    "phonetic": "/'pɒ:ridʒ/"
   },
@@ -13849,7 +13849,7 @@
   {
    "english": "chicken",
    "chinese": [
-    "n. 鸡；鸡肉；胆小⻤",
+    "n. 鸡；鸡肉；胆小鬼",
     "adj. 胆怯的，懦弱的"
    ],
    "phonetic": "/'tʃikin/"
@@ -13892,8 +13892,8 @@
   {
    "english": "fish",
    "chinese": [
-    "n. ⻥；⻥肉",
-    "vi. 钓⻥，捕⻥"
+    "n. 鱼；鱼肉",
+    "vi. 钓鱼，捕鱼"
    ],
    "phonetic": "/fiʃ/"
   },
@@ -13937,8 +13937,8 @@
   {
    "english": "cream",
    "chinese": [
-    "n. 奶油；乳膏，乳霜；淡⻩色；精髓",
-    "adj. 淡⻩色的",
+    "n. 奶油；乳膏，乳霜；淡黄色；精髓",
+    "adj. 淡黄色的",
     "vt. 把…搅成糊状；彻底打败"
    ],
    "phonetic": "/kri:m/"
@@ -13953,8 +13953,8 @@
   {
    "english": "butter",
    "chinese": [
-    "n. ⻩油，牛油",
-    "vt. 给…抹上⻩油"
+    "n. 黄油，牛油",
+    "vt. 给…抹上黄油"
    ],
    "phonetic": "/'bʌtә/"
   },
@@ -14005,7 +14005,7 @@
   {
    "english": "pasta",
    "chinese": [
-    "n. 意大利面⻝"
+    "n. 意大利面食"
    ],
    "phonetic": "/'pæstә/"
   },
@@ -14079,7 +14079,7 @@
    "english": "mustard",
    "chinese": [
     "n. 芥末酱；芥菜",
-    "adj. 芥末⻩的，褐⻩色的"
+    "adj. 芥末黄的，褐黄色的"
    ],
    "phonetic": "/'mʌstәd/"
   },
@@ -14101,8 +14101,8 @@
   {
    "english": "ginger",
    "chinese": [
-    "n. 姜；姜⻩色",
-    "adj. 姜⻩色的"
+    "n. 姜；姜黄色",
+    "adj. 姜黄色的"
    ],
    "phonetic": "/'dʒindʒә/"
   },
@@ -14130,8 +14130,8 @@
   {
    "english": "salt",
    "chinese": [
-    "n. 盐，⻝盐",
-    "vt. 用盐腌 (⻝物)",
+    "n. 盐，食盐",
+    "vt. 用盐腌 (食物)",
     "adj. 含盐的，用盐腌制的"
    ],
    "phonetic": "/sɒ:lt/"
@@ -14161,7 +14161,7 @@
   {
    "english": "flavour",
    "chinese": [
-    "n. 味道，⻛味；特色；调味品",
+    "n. 味道，风味；特色；调味品",
     "vt. 给…调味"
    ],
    "phonetic": "/'fleivә/"
@@ -14309,7 +14309,7 @@
    "chinese": [
     "vt. vi. 油炸，油煎，油炒",
     "vi. (被阳光) 灼伤，晒伤",
-    "n. 炸薯条；⻥苗"
+    "n. 炸薯条；鱼苗"
    ],
    "phonetic": "/frai/"
   },
@@ -14328,7 +14328,7 @@
    "chinese": [
     "n. 烤面包片，吐司；干杯，祝酒",
     "vt. 为…举杯敬酒",
-    "vt. vi. 烤 (尤指面包)，把…烤得焦⻩"
+    "vt. vi. 烤 (尤指面包)，把…烤得焦黄"
    ],
    "phonetic": "/tәust/"
   },
@@ -14433,7 +14433,7 @@
   {
    "english": "architecture",
    "chinese": [
-    "n. 建筑学；建筑⻛格；结构"
+    "n. 建筑学；建筑风格；结构"
    ],
    "phonetic": "/'ɑ:kitektʃә/"
   },
@@ -14635,7 +14635,7 @@
   {
    "english": "lodge",
    "chinese": [
-    "n. 乡间小屋；⻔房；传达室；穴",
+    "n. 乡间小屋；门房；传达室；穴",
     "vi. (付款) 寄宿，租住",
     "vt. 为…提供住宿；正式提出 (声明)",
     "vi. vt. (被) 固定，卡住"
@@ -14652,7 +14652,7 @@
   {
    "english": "cabin",
    "chinese": [
-    "n. 小木屋；(⻜机上的) 客舱；船舱"
+    "n. 小木屋；(飞机上的) 客舱；船舱"
    ],
    "phonetic": "/'kæbin/"
   },
@@ -14728,7 +14728,7 @@
   {
    "english": "porch",
    "chinese": [
-    "n. ⻔廊，⻔厅"
+    "n. 门廊，门厅"
    ],
    "phonetic": "/pɒ:tʃ/"
   },
@@ -14792,7 +14792,7 @@
   {
    "english": "pillar",
    "chinese": [
-    "n. 柱子；主心⻣；核心，支柱"
+    "n. 柱子；主心骨；核心，支柱"
    ],
    "phonetic": "/'pilә/"
   },
@@ -14823,7 +14823,7 @@
   {
    "english": "arch",
    "chinese": [
-    "n. 拱；拱⻔；足弓；拱形物",
+    "n. 拱；拱门；足弓；拱形物",
     "vt. vi. (使) 拱起，(使) 成拱形",
     "adj. 调皮的，淘气的",
     "pref. 最高等级的，主要的"
@@ -14862,7 +14862,7 @@
   {
    "english": "lobby",
    "chinese": [
-    "n. ⻔廊，大厅；游说团体；游说",
+    "n. 门廊，大厅；游说团体；游说",
     "vt. vi. 游说 (从政者或政府)"
    ],
    "phonetic": "/'lɒbi/"
@@ -14870,7 +14870,7 @@
   {
    "english": "bench",
    "chinese": [
-    "n. ⻓椅；法官席；替补席；工作台",
+    "n. 长椅；法官席；替补席；工作台",
     "vt. 把 (运动员) 从比赛中撤下"
    ],
    "phonetic": "/bentʃ/"
@@ -14941,7 +14941,7 @@
   {
    "english": "toilet",
    "chinese": [
-    "n. 抽水⻢桶；厕所；梳洗打扮"
+    "n. 抽水马桶；厕所；梳洗打扮"
    ],
    "phonetic": "/'tɒilit/"
   },
@@ -15001,7 +15001,7 @@
   {
    "english": "booth",
    "chinese": [
-    "n. 小隔间；摊位；火⻋座，卡座"
+    "n. 小隔间；摊位；火车座，卡座"
    ],
    "phonetic": "/bu:θ/"
   },
@@ -15098,7 +15098,7 @@
   {
    "english": "castle",
    "chinese": [
-    "n. 城堡；(国际象棋中的) ⻋"
+    "n. 城堡；(国际象棋中的) 车"
    ],
    "phonetic": "/'kæsl. 'kɑ:sl/"
   },
@@ -15141,9 +15141,9 @@
   {
    "english": "hook",
    "chinese": [
-    "n. 钩，挂钩，⻥钩；勾拳；诱饵",
+    "n. 钩，挂钩，鱼钩；勾拳；诱饵",
     "vi. vt. (使) 钩住，挂住",
-    "vt. 钓 (⻥)；吸引"
+    "vt. 钓 (鱼)；吸引"
    ],
    "phonetic": "/huk/"
   },
@@ -15187,8 +15187,8 @@
   {
    "english": "crane",
    "chinese": [
-    "n. 起重机，吊⻋；鹤",
-    "vi. vt. 伸⻓ (脖子) 看，探头看"
+    "n. 起重机，吊车；鹤",
+    "vi. vt. 伸长 (脖子) 看，探头看"
    ],
    "phonetic": "/krein/"
   },
@@ -15235,7 +15235,7 @@
    "chinese": [
     "vt. 修剪；削减；装饰，点缀",
     "n. 修剪；(衣服等的) 饰物",
-    "adj. (人) 苗条的，修⻓的；整⻬的"
+    "adj. (人) 苗条的，修长的；整齐的"
    ],
    "phonetic": "/trim/"
   },
@@ -15299,7 +15299,7 @@
   {
    "english": "dam",
    "chinese": [
-    "n. 水坝，堤坝；母兽，母⻢",
+    "n. 水坝，堤坝；母兽，母马",
     "vt. 在 (河) 上筑坝；阻止，抑制"
    ],
    "phonetic": "/dæm/"
@@ -15469,7 +15469,7 @@
    "english": "journey",
    "chinese": [
     "n. 旅行，旅程",
-    "vi. (⻓途) 旅行"
+    "vi. (长途) 旅行"
    ],
    "phonetic": "/'dʒә:ni/"
   },
@@ -15477,7 +15477,7 @@
    "english": "travel",
    "chinese": [
     "vi. vt. 旅行，旅游",
-    "vi. 传播；宜于⻓途运输；广为流传",
+    "vi. 传播；宜于长途运输；广为流传",
     "n. 旅行，旅游"
    ],
    "phonetic": "/'trævl/"
@@ -15502,7 +15502,7 @@
   {
    "english": "haunt",
    "chinese": [
-    "vt. (⻤魂) 出没于；萦绕；⻓期困扰",
+    "vt. (鬼魂) 出没于；萦绕；长期困扰",
     "n. 常去的地方"
    ],
    "phonetic": "/hɒ:nt/"
@@ -15562,7 +15562,7 @@
   {
    "english": "airplane",
    "chinese": [
-    "n. ⻜机"
+    "n. 飞机"
    ],
    "phonetic": "/'єәplein/"
   },
@@ -15576,8 +15576,8 @@
   {
    "english": "jet",
    "chinese": [
-    "n. 喷气式⻜机；喷射流；黑玉",
-    "vi. 乘坐⻜机旅行",
+    "n. 喷气式飞机；喷射流；黑玉",
+    "vi. 乘坐飞机旅行",
     "vi. vt. 喷射，喷出"
    ],
    "phonetic": "/dʒet/"
@@ -15594,14 +15594,14 @@
   {
    "english": "flight",
    "chinese": [
-    "n. 航班；⻜行；一段 (楼梯)；逃跑"
+    "n. 航班；飞行；一段 (楼梯)；逃跑"
    ],
    "phonetic": "/flait/"
   },
   {
    "english": "pilot",
    "chinese": [
-    "n. ⻜行员；领航员；试播节目",
+    "n. 飞行员；领航员；试播节目",
     "vt. 驾驶，为…引航；试行",
     "adj. 试验性的，试点的"
    ],
@@ -15639,7 +15639,7 @@
    "english": "carry-on",
    "chinese": [
     "n. 登机行李；大惊小怪",
-    "adj. 可随身携带 (上⻜机) 的"
+    "adj. 可随身携带 (上飞机) 的"
    ],
    "phonetic": "/'kærɪ ɒn/"
   },
@@ -15655,14 +15655,14 @@
    "english": "freight",
    "chinese": [
     "n. 货物，货运；运费",
-    "vt. (用⻜机等) 运送，托运"
+    "vt. (用飞机等) 运送，托运"
    ],
    "phonetic": "/'freit/"
   },
   {
    "english": "fare",
    "chinese": [
-    "n. ⻋费，票价；乘客；饭菜",
+    "n. 车费，票价；乘客；饭菜",
     "vi. 进展，进行"
    ],
    "phonetic": "/fєә/"
@@ -15716,7 +15716,7 @@
   {
    "english": "way",
    "chinese": [
-    "n. 方式，方法；作⻛；路；方向",
+    "n. 方式，方法；作风；路；方向",
     "adv. 很远；非常"
    ],
    "phonetic": "/wei/"
@@ -15731,7 +15731,7 @@
   {
    "english": "lane",
    "chinese": [
-    "n. 小路；小巷；⻋道；航线；跑道"
+    "n. 小路；小巷；车道；航线；跑道"
    ],
    "phonetic": "/lein/"
   },
@@ -15753,7 +15753,7 @@
    "english": "curb",
    "chinese": [
     "vt. 控制，限制，抑制",
-    "n. 控制，限制，抑制；⻢路牙子"
+    "n. 控制，限制，抑制；马路牙子"
    ],
    "phonetic": "/kә:b/"
   },
@@ -15775,37 +15775,37 @@
   {
    "english": "vehicle",
    "chinese": [
-    "n. ⻋辆，交通工具；工具，手段"
+    "n. 车辆，交通工具；工具，手段"
    ],
    "phonetic": "/'vi:ikl/"
   },
   {
    "english": "auto",
    "chinese": [
-    "n. 机动⻋，汽⻋，⻋"
+    "n. 机动车，汽车，车"
    ],
    "phonetic": "/'ɒ:tәu/"
   },
   {
    "english": "express",
    "chinese": [
-    "vt. 表达，表现；显而易⻅；代表",
+    "vt. 表达，表现；显而易见；代表",
     "adj. 快速的，快递的；明确的",
-    "n. 特快列⻋；快递服务"
+    "n. 特快列车；快递服务"
    ],
    "phonetic": "/ik'spres/"
   },
   {
    "english": "tram",
    "chinese": [
-    "n. 有轨电⻋"
+    "n. 有轨电车"
    ],
    "phonetic": "/træm/"
   },
   {
    "english": "coach",
    "chinese": [
-    "n. 教练；客⻋；私人教师；经济舱",
+    "n. 教练；客车；私人教师；经济舱",
     "vt. 训练，培训；辅导；指示"
    ],
    "phonetic": "/kәutʃ/"
@@ -15813,43 +15813,43 @@
   {
    "english": "ambulance",
    "chinese": [
-    "n. 救护⻋"
+    "n. 救护车"
    ],
    "phonetic": "/'æmbjulәns/"
   },
   {
    "english": "truck",
    "chinese": [
-    "n. 卡⻋，货⻋",
-    "vt. 用卡⻋ (或货⻋) 运送"
+    "n. 卡车，货车",
+    "vt. 用卡车 (或货车) 运送"
    ],
    "phonetic": "/trʌk/"
   },
   {
    "english": "lorry",
    "chinese": [
-    "n. 卡⻋，货⻋"
+    "n. 卡车，货车"
    ],
    "phonetic": "/'lɒri/"
   },
   {
    "english": "van",
    "chinese": [
-    "n. 货⻋，面包⻋；(火⻋) 货⻋⻋厢"
+    "n. 货车，面包车；(火车) 货车车厢"
    ],
    "phonetic": "/væn/"
   },
   {
    "english": "wagon",
    "chinese": [
-    "n. 四轮运货⻢⻋；(火⻋)货⻋⻋厢"
+    "n. 四轮运货马车；(火车)货车车厢"
    ],
    "phonetic": "/'wægәn/"
   },
   {
    "english": "carriage",
    "chinese": [
-    "n. ⻢⻋；火⻋⻋厢；运费；仪态"
+    "n. 马车；火车车厢；运费；仪态"
    ],
    "phonetic": "/'kæridʒ/"
   },
@@ -15863,53 +15863,53 @@
   {
    "english": "cart",
    "chinese": [
-    "n. 运货⻢⻋；手推⻋；专用小汽⻋",
-    "vt. 用⻢⻋运送；用手提；强行带走"
+    "n. 运货马车；手推车；专用小汽车",
+    "vt. 用马车运送；用手提；强行带走"
    ],
    "phonetic": "/kɑ:t/"
   },
   {
    "english": "pedicab",
    "chinese": [
-    "n. 人力三轮⻋"
+    "n. 人力三轮车"
    ],
    "phonetic": "/'pedikæb/"
   },
   {
    "english": "cycle",
    "chinese": [
-    "n. 循环，周期；自行⻋，摩托⻋",
-    "vi. 骑 (自行⻋)"
+    "n. 循环，周期；自行车，摩托车",
+    "vi. 骑 (自行车)"
    ],
    "phonetic": "/'saikl/"
   },
   {
    "english": "garage",
    "chinese": [
-    "n. ⻋库；汽⻋修理厂",
-    "vt. 把…送入⻋库 (或修⻋厂)"
+    "n. 车库；汽车修理厂",
+    "vt. 把…送入车库 (或修车厂)"
    ],
    "phonetic": "/gә'rɑ:ʒ. 'gærɑ:ʒ/"
   },
   {
    "english": "motor",
    "chinese": [
-    "n. 发动机，⻢达；汽⻋",
-    "adj. 机动的；汽⻋的；肌肉运动的"
+    "n. 发动机，马达；汽车",
+    "adj. 机动的；汽车的；肌肉运动的"
    ],
    "phonetic": "/'mәutә/"
   },
   {
    "english": "horsepower",
    "chinese": [
-    "n. ⻢力 (引擎的功率单位)"
+    "n. 马力 (引擎的功率单位)"
    ],
    "phonetic": "/'hɒ:spauә/"
   },
   {
    "english": "wheel",
    "chinese": [
-    "n. 轮子，⻋轮；方向盘；机轮；汽⻋",
+    "n. 轮子，车轮；方向盘；机轮；汽车",
     "vi. 旋转，盘旋"
    ],
    "phonetic": "/hwi:l/"
@@ -15917,23 +15917,23 @@
   {
    "english": "brake",
    "chinese": [
-    "n. 刹⻋，⻋闸；阻碍，阻碍物",
-    "vi. vt. 刹⻋"
+    "n. 刹车，车闸；阻碍，阻碍物",
+    "vi. vt. 刹车"
    ],
    "phonetic": "/breik/"
   },
   {
    "english": "tyre",
    "chinese": [
-    "n. 轮胎，⻋胎"
+    "n. 轮胎，车胎"
    ],
    "phonetic": "/'taiә/"
   },
   {
    "english": "honk",
    "chinese": [
-    "n. 汽⻋喇叭声；鹅叫声",
-    "vt. vi. (使汽⻋喇叭) 鸣响",
+    "n. 汽车喇叭声；鹅叫声",
+    "vt. vi. (使汽车喇叭) 鸣响",
     "vi. (鹅) 叫"
    ],
    "phonetic": "/hɒŋk/"
@@ -15949,7 +15949,7 @@
   {
    "english": "captain",
    "chinese": [
-    "n. 船⻓，机⻓；上尉，上校；队⻓"
+    "n. 船长，机长；上尉，上校；队长"
    ],
    "phonetic": "/'kæptin/"
   },
@@ -15970,7 +15970,7 @@
   {
    "english": "wreck",
    "chinese": [
-    "n. (船、⻋等的) 残骸；(⻋辆) 碰撞",
+    "n. (船、车等的) 残骸；(车辆) 碰撞",
     "vt. 破坏，毁坏；使失事"
    ],
    "phonetic": "/rek/"
@@ -15978,7 +15978,7 @@
   {
    "english": "crash",
    "chinese": [
-    "n. 撞⻋，坠机；碰撞声；暴跌",
+    "n. 撞车，坠机；碰撞声；暴跌",
     "vi. vt. 碰撞，撞击；崩溃",
     "vi. 使发出巨响；暴跌，贬值；睡觉",
     "adj. 应急的，速成的"
@@ -15997,9 +15997,9 @@
   {
    "english": "dash",
    "chinese": [
-    "vi. ⻜奔，猛冲",
+    "vi. 飞奔，猛冲",
     "vt. vi. 猛摔，猛撞",
-    "n. ⻜奔，猛冲；少量；破折号"
+    "n. 飞奔，猛冲；少量；破折号"
    ],
    "phonetic": "/dæʃ/"
   },
@@ -16013,7 +16013,7 @@
   {
    "english": "disappear",
    "chinese": [
-    "vi. 消失，不⻅；不复存在；失踪"
+    "vi. 消失，不见；不复存在；失踪"
    ],
    "phonetic": "/.disә'piә/"
   },
@@ -16021,7 +16021,7 @@
    "english": "hazard",
    "chinese": [
     "n. 危险，隐患，危害",
-    "vt. 大胆提出或猜测；使…冒⻛险"
+    "vt. 大胆提出或猜测；使…冒风险"
    ],
    "phonetic": "/'hæzәd/"
   },
@@ -16077,7 +16077,7 @@
    "english": "carrier",
    "chinese": [
     "n. 运输公司；病原携带者；搬运人",
-    "n. 军输⻋，航空母舰；通信公司"
+    "n. 军输车，航空母舰；通信公司"
    ],
    "phonetic": "/'kæriә/"
   },
@@ -16144,7 +16144,7 @@
   {
    "english": "deck",
    "chinese": [
-    "n. 甲板；(⻋、船的) 层；一副 (牌)",
+    "n. 甲板；(车、船的) 层；一副 (牌)",
     "n. 木质平台；(录音机的) 走带装置",
     "vt. 装饰，装点"
    ],
@@ -16175,7 +16175,7 @@
   {
    "english": "aboard",
    "chinese": [
-    "prep. adv. 在船 (⻜机，火⻋) 上，上船",
+    "prep. adv. 在船 (飞机，火车) 上，上船",
     "等"
    ],
    "phonetic": "/ә'bɒ:d/"
@@ -16199,7 +16199,7 @@
   {
    "english": "canal",
    "chinese": [
-    "n. 运河，沟渠；⻝道，气管"
+    "n. 运河，沟渠；食道，气管"
    ],
    "phonetic": "/kә'næl/"
   },
@@ -16230,7 +16230,7 @@
   {
    "english": "locomotive",
    "chinese": [
-    "n. 机⻋，火⻋头",
+    "n. 机车，火车头",
     "adj. 移动的，运动的"
    ],
    "phonetic": "/.lәukә'mәutiv/"
@@ -16491,7 +16491,7 @@
   {
    "english": "Marxism",
    "chinese": [
-    "n. ⻢克思主义"
+    "n. 马克思主义"
    ],
    "phonetic": "/'mɑ:ksizm/"
   },
@@ -16547,7 +16547,7 @@
   {
    "english": "democracy",
    "chinese": [
-    "n. ⺠主，⺠主制；⺠主国家"
+    "n. 民主，民主制；民主国家"
    ],
    "phonetic": "/di'mɒkrәsi/"
   },
@@ -16623,7 +16623,7 @@
    "english": "neutral",
    "chinese": [
     "adj. 中立的；中性的；素净的",
-    "n. (汽⻋排档) 空档；中立者"
+    "n. (汽车排档) 空档；中立者"
    ],
    "phonetic": "/'nju:trәl/"
   },
@@ -16661,7 +16661,7 @@
   {
    "english": "president",
    "chinese": [
-    "n. 总统；会⻓，主席，校⻓"
+    "n. 总统；会长，主席，校长"
    ],
    "phonetic": "/'prezidәnt/"
   },
@@ -16676,7 +16676,7 @@
   {
    "english": "minister",
    "chinese": [
-    "n. 部⻓，大臣；牧师；公使",
+    "n. 部长，大臣；牧师；公使",
     "vi. 服侍，帮助"
    ],
    "phonetic": "/'ministә/"
@@ -16684,7 +16684,7 @@
   {
    "english": "secretary",
    "chinese": [
-    "n. 秘书；书记员；部⻓，大臣"
+    "n. 秘书；书记员；部长，大臣"
    ],
    "phonetic": "/'sekrәtәri/"
   },
@@ -16712,7 +16712,7 @@
   {
    "english": "meeting",
    "chinese": [
-    "n. 会议；⻅面；运动会"
+    "n. 会议；见面；运动会"
    ],
    "phonetic": "/'mi:tiŋ/"
   },
@@ -16755,7 +16755,7 @@
   {
    "english": "mayor",
    "chinese": [
-    "n. 市⻓，镇⻓"
+    "n. 市长，镇长"
    ],
    "phonetic": "/'mєә/"
   },
@@ -16784,22 +16784,22 @@
   {
    "english": "department",
    "chinese": [
-    "n. 部⻔，科，系"
+    "n. 部门，科，系"
    ],
    "phonetic": "/di'pɑ:tmәnt/"
   },
   {
    "english": "harness",
    "chinese": [
-    "vt. 控制，利用；给 (⻢等) 上挽具",
-    "n. ⻢具，挽具；保护带，背带"
+    "vt. 控制，利用；给 (马等) 上挽具",
+    "n. 马具，挽具；保护带，背带"
    ],
    "phonetic": "/'hɑ:nis/"
   },
   {
    "english": "administration",
    "chinese": [
-    "n. 管理，行政；政府，管理部⻔"
+    "n. 管理，行政；政府，管理部门"
    ],
    "phonetic": "/әd.mini'streiʃәn/"
   },
@@ -16816,7 +16816,7 @@
    "chinese": [
     "n. 政权；影响力；能力；权力",
     "n. 实力；力量；能量；电力供应",
-    "vt. 驱动 (机器或⻋辆)",
+    "vt. 驱动 (机器或车辆)",
     "vi. vt. (使) 迅猛移动"
    ],
    "phonetic": "/'pauә/"
@@ -16916,7 +16916,7 @@
   {
    "english": "nation",
    "chinese": [
-    "n. 国家，⺠族；(全体) 国⺠"
+    "n. 国家，民族；(全体) 国民"
    ],
    "phonetic": "/'neiʃәn/"
   },
@@ -16967,22 +16967,22 @@
   {
    "english": "civil",
    "chinese": [
-    "adj. 公⺠的，国内的；⺠用的",
-    "adj. ⺠法的；文明的"
+    "adj. 公民的，国内的；民用的",
+    "adj. 民法的；文明的"
    ],
    "phonetic": "/'sivәl/"
   },
   {
    "english": "emigrate",
    "chinese": [
-    "vi. 移居国外，移⺠"
+    "vi. 移居国外，移民"
    ],
    "phonetic": "/'emigreit/"
   },
   {
    "english": "immigrate",
    "chinese": [
-    "vi. (从外国) 移居，作为移⺠定居"
+    "vi. (从外国) 移居，作为移民定居"
    ],
    "phonetic": "/'imigreit/"
   },
@@ -17026,7 +17026,7 @@
   {
    "english": "colony",
    "chinese": [
-    "n. 殖⺠地；群体，群落"
+    "n. 殖民地；群体，群落"
    ],
    "phonetic": "/'kɒlәni/"
   },
@@ -17047,7 +17047,7 @@
   {
    "english": "slum",
    "chinese": [
-    "n. 贫⺠窟，贫⺠区",
+    "n. 贫民窟，贫民区",
     "vi. 体验贫苦生活"
    ],
    "phonetic": "/slʌm/"
@@ -17084,14 +17084,14 @@
   {
    "english": "citizen",
    "chinese": [
-    "n. 公⺠；居⺠，市⺠"
+    "n. 公民；居民，市民"
    ],
    "phonetic": "/'sitizn/"
   },
   {
    "english": "resident",
    "chinese": [
-    "n. 居⺠，住戶；住院实习医生",
+    "n. 居民，住戶；住院实习医生",
     "adj. (在某地) 居住的"
    ],
    "phonetic": "/'rezidәnt/"
@@ -17099,8 +17099,8 @@
   {
    "english": "ethnic",
    "chinese": [
-    "adj. 种族的，⺠族的；有⺠族特色的",
-    "n. 少数⺠族的人"
+    "adj. 种族的，民族的；有民族特色的",
+    "n. 少数民族的人"
    ],
    "phonetic": "/'eθnik/"
   },
@@ -17167,8 +17167,8 @@
   {
    "english": "poll",
    "chinese": [
-    "n. ⺠意调查；投票，投票站",
-    "vt. 做⺠意调查",
+    "n. 民意调查；投票，投票站",
+    "vt. 做民意调查",
     "vt. vi. 获得 (票数)"
    ],
    "phonetic": "/pәul/"
@@ -17241,7 +17241,7 @@
   {
    "english": "flourish",
    "chinese": [
-    "vi. 繁荣，兴旺；茁壮成⻓",
+    "vi. 繁荣，兴旺；茁壮成长",
     "vt. (为引起注意) 挥舞，挥动",
     "n. 夸张动作；华丽辞藻"
    ],
@@ -17266,21 +17266,21 @@
   {
    "english": "perspective",
    "chinese": [
-    "n. 视⻆，观点；判断力；透视法"
+    "n. 视角，观点；判断力；透视法"
    ],
    "phonetic": "/pә'spektiv/"
   },
   {
    "english": "viewpoint",
    "chinese": [
-    "n. 观点，看法；视⻆，⻆度"
+    "n. 观点，看法；视角，角度"
    ],
    "phonetic": "/'vju:pɒint/"
   },
   {
    "english": "standpoint",
    "chinese": [
-    "n. 立场，观点，⻆度，立足点"
+    "n. 立场，观点，角度，立足点"
    ],
    "phonetic": "/'stændpɒint/"
   },
@@ -17425,7 +17425,7 @@
    "english": "monitor",
    "chinese": [
     "vt. 监视；监听",
-    "n. 显示器；监控器；班⻓；监督员"
+    "n. 显示器；监控器；班长；监督员"
    ],
    "phonetic": "/'mɒnitә/"
   },
@@ -17486,8 +17486,8 @@
   {
    "english": "Roman",
    "chinese": [
-    "adj. 罗⻢的；罗⻢天主教的",
-    "n. 古罗⻢人；罗⻢人；罗⻢体"
+    "adj. 罗马的；罗马天主教的",
+    "n. 古罗马人；罗马人；罗马体"
    ],
    "phonetic": "/'rәumәn/"
   },
@@ -17534,8 +17534,8 @@
   {
    "english": "Soviet",
    "chinese": [
-    "adj. 苏联的，苏联人⺠的",
-    "n. 苏联人⺠"
+    "adj. 苏联的，苏联人民的",
+    "n. 苏联人民"
    ],
    "phonetic": "/'sәuviәt/"
   },
@@ -17725,7 +17725,7 @@
   {
    "english": "grocery",
    "chinese": [
-    "n. ⻝品杂货店；⻝品杂货"
+    "n. 食品杂货店；食品杂货"
    ],
    "phonetic": "/'grәusәri/"
   },
@@ -17907,7 +17907,7 @@
   {
    "english": "security",
    "chinese": [
-    "n. 安全，保障；安保措施；保安部⻔",
+    "n. 安全，保障；安保措施；保安部门",
     "n. 抵押品；证券"
    ],
    "phonetic": "/si'kjuriti/"
@@ -17992,15 +17992,15 @@
    "chinese": [
     "vt. 减少，缩小，降低",
     "vt. vi. (使) 蒸发",
-    "vi. 减轻体重，节⻝"
+    "vi. 减轻体重，节食"
    ],
    "phonetic": "/ri'dju:s/"
   },
   {
    "english": "increase",
    "chinese": [
-    "vi. vt. 增加，增多，增⻓",
-    "n. 增加，增多，增⻓"
+    "vi. vt. 增加，增多，增长",
+    "n. 增加，增多，增长"
    ],
    "phonetic": "/in'kri:s/"
   },
@@ -18014,7 +18014,7 @@
   {
    "english": "growth",
    "chinese": [
-    "n. 成⻓，生⻓；增加，增⻓，增强"
+    "n. 成长，生长；增加，增长，增强"
    ],
    "phonetic": "/grәuθ/"
   },
@@ -18176,7 +18176,7 @@
   {
    "english": "cargo",
    "chinese": [
-    "n. (轮船、⻜机所装载的) 货物"
+    "n. (轮船、飞机所装载的) 货物"
    ],
    "phonetic": "/'kɑ:gәu/"
   },
@@ -18281,7 +18281,7 @@
   {
    "english": "turnover",
    "chinese": [
-    "n. 营业额；人员流动率；三⻆馅饼"
+    "n. 营业额；人员流动率；三角馅饼"
    ],
    "phonetic": "/'tә:n.әuvә/"
   },
@@ -18420,7 +18420,7 @@
   {
    "english": "treasure",
    "chinese": [
-    "n. 金银财宝；珍品；心肝宝⻉",
+    "n. 金银财宝；珍品；心肝宝贝",
     "vt. 珍视，珍惜"
    ],
    "phonetic": "/'treʒә/"
@@ -18496,7 +18496,7 @@
    "english": "accelerate",
    "chinese": [
     "vi. vt. (使) 加快",
-    "vi. (⻋辆等) 加速"
+    "vi. (车辆等) 加速"
    ],
    "phonetic": "/әk'selәreit/"
   },
@@ -18651,7 +18651,7 @@
   {
    "english": "personnel",
    "chinese": [
-    "n. 人员，员工；人事部⻔"
+    "n. 人员，员工；人事部门"
    ],
    "phonetic": "/.pә:sә'nel/"
   },
@@ -18798,8 +18798,8 @@
   {
    "english": "chance",
    "chinese": [
-    "n. 机会；可能性；⻛险；偶然",
-    "vt. 冒险，拿…去冒⻛险",
+    "n. 机会；可能性；风险；偶然",
+    "vt. 冒险，拿…去冒风险",
     "vi. 偶然发生，碰巧"
    ],
    "phonetic": "/tʃæns. tʃɑ:ns/"
@@ -18831,7 +18831,7 @@
   {
    "english": "develop",
    "chinese": [
-    "vi. vt. (使) 发展，成⻓；患 (病)；加强",
+    "vi. vt. (使) 发展，成长；患 (病)；加强",
     "vt. 开发，研制；修建；阐明；冲洗"
    ],
    "phonetic": "/di'velәp/"
@@ -18955,8 +18955,8 @@
    "english": "charter",
    "chinese": [
     "n. 章程，宪章；特许状；包租",
-    "vt. 包租 (⻜机、船只等)",
-    "adj. (⻜机、船只等) 包租的"
+    "vt. 包租 (飞机、船只等)",
+    "adj. (飞机、船只等) 包租的"
    ],
    "phonetic": "/'tʃɑ:tә/"
   },
@@ -19016,7 +19016,7 @@
   {
    "english": "admission",
    "chinese": [
-    "n. 准许加入；承认，招认；⻔票钱"
+    "n. 准许加入；承认，招认；门票钱"
    ],
    "phonetic": "/әd'miʃәn/"
   },
@@ -19157,8 +19157,8 @@
   {
    "english": "prejudice",
    "chinese": [
-    "n. 偏⻅，成⻅",
-    "vt. 使有偏⻅；损害，危害"
+    "n. 偏见，成见",
+    "vt. 使有偏见；损害，危害"
    ],
    "phonetic": "/'predʒudis/"
   },
@@ -19270,7 +19270,7 @@
    "chinese": [
     "vi. vt. 耳语，小声说",
     "vt. 私下说，秘密告诉",
-    "vi. (叶子、⻛等) 沙沙作响",
+    "vi. (叶子、风等) 沙沙作响",
     "n. 耳语 (声)；轻柔的声音；传闻"
    ],
    "phonetic": "/'hwispә/"
@@ -19318,8 +19318,8 @@
   {
    "english": "witness",
    "chinese": [
-    "n. 目击者；(出庭的) 证人；⻅证人",
-    "vt. 目击，目睹；⻅证；连署"
+    "n. 目击者；(出庭的) 证人；见证人",
+    "vt. 目击，目睹；见证；连署"
    ],
    "phonetic": "/'witnis/"
   },
@@ -19470,7 +19470,7 @@
   {
    "english": "vice",
    "chinese": [
-    "n. 恶习；(⻩赌毒等) 罪行；老虎钳",
+    "n. 恶习；(黄赌毒等) 罪行；老虎钳",
     "pref. 副的，次的"
    ],
    "phonetic": "/vais/"
@@ -19935,7 +19935,7 @@
   {
    "english": "missile",
    "chinese": [
-    "n. 导弹，⻜弹；(作为武器) 投掷物"
+    "n. 导弹，飞弹；(作为武器) 投掷物"
    ],
    "phonetic": "/'misail/"
   },
@@ -20853,7 +20853,7 @@
   {
    "english": "devil",
    "chinese": [
-    "n. 魔⻤，恶魔；淘气⻤；家伙"
+    "n. 魔鬼，恶魔；淘气鬼；家伙"
    ],
    "phonetic": "/'devәl/"
   },
@@ -20929,7 +20929,7 @@
    "english": "hell",
    "chinese": [
     "n. 地狱；悲惨的境况",
-    "int. 该死，⻅⻤"
+    "int. 该死，见鬼"
    ],
    "phonetic": "/hel/"
   },
@@ -20950,7 +20950,7 @@
   {
    "english": "fleet",
    "chinese": [
-    "n. 舰队；捕⻥船队；⻋队",
+    "n. 舰队；捕鱼船队；车队",
     "adj. 快速的，敏捷的"
    ],
    "phonetic": "/fli:t/"
@@ -21026,8 +21026,8 @@
   {
    "english": "risk",
    "chinese": [
-    "n. ⻛险，危险；危险的事 (或人)",
-    "vt. 使…冒⻛险；冒…的⻛险"
+    "n. 风险，危险；危险的事 (或人)",
+    "vt. 使…冒风险；冒…的风险"
    ],
    "phonetic": "/risk/"
   },
@@ -21359,7 +21359,7 @@
    "chinese": [
     "vt. vi. 巡逻，巡查",
     "vt. (尤指威胁性地) 逛荡，闲逛",
-    "n. 巡逻，巡查；巡逻队，巡逻⻋队"
+    "n. 巡逻，巡查；巡逻队，巡逻车队"
    ],
    "phonetic": "/pә'trәul/"
   },
@@ -21400,7 +21400,7 @@
    "chinese": [
     "n. 间谍，密探",
     "vi. 从事间谍活动，搜集情报",
-    "vt. 突然看⻅，发现"
+    "vt. 突然看见，发现"
    ],
    "phonetic": "/spai/"
   },
@@ -21617,7 +21617,7 @@
    "english": "juvenile",
    "chinese": [
     "adj. 少年的；幼稚的；(动物) 幼小的",
-    "n. 少年；幼仔，雏⻦"
+    "n. 少年；幼仔，雏鸟"
    ],
    "phonetic": "/'dʒu:vinail/"
   },
@@ -21631,7 +21631,7 @@
   {
    "english": "youth",
    "chinese": [
-    "n. ⻘年时期；年轻人；⻘春，朝气"
+    "n. 青年时期；年轻人；青春，朝气"
    ],
    "phonetic": "/ju:θ/"
   },
@@ -21645,14 +21645,14 @@
   {
    "english": "teenager",
    "chinese": [
-    "n. (13到19岁的) ⻘少年"
+    "n. (13到19岁的) 青少年"
    ],
    "phonetic": "/'ti:nidʒә/"
   },
   {
    "english": "adolescence",
    "chinese": [
-    "n. ⻘春期"
+    "n. 青春期"
    ],
    "phonetic": "/.ædәu'lesәns/"
   },
@@ -21666,8 +21666,8 @@
   {
    "english": "folk",
    "chinese": [
-    "n. 人们；各位；家属；⺠间音乐",
-    "adj. ⺠间的，⺠俗的；流传⺠间的"
+    "n. 人们；各位；家属；民间音乐",
+    "adj. 民间的，民俗的；流传民间的"
    ],
    "phonetic": "/fәuk/"
   },
@@ -21964,7 +21964,7 @@
    "english": "sole",
    "chinese": [
     "adj. 唯一的，仅有的；独占的",
-    "n. 脚掌；鞋底，袜底；比目⻥"
+    "n. 脚掌；鞋底，袜底；比目鱼"
    ],
    "phonetic": "/sәul/"
   },
@@ -22127,7 +22127,7 @@
   {
    "english": "heroine",
    "chinese": [
-    "n. 女英雄；女主⻆；女偶像"
+    "n. 女英雄；女主角；女偶像"
    ],
    "phonetic": "/'herәuin/"
   },
@@ -22141,14 +22141,14 @@
   {
    "english": "chancellor",
    "chinese": [
-    "n. 总理；财政大臣；校⻓；大法官"
+    "n. 总理；财政大臣；校长；大法官"
    ],
    "phonetic": "/'tʃɑ:nsәlә/"
   },
   {
    "english": "commander",
    "chinese": [
-    "n. 指挥官，⻓官"
+    "n. 指挥官，长官"
    ],
    "phonetic": "/kә'mɑ:ndә/"
   },
@@ -22287,7 +22287,7 @@
   {
    "english": "fisherman",
    "chinese": [
-    "n. 渔⺠，钓⻥的人"
+    "n. 渔民，钓鱼的人"
    ],
    "phonetic": "/'fiʃәmәn/"
   },
@@ -22303,7 +22303,7 @@
    "english": "groom",
    "chinese": [
     "vt. 洗刷 (动物)；训练，栽培",
-    "n. 新郎；⻢夫，⻢倌"
+    "n. 新郎；马夫，马倌"
    ],
    "phonetic": "/gru:m/"
   },
@@ -22341,7 +22341,7 @@
   {
    "english": "coward",
    "chinese": [
-    "n. 胆小⻤，懦夫"
+    "n. 胆小鬼，懦夫"
    ],
    "phonetic": "/'kauәd/"
   },
@@ -22420,7 +22420,7 @@
   {
    "english": "nourish",
    "chinese": [
-    "vt. 给…提供营养；培养，助⻓"
+    "vt. 给…提供营养；培养，助长"
    ],
    "phonetic": "/'nә:riʃ/"
   },
@@ -22482,7 +22482,7 @@
    "english": "glimpse",
    "chinese": [
     "n. 一瞥；短暂的感受，初步的认识",
-    "vt. 瞥⻅；开始理解，开始领悟"
+    "vt. 瞥见；开始理解，开始领悟"
    ],
    "phonetic": "/glimps/"
   },
@@ -22742,7 +22742,7 @@
   {
    "english": "tap",
    "chinese": [
-    "n. 水⻰头；轻敲，轻拍；电话窃听",
+    "n. 水龙头；轻敲，轻拍；电话窃听",
     "vt. vi. 轻敲，轻拍；轻叩；利用，发掘",
     "vt. (在电话上) 安装窃听器；委任"
    ],
@@ -22810,7 +22810,7 @@
   {
    "english": "overtake",
    "chinese": [
-    "vt. vi. 超 (⻋)，追上 (前面的人)",
+    "vt. vi. 超 (车)，追上 (前面的人)",
     "vt. 赶超；(不幸等) 突然降临于"
    ],
    "phonetic": "/.әuvә'teik/"
@@ -23060,7 +23060,7 @@
    "english": "wrap",
    "chinese": [
     "vt. 包，裹；用…缠绕 (或围紧)",
-    "n. 披肩，围巾；包装材料；杀⻘"
+    "n. 披肩，围巾；包装材料；杀青"
    ],
    "phonetic": "/ræp/"
   },
@@ -23068,7 +23068,7 @@
    "english": "penetrate",
    "chinese": [
     "vt. vi. 穿过，进入；渗透 (组织、团体)",
-    "vt. 透过…看⻅；发现，揭示"
+    "vt. 透过…看见；发现，揭示"
    ],
    "phonetic": "/'penitreit/"
   },
@@ -23083,7 +23083,7 @@
    "english": "insert",
    "chinese": [
     "vt. 插入，嵌入；(在文本中) 插入",
-    "n. (杂志等的) 广告插⻚；插入物"
+    "n. (杂志等的) 广告插页；插入物"
    ],
    "phonetic": "/in'sә:t/"
   },
@@ -23098,8 +23098,8 @@
   {
    "english": "tow",
    "chinese": [
-    "vt. 牵引，拖，拉 (⻋或船)",
-    "n. (⻋或船的) 牵引，拖，拉"
+    "vt. 牵引，拖，拉 (车或船)",
+    "n. (车或船的) 牵引，拖，拉"
    ],
    "phonetic": "/tәu/"
   },
@@ -23131,7 +23131,7 @@
   {
    "english": "steer",
    "chinese": [
-    "vt. vi. 驾驶 (船、汽⻋等)；(船等) 行驶",
+    "vt. vi. 驾驶 (船、汽车等)；(船等) 行驶",
     "vt. 操纵，控制，引导；带领",
     "n. 阉公牛，肉用公牛"
    ],
@@ -23248,7 +23248,7 @@
    "chinese": [
     "adj. 难过的，心烦的；肠胃不适的",
     "vt. 使烦恼；打乱；使 (肠胃) 不适",
-    "n. 意外结果，冷⻔；肠胃病；苦恼"
+    "n. 意外结果，冷门；肠胃病；苦恼"
    ],
    "phonetic": "/ʌp'set/"
   },
@@ -23306,8 +23306,8 @@
   {
    "english": "bias",
    "chinese": [
-    "n. 偏⻅，偏袒；偏好",
-    "vt. 使有偏⻅，使偏心"
+    "n. 偏见，偏袒；偏好",
+    "vt. 使有偏见，使偏心"
    ],
    "phonetic": "/'baiәs/"
   },
@@ -23373,8 +23373,8 @@
   {
    "english": "hijack",
    "chinese": [
-    "vt. 劫持 (⻜机、⻋辆等)；控制，操纵",
-    "n. (⻜机、⻋辆等的) 劫持事件"
+    "vt. 劫持 (飞机、车辆等)；控制，操纵",
+    "n. (飞机、车辆等的) 劫持事件"
    ],
    "phonetic": "/'haidʒæk/"
   },
@@ -23441,8 +23441,8 @@
   {
    "english": "bait",
    "chinese": [
-    "n. ⻥饵；用作诱饵的人或物",
-    "vt. 给 (⻥钩或陷阱) 上诱饵；挑衅"
+    "n. 鱼饵；用作诱饵的人或物",
+    "vt. 给 (鱼钩或陷阱) 上诱饵；挑衅"
    ],
    "phonetic": "/beit/"
   },
@@ -23540,7 +23540,7 @@
    "english": "reverse",
    "chinese": [
     "vt. 逆转，扭转；撤销，推翻；使反转",
-    "vi. vt. 倒⻋",
+    "vi. vt. 倒车",
     "n. 相反的情况；背面；倒挡；损失",
     "adj. 相反的，反面的"
    ],
@@ -23932,7 +23932,7 @@
   {
    "english": "prolong",
    "chinese": [
-    "vt. 延⻓，拖延"
+    "vt. 延长，拖延"
    ],
    "phonetic": "/prәu'lɒŋ/"
   },
@@ -23970,7 +23970,7 @@
    "chinese": [
     "vt. 举起；提高；筹募；提及；抚养",
     "vt. 引起；饲养",
-    "n. 加薪，工资增⻓"
+    "n. 加薪，工资增长"
    ],
    "phonetic": "/reiz/"
   },
@@ -24193,7 +24193,7 @@
     "vi. 下沉；(人) 倒下；降低",
     "vt. 使下沉；挖，掘；埋入；使受挫",
     "n. 洗碗槽；洗脸池",
-    "adj. 贫⺠窟的"
+    "adj. 贫民窟的"
    ],
    "phonetic": "/siŋk/"
   },
@@ -24286,7 +24286,7 @@
    "english": "farewell",
    "chinese": [
     "n. 告别",
-    "int. (道别用语) 再⻅，再会"
+    "int. (道别用语) 再见，再会"
    ],
    "phonetic": "/'fєә'wel/"
   },
@@ -24495,14 +24495,14 @@
   {
    "english": "attitude",
    "chinese": [
-    "n. 态度，看法；我行我素的作⻛"
+    "n. 态度，看法；我行我素的作风"
    ],
    "phonetic": "/'ætitju:d/"
   },
   {
    "english": "character",
    "chinese": [
-    "n. 性格；⻆色；特点；字符；名誉"
+    "n. 性格；角色；特点；字符；名誉"
    ],
    "phonetic": "/'kærәktә/"
   },
@@ -24523,7 +24523,7 @@
   {
    "english": "virtue",
    "chinese": [
-    "n. 美德；优点，⻓处"
+    "n. 美德；优点，长处"
    ],
    "phonetic": "/'vә:tju:/"
   },
@@ -24569,29 +24569,29 @@
   {
    "english": "bone",
    "chinese": [
-    "n. ⻣头；⻣质",
-    "vt. 挑刺，剔⻣"
+    "n. 骨头；骨质",
+    "vt. 挑刺，剔骨"
    ],
    "phonetic": "/bәun/"
   },
   {
    "english": "backbone",
    "chinese": [
-    "n. 脊柱；支柱；⻣气"
+    "n. 脊柱；支柱；骨气"
    ],
    "phonetic": "/'bækbәun/"
   },
   {
    "english": "skeleton",
    "chinese": [
-    "n. ⻣骼；(建筑等的) 框架；梗概"
+    "n. 骨骼；(建筑等的) 框架；梗概"
    ],
    "phonetic": "/'skelәtn/"
   },
   {
    "english": "skull",
    "chinese": [
-    "n. 颅⻣，头⻣；脑袋，头脑"
+    "n. 颅骨，头骨；脑袋，头脑"
    ],
    "phonetic": "/skʌl/"
   },
@@ -24665,7 +24665,7 @@
   {
    "english": "mouth",
    "chinese": [
-    "n. 嘴；入口；河口；⻝客；言谈",
+    "n. 嘴；入口；河口；食客；言谈",
     "vt. (动嘴唇) 不出声地说"
    ],
    "phonetic": "/mauθ/"
@@ -24711,7 +24711,7 @@
   {
    "english": "neck",
    "chinese": [
-    "n. 脖子；衣领；细⻓的部分"
+    "n. 脖子；衣领；细长的部分"
    ],
    "phonetic": "/nek/"
   },
@@ -24773,7 +24773,7 @@
   {
    "english": "finger",
    "chinese": [
-    "n. 手指；狭⻓物",
+    "n. 手指；狭长物",
     "vt. 用手指触摸；告发，告密"
    ],
    "phonetic": "/'fiŋgә/"
@@ -24802,7 +24802,7 @@
   {
    "english": "rib",
    "chinese": [
-    "n. 肋⻣；排⻣；肋材；罗纹",
+    "n. 肋骨；排骨；肋材；罗纹",
     "vt. (友善地) 开…的玩笑"
    ],
    "phonetic": "/rib/"
@@ -24817,7 +24817,7 @@
   {
    "english": "organ",
    "chinese": [
-    "n. 器官；管⻛琴；机构，机关"
+    "n. 器官；管风琴；机构，机关"
    ],
    "phonetic": "/'ɒ:gәn/"
   },
@@ -24882,7 +24882,7 @@
   {
    "english": "thigh",
    "chinese": [
-    "n. 大腿；(⻝用禽类的) 腿"
+    "n. 大腿；(食用禽类的) 腿"
    ],
    "phonetic": "/θai/"
   },
@@ -24907,7 +24907,7 @@
    "chinese": [
     "n. (坐着时的) 大腿部；(跑道) 一圈",
     "vi. (水) 轻拍，轻打",
-    "vt. 舔⻝；领先一圈 (或数圈)"
+    "vt. 舔食；领先一圈 (或数圈)"
    ],
    "phonetic": "/læp/"
   },
@@ -25024,8 +25024,8 @@
   {
    "english": "sight",
    "chinese": [
-    "n. 视力；看⻅；视野；景象；名胜",
-    "vt. 看⻅，发现"
+    "n. 视力；看见；视野；景象；名胜",
+    "vt. 看见，发现"
    ],
    "phonetic": "/sait/"
   },
@@ -25047,7 +25047,7 @@
   {
    "english": "visual",
    "chinese": [
-    "adj. 视觉的，视力的，可⻅的",
+    "adj. 视觉的，视力的，可见的",
     "n. 视觉材料"
    ],
    "phonetic": "/'viʒuәl/"
@@ -25055,7 +25055,7 @@
   {
    "english": "visible",
    "chinese": [
-    "adj. 可⻅的；明显的"
+    "adj. 可见的；明显的"
    ],
    "phonetic": "/'vizәbl/"
   },
@@ -25069,7 +25069,7 @@
   {
    "english": "blind",
    "chinese": [
-    "adj. 失明的；视而不⻅的；盲目的",
+    "adj. 失明的；视而不见的；盲目的",
     "n. 窗帘，卷帘",
     "vt. 使变瞎；使眼花；使失去判断力"
    ],
@@ -25093,7 +25093,7 @@
   {
    "english": "dental",
    "chinese": [
-    "adj. 牙⻮的，牙科的"
+    "adj. 牙齿的，牙科的"
    ],
    "phonetic": "/'dentl/"
   },
@@ -25166,7 +25166,7 @@
    "chinese": [
     "n. 小矮人；侏儒",
     "adj. (动植物) 矮小的",
-    "vt. 使显得矮小，使相形⻅绌"
+    "vt. 使显得矮小，使相形见绌"
    ],
    "phonetic": "/dwɒ:f/"
   },
@@ -25376,7 +25376,7 @@
   {
    "english": "stroke",
    "chinese": [
-    "n. 击球；一击；一笔；中⻛；轻抚",
+    "n. 击球；一击；一笔；中风；轻抚",
     "n. (成功的) 举动；钟声；游泳姿势",
     "vt. 轻抚，抚摸；轻触，轻拭"
    ],
@@ -25466,7 +25466,7 @@
   {
    "english": "bruise",
    "chinese": [
-    "n. ⻘肿，瘀伤",
+    "n. 青肿，瘀伤",
     "vt. vi. (使) 出现伤痕，擦伤",
     "vt. 打击，挫伤 (信心)"
    ],
@@ -25645,7 +25645,7 @@
   {
    "english": "chronic",
    "chinese": [
-    "adj. 慢性的，⻓期的；积习难改的"
+    "adj. 慢性的，长期的；积习难改的"
    ],
    "phonetic": "/'krɒnik/"
   },
@@ -25653,7 +25653,7 @@
    "english": "acute",
    "chinese": [
     "adj. 严重的，剧烈的；(疾病) 急性的",
-    "adj. (感官) 灵敏的；敏锐的；锐⻆的"
+    "adj. (感官) 灵敏的；敏锐的；锐角的"
    ],
    "phonetic": "/ә'kju:t/"
   },
@@ -25748,7 +25748,7 @@
   {
    "english": "clinic",
    "chinese": [
-    "n. 诊所；⻔诊时间；研习班"
+    "n. 诊所；门诊时间；研习班"
    ],
    "phonetic": "/'klinik/"
   },
@@ -25926,7 +25926,7 @@
   {
    "english": "penicillin",
    "chinese": [
-    "n. ⻘霉素，盘尼西林"
+    "n. 青霉素，盘尼西林"
    ],
    "phonetic": "/.peni'silin/"
   },
@@ -25956,7 +25956,7 @@
    "english": "refresh",
    "chinese": [
     "vt. 使恢复活力；翻新；使记起",
-    "vt. vi. 刷新 (网⻚)"
+    "vt. vi. 刷新 (网页)"
    ],
    "phonetic": "/ri'freʃ/"
   },
@@ -26019,7 +26019,7 @@
   {
    "english": "common",
    "chinese": [
-    "adj. 常⻅的，普通的；共有的"
+    "adj. 常见的，普通的；共有的"
    ],
    "phonetic": "/'kɒmәn/"
   },
@@ -26590,7 +26590,7 @@
   {
    "english": "picturesque",
    "chinese": [
-    "adj. ⻛景如画的；语言生动的"
+    "adj. 风景如画的；语言生动的"
    ],
    "phonetic": "/.piktʃә'resk/"
   },
@@ -26658,7 +26658,7 @@
    "chinese": [
     "adj. 温柔的；嫩的；一碰就疼的",
     "vt. 提议，提出",
-    "n. 投标；煤水⻋；补给船"
+    "n. 投标；煤水车；补给船"
    ],
    "phonetic": "/'tendә/"
   },
@@ -27398,7 +27398,7 @@
   {
    "english": "sigh",
    "chinese": [
-    "vi. 叹气，叹息；(⻛) 悲鸣",
+    "vi. 叹气，叹息；(风) 悲鸣",
     "vt. 叹息着说",
     "n. 叹气，叹息"
    ],
@@ -27559,8 +27559,8 @@
   {
    "english": "stereotype",
    "chinese": [
-    "n. 成⻅，刻板印象",
-    "vt. 对…有成⻅"
+    "n. 成见，刻板印象",
+    "vt. 对…有成见"
    ],
    "phonetic": "/'stiәriәtaip/"
   },
@@ -27782,7 +27782,7 @@
   {
    "english": "instant",
    "chinese": [
-    "adj. 立即的；即⻝的，速溶的",
+    "adj. 立即的；即食的，速溶的",
     "n. 刹那，顷刻"
    ],
    "phonetic": "/'instәnt/"
