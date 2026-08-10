@@ -8,6 +8,7 @@ public enum QuizModeFlags
     ChineseToEnglish = 1 << 1,  // 中→英 选择题
     SpellEnglish     = 1 << 2,  // 中→英 拼写
     ListenToChinese  = 1 << 3,  // 听力→中 选择题（听发音选释义）
+    RecallCard       = 1 << 4,  // 回忆卡片（墨墨式）：看词自己回忆 → 翻面看释义 → 自评记没记住
 }
 
 public sealed class QuizQuestion
@@ -35,6 +36,10 @@ public sealed class QuizQuestion
 
     public bool IsSpelling => Mode == QuizModeFlags.SpellEnglish;
     public bool IsListening => Mode == QuizModeFlags.ListenToChinese;
+
+    /// <summary>回忆卡片：无选项、无输入，翻面后由玩家自评「想起来了/没想起来」。</summary>
+    public bool IsRecall => Mode == QuizModeFlags.RecallCard;
+
     public bool IsMultiSelect => CorrectIndices.Count > 1;
 
     public bool CheckAnswer(int selectedIndex) => selectedIndex == CorrectIndex;

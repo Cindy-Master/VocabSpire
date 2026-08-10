@@ -17,6 +17,8 @@ public partial class RestSiteReviewPanel : Control
     private Label _promptLabel = null!;
     private Label _feedbackLabel = null!;
     private ChoiceAnswerWidget _choiceWidget = null!;
+    private RecallCardWidget _recallWidget = null!;
+    private Button _spellingForgotBtn = null!;
     private HBoxContainer _spellingContainer = null!;
     private LineEdit _spellingInput = null!;
     private Button _spellingSubmitBtn = null!;
@@ -113,6 +115,10 @@ public partial class RestSiteReviewPanel : Control
         _choiceWidget = new ChoiceAnswerWidget { Visible = false };
         mainVBox.AddChild(_choiceWidget);
 
+        // 回忆卡片答题区（共享组件 —— 翻面 + 自评）
+        _recallWidget = new RecallCardWidget { Visible = false };
+        mainVBox.AddChild(_recallWidget);
+
         // 拼写输入区（拼写模式时显示）
         _spellingContainer = new HBoxContainer { Visible = false };
         _spellingContainer.AddThemeConstantOverride("separation", 10);
@@ -133,6 +139,14 @@ public partial class RestSiteReviewPanel : Control
         _spellingSubmitBtn.CustomMinimumSize = new Vector2(100, 46);
         _spellingSubmitBtn.Pressed += OnSpellingSubmit;
         _spellingContainer.AddChild(_spellingSubmitBtn);
+
+        // 拼写复习的「忘了」：拼不出来直接认错看答案（与战斗答题面板同一开关）
+        _spellingForgotBtn = new Button { Text = "  🤔 忘了  " };
+        _spellingForgotBtn.AddThemeFontSizeOverride("font_size", 16);
+        _spellingForgotBtn.CustomMinimumSize = new Vector2(110, 46);
+        _spellingForgotBtn.FocusMode = FocusModeEnum.None;
+        _spellingForgotBtn.Pressed += OnSpellingForgot;
+        _spellingContainer.AddChild(_spellingForgotBtn);
 
         _feedbackLabel = GameTheme.MakeLabel("", 18, White, HorizontalAlignment.Center);
         mainVBox.AddChild(_feedbackLabel);
@@ -253,17 +267,27 @@ public partial class RestSiteReviewPanel : Control
                 _currentReviewQuiz = quiz;
                 _promptLabel.Text = quiz.Prompt;
 
-                if (quiz.IsSpelling)
+                if (quiz.IsRecall)
                 {
                     _choiceWidget.Hide();
+                    _spellingContainer.Visible = false;
+                    _recallWidget.ShowQuestion(quiz, OnReviewRecallAnswered);
+                }
+                else if (quiz.IsSpelling)
+                {
+                    _choiceWidget.Hide();
+                    _recallWidget.Hide();
                     _spellingContainer.Visible = true;
                     _spellingInput.Text = "";
                     _spellingInput.Editable = true;
                     _spellingSubmitBtn.Disabled = false;
+                    _spellingForgotBtn.Visible = VocabConfig.Instance.ShowForgotButton;
+                    _spellingForgotBtn.Disabled = false;
                     _spellingInput.CallDeferred(LineEdit.MethodName.GrabFocus);
                 }
                 else
                 {
+                    _recallWidget.Hide();
                     _spellingContainer.Visible = false;
                     _choiceWidget.ShowQuestion(quiz, OnReviewChoiceAnswered);
                 }
@@ -283,14 +307,59 @@ public partial class RestSiteReviewPanel : Control
         // 否则复习答对了掌握度纹丝不动、词永远当错题反复出，复习等于白做。
         VocabManager.Instance.RecordAnswer(_currentReviewQuiz.TargetWord, correct);
 
-        _feedbackLabel.Text = correct ? "回答正确！" : "回答错误！";
-        _feedbackLabel.AddThemeColorOverride("font_color", correct ? CorrectGreen : WrongRed);
+        if (correct)
+            SetFeedback("回答正确！", true);
+        else if (_choiceWidget.LastAnswerWasForgot)
+            SetFeedback($"没关系，记住它：{_currentReviewQuiz.CorrectText}", false);
+        else
+            SetFeedback("回答错误！", false);
 
+        ShowNextButton();
+    }
+
+    /// <summary>回忆卡片复习：玩家翻面后自评，结果同样回写记忆引擎。</summary>
+    private void OnReviewRecallAnswered(bool remembered)
+    {
+        if (_currentReviewQuiz is null) return;
+        _answered = true;
+
+        VocabManager.Instance.RecordAnswer(_currentReviewQuiz.TargetWord, remembered);
+
+        SetFeedback(remembered ? "✅ 记住了" : $"没关系，记住它：{_currentReviewQuiz.CorrectText}", remembered);
+        ShowNextButton();
+    }
+
+    private void SetFeedback(string text, bool positive)
+    {
+        _feedbackLabel.Text = text;
+        _feedbackLabel.AddThemeColorOverride("font_color", positive ? CorrectGreen : WrongRed);
+    }
+
+    private void ShowNextButton()
+    {
         _nextBtn.Visible = true;
         var contKey = KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey);
         _nextBtn.Text = _currentIndex >= _records.Count - 1
             ? $"  完成复习 ({contKey})  "
             : $"  下一题 ({contKey})  ";
+    }
+
+    /// <summary>拼写复习点「忘了」：不填直接判错并显示正确拼写。</summary>
+    private void OnSpellingForgot()
+    {
+        if (_answered || _currentReviewQuiz is null) return;
+        _answered = true;
+
+        VocabManager.Instance.RecordAnswer(_currentReviewQuiz.TargetWord, false);
+        if (VocabConfig.Instance.AutoSpeakOnAnswer)
+            TtsService.Instance.Speak(_currentReviewQuiz.TargetWord.English);
+
+        _spellingInput.Editable = false;
+        _spellingSubmitBtn.Disabled = true;
+        _spellingForgotBtn.Disabled = true;
+
+        SetFeedback($"没关系，记住它：{_currentReviewQuiz.CorrectText}", false);
+        ShowNextButton();
     }
 
     private void OnSpellingSubmit()
@@ -312,23 +381,11 @@ public partial class RestSiteReviewPanel : Control
 
         _spellingInput.Editable = false;
         _spellingSubmitBtn.Disabled = true;
+        _spellingForgotBtn.Disabled = true;
 
-        if (correct)
-        {
-            _feedbackLabel.Text = "回答正确！";
-            _feedbackLabel.AddThemeColorOverride("font_color", CorrectGreen);
-        }
-        else
-        {
-            _feedbackLabel.Text = $"回答错误！正确答案：{_currentReviewQuiz.CorrectText}";
-            _feedbackLabel.AddThemeColorOverride("font_color", WrongRed);
-        }
+        SetFeedback(correct ? "回答正确！" : $"回答错误！正确答案：{_currentReviewQuiz.CorrectText}", correct);
 
-        _nextBtn.Visible = true;
-        var contKey = KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey);
-        _nextBtn.Text = _currentIndex >= _records.Count - 1
-            ? $"  完成复习 ({contKey})  "
-            : $"  下一题 ({contKey})  ";
+        ShowNextButton();
     }
 
     private void ShowNextWord()
@@ -365,17 +422,22 @@ public partial class RestSiteReviewPanel : Control
         if (_answered || _currentReviewQuiz is null) return;
         if (_currentReviewQuiz.IsSpelling) return; // 让 LineEdit 处理
 
-        // 提交键 → 提交
+        // 提交键：回忆卡片 → 翻面；选择题 → 提交
         if (VocabConfig.KeyMatches(key.Keycode, VocabConfig.Instance.SubmitKey))
         {
-            if (_choiceWidget.TrySubmit())
-            {
-                GetViewport().SetInputAsHandled();
-            }
+            var submitted = _currentReviewQuiz.IsRecall ? _recallWidget.TryReveal() : _choiceWidget.TrySubmit();
+            if (submitted) GetViewport().SetInputAsHandled();
             return;
         }
 
-        // A-H / 1-8 → 切换选项
+        // 0 → 「忘了」（选择题）
+        if (key.Keycode is Key.Key0 or Key.Kp0 && !_currentReviewQuiz.IsRecall)
+        {
+            if (_choiceWidget.TryForgot()) GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        // A-H / 1-8 → 切换选项（回忆卡片：翻面后 1/A=想起来了，2/B=没想起来）
         var idx = key.Keycode switch
         {
             Key.A or Key.Key1 => 0,
@@ -388,10 +450,11 @@ public partial class RestSiteReviewPanel : Control
             Key.H or Key.Key8 => 7,
             _ => -1
         };
-        if (idx >= 0 && _choiceWidget.HandleKeyOption(idx))
-        {
-            GetViewport().SetInputAsHandled();
-        }
+        if (idx < 0) return;
+        var consumed = _currentReviewQuiz.IsRecall
+            ? _recallWidget.HandleKeyOption(idx)
+            : _choiceWidget.HandleKeyOption(idx);
+        if (consumed) GetViewport().SetInputAsHandled();
     }
 
     public static void Create()

@@ -32,6 +32,8 @@ public sealed class QuizGenerator
 
         if (mode == QuizModeFlags.SpellEnglish)
             return GenerateSpellingQuestion(targetWord, tier);
+        if (mode == QuizModeFlags.RecallCard)
+            return GenerateRecallQuestion(targetWord);
 
         return GenerateMultipleChoiceQuestion(targetWord, bank, mode, effectiveOptionCount, tier);
     }
@@ -53,6 +55,8 @@ public sealed class QuizGenerator
 
         if (mode == QuizModeFlags.SpellEnglish)
             return GenerateSpellingQuestion(targetWord, tier);
+        if (mode == QuizModeFlags.RecallCard)
+            return GenerateRecallQuestion(targetWord);
 
         return GenerateMultipleChoiceQuestion(targetWord, bank, mode, effectiveOptionCount, tier);
     }
@@ -68,7 +72,36 @@ public sealed class QuizGenerator
             return GenerateFixedChoiceQuestion(target);       // 篝火复习固定题：出原题
         if (mode == QuizModeFlags.SpellEnglish)
             return GenerateSpellingQuestion(target, tier: 1);
+        if (mode == QuizModeFlags.RecallCard)
+            return GenerateRecallQuestion(target);
         return GenerateMultipleChoiceQuestion(target, bank, mode, optionCount, tier: 1);
+    }
+
+    // ── 回忆卡片（墨墨式自评）──
+
+    /// <summary>
+    /// 回忆卡片：正面只给单词（Prompt），玩家在心里回忆释义后翻面自评。
+    /// 释义全文放 CorrectText（翻面时展示），音标随释义一起放背面 —— 音标是提示，
+    /// 放正面等于提前给线索，削弱主动回忆的效果。
+    /// 固定选择题词条不会走到这里（Generate 入口已按 IsFixedChoice 分流）。
+    /// </summary>
+    private QuizQuestion GenerateRecallQuestion(WordEntry target)
+    {
+        var answer = target.HasMultipleDefinitions
+            ? string.Join("\n", target.Definitions)
+            : target.Chinese;
+        if (!string.IsNullOrWhiteSpace(target.Phonetic))
+            answer = $"{target.Phonetic}\n{answer}";
+
+        return new QuizQuestion
+        {
+            TargetWord = target,
+            Mode = QuizModeFlags.RecallCard,
+            Prompt = target.English,
+            Options = Array.Empty<string>(),
+            CorrectIndex = -1,
+            CorrectText = answer
+        };
     }
 
     // ── 固定选择题（题库模式）──
@@ -108,6 +141,7 @@ public sealed class QuizGenerator
         if (flags.HasFlag(QuizModeFlags.ChineseToEnglish)) modes.Add(QuizModeFlags.ChineseToEnglish);
         if (flags.HasFlag(QuizModeFlags.ListenToChinese)) modes.Add(QuizModeFlags.ListenToChinese);
         if (flags.HasFlag(QuizModeFlags.SpellEnglish)) modes.Add(QuizModeFlags.SpellEnglish);
+        if (flags.HasFlag(QuizModeFlags.RecallCard)) modes.Add(QuizModeFlags.RecallCard);
 
         var chosen = modes[_random.Next(modes.Count)];
         var cfg = VocabConfig.Instance;

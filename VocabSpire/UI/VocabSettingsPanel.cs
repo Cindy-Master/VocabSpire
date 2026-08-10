@@ -18,6 +18,7 @@ public partial class VocabSettingsPanel : Control
     private CheckButton _modeCnToEn = null!;
     private CheckButton _modeSpell = null!;
     private CheckButton _modeListen = null!;
+    private CheckButton _modeRecall = null!;
     private OptionButton _optionCountSelector = null!;
     private CheckButton _combatSummaryToggle = null!;
     private CheckButton _restReviewToggle = null!;
@@ -31,7 +32,9 @@ public partial class VocabSettingsPanel : Control
     private CheckButton _usePerActToggle = null!;
     private VBoxContainer _perActContainer = null!;
     private VBoxContainer _globalModeContainer = null!;
-    private CheckButton[,] _actModeChecks = new CheckButton[3, 4];
+    /// <summary>[Act, 题型位序]；第二维长度 = QuizModeFlags 的位数（新增题型时同步 ModeFlagCount）。</summary>
+    private const int ModeFlagCount = 5;
+    private CheckButton[,] _actModeChecks = new CheckButton[3, ModeFlagCount];
     private CheckButton _spellingReviewToggle = null!;
 
     private static readonly Color Gold = GameTheme.Gold;
@@ -306,6 +309,18 @@ public partial class VocabSettingsPanel : Control
         _modeListen.Toggled += _ => SaveQuizModes();
         _globalModeContainer.AddChild(_modeListen);
 
+        _modeRecall = new CheckButton
+        {
+            Text = " \uD83E\uDDE0 \u56DE\u5FC6\u5361\u7247 (\u770B\u8BCD\u81EA\u5DF1\u56DE\u5FC6 \u2192 \u7FFB\u9762\u81EA\u8BC4)",
+            ButtonPressed = cfg.QuizModes.HasFlag(QuizModeFlags.RecallCard)
+        };
+        _modeRecall.TooltipText = "\u58A8\u58A8\u80CC\u5355\u8BCD\u90A3\u79CD\u56DE\u5FC6\u5361\u7247\uFF1A\u6B63\u9762\u53EA\u7ED9\u5355\u8BCD\uFF0C\u81EA\u5DF1\u5728\u5FC3\u91CC\u56DE\u5FC6\u610F\u601D\uFF0C\n"
+                                  + "\u70B9\u300C\u663E\u793A\u7B54\u6848\u300D\u7FFB\u9762\u540E\u81EA\u8BC4\u300C\u60F3\u8D77\u6765\u4E86 / \u6CA1\u60F3\u8D77\u6765\u300D\u3002\n"
+                                  + "\u81EA\u8BC4\u7ED3\u679C\u7167\u5E38\u8BB0\u5165\u8BB0\u5FC6\u5F15\u64CE\uFF08\u60F3\u8D77\u6765\u4E86=\u7B54\u5BF9\uFF0C\u6CA1\u60F3\u8D77\u6765=\u7B54\u9519\uFF09\u3002\n"
+                                  + "\u6CE8\u610F\uFF1A\u8FD9\u662F\u9760\u81EA\u89C9\u7684\u81EA\u8BC4\u9898\uFF0C\u70B9\u300C\u60F3\u8D77\u6765\u4E86\u300D\u5C31\u7B97\u5BF9\uFF0C\u4E0D\u4F1A\u7ED9\u96BE\u5EA6\u5956\u52B1\u52A0\u6210\u3002";
+        _modeRecall.Toggled += _ => SaveQuizModes();
+        _globalModeContainer.AddChild(_modeRecall);
+
         // 分层模式区域（分层开启时显示）
         _perActContainer = new VBoxContainer();
         _perActContainer.AddThemeConstantOverride("separation", 6);
@@ -314,7 +329,8 @@ public partial class VocabSettingsPanel : Control
 
         var actNames = new[] { "Act 1 (基础)", "Act 2 (进阶)", "Act 3 (挑战)" };
         var actModes = new[] { cfg.Act1Modes, cfg.Act2Modes, cfg.Act3Modes };
-        var modeLabels = new[] { "\u82F1\u2192\u4E2D", "\u4E2D\u2192\u82F1", "\u62FC\u5199", "\u542C\u529B" };
+        // \u987A\u5E8F\u5FC5\u987B\u4E0E QuizModeFlags \u7684\u4F4D\u5E8F\u4E00\u81F4\uFF08\u4E0B\u9762\u6309 1<<m \u53D6 flag\uFF09
+        var modeLabels = new[] { "\u82F1\u2192\u4E2D", "\u4E2D\u2192\u82F1", "\u62FC\u5199", "\u542C\u529B", "\u56DE\u5FC6\u5361" };
 
         for (var act = 0; act < 3; act++)
         {
@@ -323,7 +339,7 @@ public partial class VocabSettingsPanel : Control
             _perActContainer.AddChild(row);
             row.AddChild(GameTheme.MakeLabel($"{actNames[act]}:", 13, White));
 
-            for (var m = 0; m < 4; m++)
+            for (var m = 0; m < ModeFlagCount; m++)
             {
                 var flag = (QuizModeFlags)(1 << m);
                 var cb = new CheckButton
@@ -466,6 +482,21 @@ public partial class VocabSettingsPanel : Control
             VocabConfig.Instance.Save();
         };
         vbox.AddChild(multiSelectToggle);
+
+        var forgotToggle = new CheckButton
+        {
+            Text = " 🤔 选择题/拼写题显示「忘了」按钮（想不起来直接看答案，不用瞎蒙）",
+            ButtonPressed = cfg.ShowForgotButton
+        };
+        forgotToggle.AddThemeFontSizeOverride("font_size", 13);
+        forgotToggle.TooltipText = "点「忘了」= 主动认错：判为答错、显示正确答案。\n"
+                                   + "蒙对会让记忆引擎误判「已掌握」，主动认错的数据才准，这个词也会更快重现。";
+        forgotToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.ShowForgotButton = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(forgotToggle);
 
         vbox.AddChild(GameTheme.MakeLabel(
             "简单模式：显示如 \"c _ _ e\" 的提示，仍需输入完整单词；困难模式：仅给中文释义从零拼写", 16, DimGrey));
@@ -702,7 +733,8 @@ public partial class VocabSettingsPanel : Control
             (QuizModeFlags.EnglishToChinese, "英→中"),
             (QuizModeFlags.ChineseToEnglish, "中→英"),
             (QuizModeFlags.ListenToChinese, "听力"),
-            (QuizModeFlags.SpellEnglish, "拼写")
+            (QuizModeFlags.SpellEnglish, "拼写"),
+            (QuizModeFlags.RecallCard, "回忆卡")
         };
         var pick = 0;
         for (var i = 0; i < types.Length; i++)
@@ -1125,10 +1157,12 @@ public partial class VocabSettingsPanel : Control
         reviewModeSelector.AddItem("英 \u2192 中", 0);
         reviewModeSelector.AddItem("中 \u2192 英", 1);
         reviewModeSelector.AddItem("拼写", 2);
+        reviewModeSelector.AddItem("🧠 回忆卡片", 3);
         var currentReviewMode = cfg.ReviewQuizMode switch
         {
             QuizModeFlags.ChineseToEnglish => 1,
             QuizModeFlags.SpellEnglish => 2,
+            QuizModeFlags.RecallCard => 3,
             _ => 0
         };
         reviewModeSelector.Selected = currentReviewMode;
@@ -1138,6 +1172,7 @@ public partial class VocabSettingsPanel : Control
             {
                 1 => QuizModeFlags.ChineseToEnglish,
                 2 => QuizModeFlags.SpellEnglish,
+                3 => QuizModeFlags.RecallCard,
                 _ => QuizModeFlags.EnglishToChinese
             };
             VocabConfig.Instance.Save();
@@ -1511,6 +1546,7 @@ public partial class VocabSettingsPanel : Control
         if (_modeCnToEn.ButtonPressed) flags |= QuizModeFlags.ChineseToEnglish;
         if (_modeSpell.ButtonPressed) flags |= QuizModeFlags.SpellEnglish;
         if (_modeListen.ButtonPressed) flags |= QuizModeFlags.ListenToChinese;
+        if (_modeRecall.ButtonPressed) flags |= QuizModeFlags.RecallCard;
 
         // 至少保留一个模式
         if (flags == QuizModeFlags.None)
@@ -1526,7 +1562,7 @@ public partial class VocabSettingsPanel : Control
     private void SavePerActModes(int actIndex)
     {
         var flags = QuizModeFlags.None;
-        for (var m = 0; m < 4; m++)
+        for (var m = 0; m < ModeFlagCount; m++)
         {
             if (_actModeChecks[actIndex, m].ButtonPressed)
                 flags |= (QuizModeFlags)(1 << m);

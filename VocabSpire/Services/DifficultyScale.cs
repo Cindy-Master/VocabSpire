@@ -42,6 +42,8 @@ public static class DifficultyScale
 
     private static float OnceByMode(QuizModeFlags mode) => mode switch
     {
+        // 回忆卡片是自评题（点「想起来了」即算对），不给任何难度加成，避免成为刷奖励的捷径
+        QuizModeFlags.RecallCard       => 1.0f,
         QuizModeFlags.EnglishToChinese => 1.0f,
         QuizModeFlags.ChineseToEnglish => 1.5f,
         QuizModeFlags.ListenToChinese  => 1.5f,
@@ -52,6 +54,7 @@ public static class DifficultyScale
     /// <summary>Recurring 模式系数更保守，避免无限叠加爆表。</summary>
     private static float RecurringByMode(QuizModeFlags mode) => mode switch
     {
+        QuizModeFlags.RecallCard       => 1.0f,
         QuizModeFlags.EnglishToChinese => 1.0f,
         QuizModeFlags.ChineseToEnglish => 1.2f,
         QuizModeFlags.ListenToChinese  => 1.2f,

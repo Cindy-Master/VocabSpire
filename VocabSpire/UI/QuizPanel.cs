@@ -18,10 +18,12 @@ public partial class QuizPanel : Control
     private Label _feedbackLabel = null!;
     private Label _statsLabel = null!;
     private ChoiceAnswerWidget _choiceWidget = null!;
+    private RecallCardWidget _recallWidget = null!;
     private HBoxContainer _spellingContainer = null!;
     private Label _spellingHintLabel = null!;
     private LineEdit _spellingInput = null!;
     private Button _spellingSubmitBtn = null!;
+    private Button _spellingForgotBtn = null!;
     private Button _confirmButton = null!;
     private HBoxContainer _listenContainer = null!;
     private Button _listenBtn = null!;
@@ -115,6 +117,10 @@ public partial class QuizPanel : Control
         _choiceWidget = new ChoiceAnswerWidget { Visible = false };
         mainVBox.AddChild(_choiceWidget);
 
+        // 回忆卡片答题区（共享组件 —— 翻面 + 自评）
+        _recallWidget = new RecallCardWidget { Visible = false };
+        mainVBox.AddChild(_recallWidget);
+
         // 拼写简单模式掩码提示（如 "c _ _ e"）
         _spellingHintLabel = GameTheme.MakeLabel("", 32, AccentGold, HorizontalAlignment.Center);
         _spellingHintLabel.AddThemeConstantOverride("outline_size", 0);
@@ -141,6 +147,15 @@ public partial class QuizPanel : Control
         _spellingSubmitBtn.CustomMinimumSize = new Vector2(100, 46);
         _spellingSubmitBtn.Pressed += OnSpellingSubmit;
         _spellingContainer.AddChild(_spellingSubmitBtn);
+
+        // 拼写题的「忘了」：拼不出来时直接认错看答案（与选择题的忘了按钮同一开关）
+        _spellingForgotBtn = new Button { Text = "  🤔 忘了  " };
+        _spellingForgotBtn.AddThemeFontSizeOverride("font_size", 16);
+        _spellingForgotBtn.CustomMinimumSize = new Vector2(110, 46);
+        _spellingForgotBtn.FocusMode = FocusModeEnum.None;   // 不抢输入框焦点
+        _spellingForgotBtn.TooltipText = "拼不出来时点这里：直接判错并显示正确拼写，不用瞎填。可在设置中关闭。";
+        _spellingForgotBtn.Pressed += OnSpellingForgot;
+        _spellingContainer.AddChild(_spellingForgotBtn);
 
         // 听力播放按钮（备用：题目区显示后再放一个）
         _listenContainer = new HBoxContainer { Visible = false };
@@ -193,6 +208,7 @@ public partial class QuizPanel : Control
             QuizModeFlags.ChineseToEnglish => "中 → 英",
             QuizModeFlags.SpellEnglish => "中 → 英 (拼写)",
             QuizModeFlags.ListenToChinese => "🔊 听力模式",
+            QuizModeFlags.RecallCard => "🧠 回忆卡片",
             _ => ""
         };
         if (VocabConfig.Instance.EnableDifficultyScaling)
@@ -206,9 +222,21 @@ public partial class QuizPanel : Control
 
         _spellingContainer.Visible = question.IsSpelling;
 
-        if (question.IsSpelling)
+        if (question.IsRecall)
+        {
+            // 回忆卡片：正面只有单词，翻面后自评（无选项、无输入）
+            _choiceWidget.Hide();
+            _spellingHintLabel.Visible = false;
+            _listenContainer.Visible = false;
+            _promptLabel.Visible = true;
+            _listenPlayTop.Visible = VocabConfig.Instance.EnToCnPlayAudio;  // 单词就在正面，朗读不算泄题
+            _recallWidget.ShowQuestion(question, OnRecallAnswered);
+        }
+        else if (question.IsSpelling)
         {
             _choiceWidget.Hide();
+            _recallWidget.Hide();
+            _spellingForgotBtn.Visible = VocabConfig.Instance.ShowForgotButton;
             _listenContainer.Visible = false;
             _promptLabel.Visible = true;
 
@@ -223,12 +251,14 @@ public partial class QuizPanel : Control
             _spellingInput.Text = "";
             _spellingInput.Editable = true;
             _spellingSubmitBtn.Disabled = false;
+            _spellingForgotBtn.Disabled = false;
             _spellingInput.CallDeferred(LineEdit.MethodName.GrabFocus);
         }
         else
         {
             // 选择题 / 听力题 —— 选项区交给共享组件
             _spellingHintLabel.Visible = false;
+            _recallWidget.Hide();
             _choiceWidget.ShowQuestion(question, OnChoiceAnswered);
 
             if (question.IsListening)
@@ -279,9 +309,10 @@ public partial class QuizPanel : Control
         var correctText = isMulti
             ? string.Join(" | ", _currentQuestion.CorrectIndices.Select(i => _currentQuestion.Options[i]))
             : (_currentQuestion.CorrectIndex >= 0 ? _currentQuestion.Options[_currentQuestion.CorrectIndex] : "");
+        var forgot = _choiceWidget.LastAnswerWasForgot;
         var userText = selectedIndices.Count > 0
             ? string.Join("|", selectedIndices.Select(i => _currentQuestion.Options[i]))
-            : "";
+            : (forgot ? "（忘了）" : "");
 
         if (correct)
         {
@@ -292,7 +323,7 @@ public partial class QuizPanel : Control
             var extra = _currentQuestion.IsListening
                 ? $"\n单词：{_currentQuestion.TargetWord.English}"
                 : "";
-            ShowFeedback(false, correctText + extra);
+            ShowFeedback(false, correctText + extra, forgot);
 
             // 错题详情：仅单选时取选项 detail；多选时不带 detail
             var userDetail = !isMulti && selectedIndices.Count == 1
@@ -316,7 +347,66 @@ public partial class QuizPanel : Control
         _confirmButton.Visible = true;
     }
 
+    // ── 回忆卡片作答（自评）──
+
+    /// <summary>玩家翻面后自评。remembered=true 记作答对，false 记作答错（与其他题型同一套记忆引擎记账）。</summary>
+    private void OnRecallAnswered(bool remembered)
+    {
+        if (_currentQuestion is null) return;
+
+        _answered = true;
+        _answeredAtMsec = Time.GetTicksMsec();
+        _lastCorrect = remembered;
+        VocabManager.Instance.RecordAnswer(_currentQuestion.TargetWord, remembered);
+
+        _listenPlayTop.Visible = false;
+
+        if (remembered)
+        {
+            _feedbackLabel.Text = "✅ 记住了";
+            _feedbackLabel.AddThemeColorOverride("font_color", CorrectGreen);
+        }
+        else
+        {
+            ShowFeedback(false, _currentQuestion.CorrectText, forgot: true);
+            RecordWrong("（没想起来）", _currentQuestion.CorrectText,
+                "", _currentQuestion.TargetWord.English);
+        }
+
+        RecordToRunTracker(remembered, remembered ? "" : "（没想起来）", _currentQuestion.CorrectText);
+
+        UpdateStats();
+        _confirmButton.Visible = true;
+    }
+
     // ── 拼写题作答 ──
+
+    /// <summary>拼写题点「忘了」：不填直接判错并显示正确拼写。</summary>
+    private void OnSpellingForgot()
+    {
+        if (_answered || _currentQuestion is null) return;
+
+        _answered = true;
+        _answeredAtMsec = Time.GetTicksMsec();
+        _lastCorrect = false;
+        VocabManager.Instance.RecordAnswer(_currentQuestion.TargetWord, false);
+
+        if (VocabConfig.Instance.AutoSpeakOnAnswer)
+            TtsService.Instance.Speak(_currentQuestion.TargetWord.English);
+
+        _spellingInput.Editable = false;
+        _spellingSubmitBtn.Disabled = true;
+        _spellingForgotBtn.Disabled = true;
+        _spellingHintLabel.Visible = false;
+        _listenPlayTop.Visible = false;
+
+        ShowFeedback(false, _currentQuestion.CorrectText, forgot: true);
+        RecordWrong("（忘了）", _currentQuestion.CorrectText, "", _currentQuestion.TargetWord.Chinese);
+        RecordToRunTracker(false, "（忘了）", _currentQuestion.CorrectText);
+
+        UpdateStats();
+        _confirmButton.Visible = true;
+    }
 
     private void OnSpellingSubmit()
     {
@@ -336,6 +426,7 @@ public partial class QuizPanel : Control
 
         _spellingInput.Editable = false;
         _spellingSubmitBtn.Disabled = true;
+        _spellingForgotBtn.Disabled = true;
         _spellingHintLabel.Visible = false;
         _listenPlayTop.Visible = false;
 
@@ -357,7 +448,8 @@ public partial class QuizPanel : Control
 
     // ── 反馈和错题记录 ──
 
-    private void ShowFeedback(bool correct, string? correctAnswer)
+    /// <summary>forgot=true 表示玩家主动点了「忘了 / 没想起来」——按答错处理，但文案不说「回答错误」。</summary>
+    private void ShowFeedback(bool correct, string? correctAnswer, bool forgot = false)
     {
         if (correct)
         {
@@ -366,7 +458,9 @@ public partial class QuizPanel : Control
         }
         else
         {
-            _feedbackLabel.Text = $"回答错误！正确答案：{correctAnswer}";
+            _feedbackLabel.Text = forgot
+                ? $"没关系，记住它：{correctAnswer}"
+                : $"回答错误！正确答案：{correctAnswer}";
             _feedbackLabel.AddThemeColorOverride("font_color", WrongRed);
         }
     }
@@ -446,17 +540,22 @@ public partial class QuizPanel : Control
         // 拼写模式不拦截字母键
         if (_currentQuestion.IsSpelling) return;
 
-        // 提交键触发提交（前提是已经选中）
+        // 提交键：回忆卡片 → 翻面；选择题 → 提交
         if (VocabConfig.KeyMatches(key.Keycode, VocabConfig.Instance.SubmitKey))
         {
-            if (_choiceWidget.TrySubmit())
-            {
-                GetViewport().SetInputAsHandled();
-            }
+            var handled = _currentQuestion.IsRecall ? _recallWidget.TryReveal() : _choiceWidget.TrySubmit();
+            if (handled) GetViewport().SetInputAsHandled();
             return;
         }
 
-        // A-H / 1-8 → 切换选项
+        // 0 → 「忘了」（选择题；回忆卡片用自评按钮，不需要）
+        if (key.Keycode is Key.Key0 or Key.Kp0 && !_currentQuestion.IsRecall)
+        {
+            if (_choiceWidget.TryForgot()) GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        // A-H / 1-8 → 切换选项（回忆卡片：翻面后 1/A=想起来了，2/B=没想起来）
         var idx = key.Keycode switch
         {
             Key.A or Key.Key1 => 0,
@@ -469,10 +568,11 @@ public partial class QuizPanel : Control
             Key.H or Key.Key8 => 7,
             _ => -1
         };
-        if (idx >= 0 && _choiceWidget.HandleKeyOption(idx))
-        {
-            GetViewport().SetInputAsHandled();
-        }
+        if (idx < 0) return;
+        var consumed = _currentQuestion.IsRecall
+            ? _recallWidget.HandleKeyOption(idx)
+            : _choiceWidget.HandleKeyOption(idx);
+        if (consumed) GetViewport().SetInputAsHandled();
     }
 
     private void OnListenPressed()

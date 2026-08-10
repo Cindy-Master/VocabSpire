@@ -112,6 +112,10 @@ public sealed class VocabConfig
     /// <summary>是否出多选题（多义词在英→中/听力模式下有概率变多选）。默认开；关掉则多义词也只出单选。</summary>
     public bool EnableMultiSelect { get; set; } = true;
 
+    /// <summary>选择题/拼写题显示「🤔 忘了」按钮：想不起来时直接认错看答案，不用瞎蒙。
+    /// 蒙对会让记忆引擎误判「已掌握」，主动认错的数据才准。默认开。</summary>
+    public bool ShowForgotButton { get; set; } = true;
+
     /// <summary>上次看过更新弹窗的版本号。与当前 mod 版本不同时进游戏弹一次更新说明，然后记录 → 每版只弹一次。</summary>
     public string LastSeenChangelogVersion { get; set; } = "";
 

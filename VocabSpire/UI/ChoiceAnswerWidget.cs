@@ -16,11 +16,13 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     private readonly List<HBoxContainer> _optionRows = new();     // 每个选项一行（选项按钮 + 小喇叭）
     private readonly List<Button> _optionSpeakers = new();        // 每个选项的发音按钮
     private Button _submitBtn = null!;
+    private Button _forgotBtn = null!;
     private readonly HashSet<int> _selected = new();
 
     private QuizQuestion? _currentQuestion;
     private Action<bool, IReadOnlyCollection<int>>? _onAnswered;
     private bool _answered;
+    private bool _wasForgot;
     private ulong _answeredAtMsec;
 
     private static readonly Color CorrectGreen = GameTheme.Green;
@@ -35,6 +37,9 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     public bool IsAnswered => _answered;
     public bool HasSelection => _selected.Count > 0;
     public ulong AnsweredAtMsec => _answeredAtMsec;
+
+    /// <summary>本题是否由玩家点「忘了」结束（而非提交了选项）—— 供调用方写错题本文案。</summary>
+    public bool LastAnswerWasForgot => _wasForgot;
 
     public override void _Ready()
     {
@@ -66,13 +71,23 @@ public partial class ChoiceAnswerWidget : VBoxContainer
             _optionRows.Add(row);
         }
 
-        var submitCenter = new CenterContainer();
-        AddChild(submitCenter);
+        var submitRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        submitRow.AddThemeConstantOverride("separation", 12);
+        AddChild(submitRow);
+
         _submitBtn = GameTheme.MakeButton($"  提交答案 ({KeyBindButton.KeyName(VocabConfig.Instance.SubmitKey)})  ", 16, GameTheme.Gold);
         _submitBtn.CustomMinimumSize = new Vector2(220, 42);
         _submitBtn.Visible = false;
         _submitBtn.Pressed += OnSubmit;
-        submitCenter.AddChild(_submitBtn);
+        submitRow.AddChild(_submitBtn);
+
+        // 「忘了」：不瞎蒙、直接认错并看答案。蒙对会让记忆引擎误判已掌握，主动认错的数据才准。
+        _forgotBtn = GameTheme.MakeButton("  🤔 忘了 (0)  ", 16, GameTheme.LightGray);
+        _forgotBtn.CustomMinimumSize = new Vector2(150, 42);
+        _forgotBtn.Visible = false;
+        _forgotBtn.TooltipText = "想不起来时点这里：直接判错并显示正确答案，不用瞎猜。可在设置中关闭。";
+        _forgotBtn.Pressed += OnForgot;
+        submitRow.AddChild(_forgotBtn);
     }
 
     /// <summary>显示一道选择题。onAnswered(correct, selectedIndices) 在用户按提交后被调用。</summary>
@@ -109,6 +124,9 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _submitBtn.Text = question.IsMultiSelect
             ? $"  提交多选答案 ({submitKey})  "
             : $"  提交答案 ({submitKey})  ";
+        _forgotBtn.Visible = VocabConfig.Instance.ShowForgotButton;
+        _forgotBtn.Disabled = false;
+        _wasForgot = false;
         Visible = true;
     }
 
@@ -119,7 +137,9 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _onAnswered = null;
         _selected.Clear();
         _answered = false;
+        _wasForgot = false;
         _submitBtn.Visible = false;
+        _forgotBtn.Visible = false;
     }
 
     /// <summary>父面板键盘事件转发：A-H / 1-8 → 切换对应选项。返回是否处理。</summary>
@@ -165,13 +185,52 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         }
     }
 
+    /// <summary>父面板键盘事件转发：0 → 「忘了」（直接认错看答案）。返回是否处理。</summary>
+    public bool TryForgot()
+    {
+        if (_answered || _currentQuestion is null || !VocabConfig.Instance.ShowForgotButton) return false;
+        OnForgot();
+        return true;
+    }
+
+    /// <summary>玩家点「忘了」：不猜、直接判错并揭示正确答案。</summary>
+    private void OnForgot()
+    {
+        if (_answered || _currentQuestion is null) return;
+
+        _answered = true;
+        _wasForgot = true;
+        _answeredAtMsec = Time.GetTicksMsec();
+        HideActionButtons();
+
+        // 清掉可能已选中的项（没作数），只把正确答案标绿
+        foreach (var prev in _selected) ResetStyle(_optionButtons[prev]);
+        _selected.Clear();
+        if (_currentQuestion.IsMultiSelect)
+        {
+            foreach (var ci in _currentQuestion.CorrectIndices) HighlightBtn(ci, CorrectGreen);
+        }
+        else if (_currentQuestion.CorrectIndex >= 0)
+        {
+            HighlightBtn(_currentQuestion.CorrectIndex, CorrectGreen);
+        }
+
+        FinishAnswer(false, Array.Empty<int>());
+    }
+
+    private void HideActionButtons()
+    {
+        _submitBtn.Visible = false;
+        _forgotBtn.Visible = false;
+    }
+
     private void OnSubmit()
     {
         if (_answered || _currentQuestion is null || _selected.Count == 0) return;
 
         _answered = true;
         _answeredAtMsec = Time.GetTicksMsec();
-        _submitBtn.Visible = false;
+        HideActionButtons();
 
         bool correct;
         if (_currentQuestion.IsMultiSelect)
@@ -199,6 +258,15 @@ public partial class ChoiceAnswerWidget : VBoxContainer
             }
         }
 
+        // 拷贝一份给回调，避免外部使用我们后续清理的集合。
+        FinishAnswer(correct, _selected.ToArray());
+    }
+
+    /// <summary>提交与「忘了」共用的收尾：揭示详情、锁定选项、朗读、回调。</summary>
+    private void FinishAnswer(bool correct, int[] selectedSnapshot)
+    {
+        if (_currentQuestion is null) return;
+
         RevealDetails();
         foreach (var btn in _optionButtons) btn.Disabled = true;
 
@@ -206,9 +274,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         if (VocabConfig.Instance.AutoSpeakOnAnswer && !_currentQuestion.IsFixedChoice)
             TtsService.Instance.Speak(_currentQuestion.TargetWord.English);
 
-        // 拷贝一份给回调，避免外部使用我们后续清理的集合。
-        var snapshot = _selected.ToArray();
-        _onAnswered?.Invoke(correct, snapshot);
+        _onAnswered?.Invoke(correct, selectedSnapshot);
     }
 
     private void RevealDetails()

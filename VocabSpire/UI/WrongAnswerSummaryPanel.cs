@@ -117,6 +117,8 @@ public partial class WrongAnswerSummaryPanel : Control
             {
                 QuizModeFlags.SpellEnglish => "拼写",
                 QuizModeFlags.ChineseToEnglish => "中→英",
+                QuizModeFlags.ListenToChinese => "听力",
+                QuizModeFlags.RecallCard => "回忆卡",
                 _ => "英→中"
             };
             var userPart = string.IsNullOrEmpty(r.UserAnswerDetail)
