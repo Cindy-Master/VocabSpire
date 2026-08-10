@@ -31,10 +31,38 @@ from collections import Counter
 # 保留这些全角中文标点（NFKC 默认会把它们转半角，逐字处理时排除以保留排版美观）
 _KEEP = set('；，。、！？：·…—～（）【】〔〕《》〈〉「」『』“”‘’%')
 
+# CJK Radicals Supplement(U+2E80-2EFF) 里的简体部首 —— NFKC 对它们是**恒等变换**（无兼容分解），
+# 光靠 NFKC 修不掉，会原样落进释义显示成「⻓沙发」「汽⻋」这类怪字。
+# 实测受影响：ielts 561 处 / 专升本 558 / 高考3500 267 / toeic 159，共 1545 处。
+# 映射据 unicodedata.name 逐个核对（如 U+2ED3 CJK RADICAL C-SIMPLIFIED LONG → 长）。
+_RADICAL_FIX = {
+    '⺠': '民', '⻅': '见', '⻆': '角', '⻉': '贝',
+    '⻋': '车', '⻓': '长', '⻔': '门', '⻘': '青',
+    '⻚': '页', '⻛': '风', '⻜': '飞', '⻝': '食',
+    '⻢': '马', '⻣': '骨', '⻤': '鬼', '⻥': '鱼',
+    '⻦': '鸟', '⻨': '麦', '⻩': '黄', '⻬': '齐',
+    '⻮': '齿', '⻰': '龙',
+}
+
+# 换书时若出现表里没有的部首字符，收集起来在结尾告警 —— 静默污染比报错更难发现。
+UNMAPPED_RADICALS = Counter()
+
 
 def fix_text(s):
-    """逐字 NFKC：康熙部首/兼容汉字 → 正常汉字，但保留全角中文标点；压缩多余空白。"""
-    out = [ch if ch in _KEEP else unicodedata.normalize('NFKC', ch) for ch in s]
+    """逐字 NFKC：康熙部首/兼容汉字 → 正常汉字，但保留全角中文标点；压缩多余空白。
+    NFKC 修不掉的简体部首另查 _RADICAL_FIX 表；两者都覆盖不到的记入 UNMAPPED_RADICALS 告警。"""
+    out = []
+    for ch in s:
+        if ch in _KEEP:
+            out.append(ch)
+            continue
+        if ch in _RADICAL_FIX:
+            out.append(_RADICAL_FIX[ch])
+            continue
+        n = unicodedata.normalize('NFKC', ch)
+        if n == ch and 0x2E80 <= ord(ch) <= 0x2FDF:
+            UNMAPPED_RADICALS[ch] += 1     # 同区新字符：NFKC 无效且表里没有
+        out.append(n)
     return re.sub(r'[ \t]+', ' ', ''.join(out))
 
 
@@ -55,7 +83,10 @@ def detect_repeated(doc, ratio=0.5):
             l = fix_text(raw).strip()
             if l in ('Word', 'Meaning') or l.isdigit():
                 continue
-            if 0 < len(l) <= 18 and l not in seen:
+            # 长度上限放宽到 40：书名行可能很长（实测「高考大纲词汇3500（乱序版）·未学习」19 字），
+            # 阈值卡 18 会漏掉它 → 最后一页没有下一页的序号来切块，页脚会混进最末一个词的释义。
+            # 放宽是安全的：真正的释义行不可能在半数以上页里逐字重复出现（ratio 判定兜底）。
+            if 0 < len(l) <= 40 and l not in seen:
                 cnt[l] += 1
                 seen.add(l)
     n = doc.page_count
@@ -108,6 +139,18 @@ def parse_page(text, repeated):
                 means[cur].append(rest)
         elif cur is not None:
             means[cur].append(x.strip())
+
+    # 释义在 PDF 里可能被硬换行截断（实测 than: "prep. conj. 比 (用于两个事物的比较" / ")；立即"）。
+    # 正常义项行一定以词性缩写开头，所以以标点开头的行必是上一行的续行 —— 拼回去，别当成独立义项。
+    for k, parts in means.items():
+        merged = []
+        for p in parts:
+            if merged and p[:1] in '）)；;，,。.、':
+                merged[-1] += p
+            else:
+                merged.append(p)
+        means[k] = merged
+
     return [(n, w, means.get(n, [])) for n, w in ordered]
 
 
@@ -128,6 +171,8 @@ def parse_pdf(path):
                  empty_word=[(n, w) for n, w, m in rows if not w][:10],
                  empty_mean=[(n, w) for n, w, m in rows if not m][:10],
                  detected_footer=sorted(repeated))
+    if UNMAPPED_RADICALS:
+        stats['unmapped_radicals'] = [f'{c}(U+{ord(c):04X})x{n}' for c, n in UNMAPPED_RADICALS.most_common()]
     return rows, stats
 
 
