@@ -1337,6 +1337,31 @@ public partial class VocabSettingsPanel : Control
         var volLabel = GameTheme.MakeLabel($"{cfg.TtsVolume}%", 16, Grey);
         volRow.AddChild(volLabel);
         volSlider.ValueChanged += val => volLabel.Text = $"{(int)val}%";
+
+        // 发音来源：联网真人发音 / 本地系统合成音
+        var srcRow = new HBoxContainer();
+        srcRow.AddThemeConstantOverride("separation", 8);
+        vbox.AddChild(srcRow);
+        srcRow.AddChild(GameTheme.MakeLabel("发音来源：", 18, White));
+
+        var srcSel = new OptionButton { CustomMinimumSize = new Vector2(260, 0) };
+        srcSel.AddItem("自动（联网优先，失败用本地）", 0);
+        srcSel.AddItem("仅联网（真人发音）", 1);
+        srcSel.AddItem("仅本地（不联网）", 2);
+        srcSel.Selected = (int)cfg.TtsSource;
+        srcSel.TooltipText = "自动：先请求有道 / Google 的真人发音，拿不到才用系统合成音（默认）。 仅联网：只用真人发音，拿不到就不出声（不想听机器音时选这个）。 仅本地：全程不发网络请求，断网 / 内网 / 在意隐私时用，发音为系统合成音。";
+        srcSel.ItemSelected += idx =>
+        {
+            VocabConfig.Instance.TtsSource = (TtsSource)(int)idx;
+            VocabConfig.Instance.Save();
+        };
+        srcRow.AddChild(srcSel);
+
+        var srcTestBtn = GameTheme.MakeButton("  🔊 试听  ", 14, Gold);
+        srcTestBtn.CustomMinimumSize = new Vector2(110, 36);
+        srcTestBtn.FocusMode = FocusModeEnum.None;
+        srcTestBtn.Pressed += () => TtsService.Instance.Speak("vocabulary");
+        srcRow.AddChild(srcTestBtn);
     }
 
     /// <summary>5 个独立难度开关 + 2 个概率 SpinBox + 始终显示音标 toggle。</summary>

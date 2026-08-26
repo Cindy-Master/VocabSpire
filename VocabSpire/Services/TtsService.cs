@@ -11,7 +11,8 @@ namespace VocabSpire.Services;
 /// <summary>
 /// 文本转语音服务 —— 在线 API 优先，回退系统 TTS。
 ///
-/// 优先级：有道词典 → Google Translate TTS → 系统 TTS (Windows SAPI / macOS say)
+/// 优先级（TtsSource.Auto，默认）：有道词典 → Google Translate TTS → 系统 TTS (Windows SAPI / macOS say)
+/// TtsSource.OnlineOnly：只走前两级，失败即静默；TtsSource.SystemOnly：直接系统 TTS，全程不联网。
 /// 音频缓存在内存中，同一单词只请求一次；播放后异常短（<200ms）自动驱逐 + 回退。
 /// </summary>
 public sealed class TtsService
@@ -49,6 +50,14 @@ public sealed class TtsService
 
         try
         {
+            // 发音来源：仅本地 → 完全不发网络请求，直接系统合成音
+            if (VocabConfig.Instance.TtsSource == TtsSource.SystemOnly)
+            {
+                Log.Info($"[VocabSpire][TTS] source=SystemOnly → 跳过在线，直接系统 TTS: '{word}'");
+                SpeakWithSystemTts(word);
+                return;
+            }
+
             EnsurePlayer();
             if (_player is null || !GodotObject.IsInstanceValid(_player))
             {
@@ -76,7 +85,12 @@ public sealed class TtsService
                 return;
             }
 
-            // 所有在线方案失败，回退系统 TTS
+            // 所有在线方案失败
+            if (VocabConfig.Instance.TtsSource == TtsSource.OnlineOnly)
+            {
+                Log.Warn($"[VocabSpire][TTS] Online TTS exhausted for '{word}' after {sw.ElapsedMilliseconds}ms → source=OnlineOnly，不回退系统音，本次静默");
+                return;
+            }
             Log.Warn($"[VocabSpire][TTS] Online TTS exhausted for '{word}' after {sw.ElapsedMilliseconds}ms → falling back to system TTS");
             SpeakWithSystemTts(word);
         }
@@ -107,6 +121,7 @@ public sealed class TtsService
             var key = word.ToLowerInvariant().Trim();
             Log.Warn($"[VocabSpire][TTS] SUSPICIOUS short playback for '{word}' ({elapsed}ms, ticket={ticket}) — evicting cache and falling back to system TTS");
             lock (_cache) { _cache.Remove(key); }
+            if (VocabConfig.Instance.TtsSource == TtsSource.OnlineOnly) return;   // 仅联网：不回退系统音
             SpeakWithSystemTts(word);
         }
         else

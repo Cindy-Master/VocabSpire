@@ -26,6 +26,19 @@ public enum RewardType
 /// <summary>可自定义的功能键动作（用于按键冲突检测）。</summary>
 public enum BindAction { OpenSettings, Submit, Continue }
 
+/// <summary>发音来源。</summary>
+public enum TtsSource
+{
+    /// <summary>自动（默认、老行为）：先试联网真人发音，失败才回退系统合成音。</summary>
+    Auto = 0,
+
+    /// <summary>仅联网：只用在线发音，拿不到就不出声（不想听系统合成音时用）。</summary>
+    OnlineOnly = 1,
+
+    /// <summary>仅本地：直接用系统 TTS，全程不发网络请求（断网 / 内网 / 在意隐私时用）。</summary>
+    SystemOnly = 2
+}
+
 public sealed class VocabConfig
 {
     public static VocabConfig Instance { get; } = new();
@@ -159,6 +172,9 @@ public sealed class VocabConfig
 
     /// <summary>听力发音音量（0-100，独立于游戏音量）。</summary>
     public int TtsVolume { get; set; } = 80;
+
+    /// <summary>发音来源：自动（联网优先、失败回退本地）/ 仅联网 / 仅本地。默认自动。</summary>
+    public TtsSource TtsSource { get; set; } = TtsSource.Auto;
 
     /// <summary>篝火复习的答题模式（默认英→中）。</summary>
     public QuizModeFlags ReviewQuizMode { get; set; } = QuizModeFlags.EnglishToChinese;
@@ -341,6 +357,7 @@ public sealed class VocabConfig
             AutoSpeakOnAnswer = data.AutoSpeakOnAnswer ?? true;
             EnableMultiSelect = data.EnableMultiSelect ?? true;
             ShowForgotButton = data.ShowForgotButton ?? true;
+            if (data.TtsSource is int ts) TtsSource = (TtsSource)Math.Clamp(ts, 0, 2);
             EnableModeWeights = data.EnableModeWeights ?? false;
             if (data.WeightEnToCn is int wA) WeightEnToCn = wA;
             if (data.WeightCnToEn is int wB) WeightCnToEn = wB;
@@ -457,6 +474,7 @@ public sealed class VocabConfig
                 AutoSpeakOnAnswer = AutoSpeakOnAnswer,
                 EnableMultiSelect = EnableMultiSelect,
                 ShowForgotButton = ShowForgotButton,
+                TtsSource = (int)TtsSource,
                 EnableModeWeights = EnableModeWeights,
                 WeightEnToCn = WeightEnToCn,
                 WeightCnToEn = WeightCnToEn,
@@ -600,6 +618,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("show_forgot_button")]
         public bool? ShowForgotButton { get; set; }
+
+        [JsonPropertyName("tts_source")]
+        public int? TtsSource { get; set; }
 
         [JsonPropertyName("enable_mode_weights")]
         public bool? EnableModeWeights { get; set; }
