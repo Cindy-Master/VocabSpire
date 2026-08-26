@@ -407,6 +407,14 @@ public partial class RestSiteReviewPanel : Control
     public override void _Input(InputEvent @event)
     {
         if (!Visible) return;
+
+        var pad = Services.GamepadInput.Translate(@event);
+        if (pad != PadAction.None && HandlePad(pad))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
         if (@event is not InputEventKey { Pressed: true } key) return;
 
         if (_answered && _nextBtn.Visible)
@@ -455,6 +463,47 @@ public partial class RestSiteReviewPanel : Control
             ? _recallWidget.HandleKeyOption(idx)
             : _choiceWidget.HandleKeyOption(idx);
         if (consumed) GetViewport().SetInputAsHandled();
+    }
+
+    /// <summary>手柄操作（与战斗答题面板同一套键位）。拼写复习只提供 X =「忘了」。</summary>
+    private bool HandlePad(PadAction pad)
+    {
+        if (_answered && _nextBtn.Visible)
+        {
+            if (pad is PadAction.Accept or PadAction.Submit) { ShowNextWord(); return true; }
+            return false;
+        }
+        if (_answered || _currentReviewQuiz is null) return false;
+
+        if (_currentReviewQuiz.IsRecall)
+        {
+            return pad switch
+            {
+                PadAction.Accept or PadAction.Left => _recallWidget.PadAccept(),
+                PadAction.Forgot or PadAction.Right => _recallWidget.PadForgot(),
+                _ => false
+            };
+        }
+
+        if (_currentReviewQuiz.IsSpelling)
+        {
+            if (pad == PadAction.Forgot && VocabConfig.Instance.ShowForgotButton)
+            {
+                OnSpellingForgot();
+                return true;
+            }
+            return false;
+        }
+
+        return pad switch
+        {
+            PadAction.Up => _choiceWidget.MoveCursor(-1),
+            PadAction.Down => _choiceWidget.MoveCursor(1),
+            PadAction.Accept => _choiceWidget.PadAccept(),
+            PadAction.Submit => _choiceWidget.TrySubmit(),
+            PadAction.Forgot => _choiceWidget.TryForgot(),
+            _ => false
+        };
     }
 
     public static void Create()

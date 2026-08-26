@@ -486,6 +486,23 @@ public partial class VocabSettingsPanel : Control
         };
         vbox.AddChild(multiSelectToggle);
 
+        var padToggle = new CheckButton
+        {
+            Text = " 🎮 手柄操作答题面板",
+            ButtonPressed = cfg.GamepadEnabled
+        };
+        padToggle.AddThemeFontSizeOverride("font_size", 13);
+        padToggle.TooltipText = "开启后答题时可用手柄：十字键 / 左摇杆上下移动选项，A 选中（再按一次提交），Y 直接提交（多选题用），X =「忘了」。 回忆卡片：A 翻面、再按 A =「想起来了」，X =「没想起来」。 拼写题要打字，手柄只支持 X =「忘了」。 答完题按 A 继续。";
+        padToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.GamepadEnabled = on;
+            VocabConfig.Instance.Save();
+        };
+        vbox.AddChild(padToggle);
+
+        vbox.AddChild(GameTheme.MakeLabel(
+            "手柄键位：↑↓/摇杆 选项 · A 选中或提交 · Y 提交多选 · X 忘了 · 答完 A 继续（拼写题需键盘打字）", 16, DimGrey));
+
         var forgotToggle = new CheckButton
         {
             Text = " 🤔 选择题/拼写题显示「忘了」按钮（想不起来直接看答案，不用瞎蒙）",

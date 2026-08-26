@@ -23,6 +23,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     private Action<bool, IReadOnlyCollection<int>>? _onAnswered;
     private bool _answered;
     private bool _wasForgot;
+    private int _cursor = -1;          // 手柄游标（键盘/鼠标操作时保持 -1，不显示）
     private ulong _answeredAtMsec;
 
     private static readonly Color CorrectGreen = GameTheme.Green;
@@ -31,6 +32,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     private static readonly Color BtnHover = new(0.2f, 0.2f, 0.28f);
     private static readonly Color TextWhite = GameTheme.Cream;
     private static readonly Color SelectedBlue = new(0.3f, 0.5f, 0.8f);
+    private static readonly Color CursorGold = GameTheme.Gold;   // 手柄游标停留处的描边
 
     private static readonly string[] Prefixes = { "A", "B", "C", "D", "E", "F", "G", "H" };
 
@@ -127,6 +129,8 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _forgotBtn.Visible = VocabConfig.Instance.ShowForgotButton;
         _forgotBtn.Disabled = false;
         _wasForgot = false;
+        _cursor = -1;
+        Services.GamepadInput.ResetAxisState();
         Visible = true;
     }
 
@@ -138,6 +142,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _selected.Clear();
         _answered = false;
         _wasForgot = false;
+        _cursor = -1;
         _submitBtn.Visible = false;
         _forgotBtn.Visible = false;
     }
@@ -182,6 +187,58 @@ public partial class ChoiceAnswerWidget : VBoxContainer
             _selected.Clear();
             _selected.Add(index);
             HighlightBtn(index, SelectedBlue);
+        }
+    }
+
+    /// <summary>手柄方向键：移动游标。单选题游标即选中项（与鼠标点选视觉一致）；多选题游标只是停留标记。</summary>
+    public bool MoveCursor(int delta)
+    {
+        if (_answered || _currentQuestion is null) return false;
+        var n = _currentQuestion.Options.Count;
+        if (n <= 0) return false;
+
+        _cursor = _cursor < 0
+            ? (delta > 0 ? 0 : n - 1)
+            : ((_cursor + delta) % n + n) % n;
+
+        if (_currentQuestion.IsMultiSelect)
+        {
+            RefreshCursorVisual();
+        }
+        else
+        {
+            OnOptionClicked(_cursor);   // 单选：移动即选中，少按一次键
+        }
+        return true;
+    }
+
+    /// <summary>手柄 A 键：单选 = 未选中先选中、已选中则提交；多选 = 切换该项选中。</summary>
+    public bool PadAccept()
+    {
+        if (_answered || _currentQuestion is null) return false;
+        if (_cursor < 0) return MoveCursor(1);          // 还没移动过 → 先落到第一项
+
+        if (_currentQuestion.IsMultiSelect)
+        {
+            OnOptionClicked(_cursor);
+            RefreshCursorVisual();
+            return true;
+        }
+
+        if (_selected.Contains(_cursor)) { OnSubmit(); return true; }
+        OnOptionClicked(_cursor);
+        return true;
+    }
+
+    /// <summary>多选题游标可见化：已选中用蓝色，游标停留处用金色描边（未选中时）。</summary>
+    private void RefreshCursorVisual()
+    {
+        if (_currentQuestion is null) return;
+        for (var i = 0; i < _optionButtons.Count && i < _currentQuestion.Options.Count; i++)
+        {
+            if (_selected.Contains(i)) HighlightBtn(i, SelectedBlue);
+            else if (i == _cursor) HighlightBtn(i, CursorGold);
+            else ResetStyle(_optionButtons[i]);
         }
     }
 

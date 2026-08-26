@@ -519,6 +519,15 @@ public partial class QuizPanel : Control
     public override void _Input(InputEvent @event)
     {
         if (!Visible) return;
+
+        // 手柄优先：面板显示期间独占手柄输入，别让按键漏到背后的牌桌
+        var pad = Services.GamepadInput.Translate(@event);
+        if (pad != PadAction.None && HandlePad(pad))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
         if (@event is not InputEventKey { Pressed: true } key) return;
 
         // 已作答：Enter 继续（至少 500ms 防 IME 双触发）
@@ -573,6 +582,55 @@ public partial class QuizPanel : Control
             ? _recallWidget.HandleKeyOption(idx)
             : _choiceWidget.HandleKeyOption(idx);
         if (consumed) GetViewport().SetInputAsHandled();
+    }
+
+    /// <summary>
+    /// 手柄操作。拼写题需要打字，手柄只提供「忘了」这一条出路（X 键），其余方向/确认不接管。
+    /// </summary>
+    private bool HandlePad(PadAction pad)
+    {
+        // 已作答：A 键 = 继续（沿用键盘那套 500ms 防连发，避免自评/提交那一下被吃掉当成继续）
+        if (_answered)
+        {
+            if (pad is PadAction.Accept or PadAction.Submit)
+            {
+                if (Time.GetTicksMsec() - _answeredAtMsec > 500) OnConfirmPressed();
+                return true;
+            }
+            return false;
+        }
+
+        if (_currentQuestion is null) return false;
+
+        if (_currentQuestion.IsRecall)
+        {
+            return pad switch
+            {
+                PadAction.Accept or PadAction.Left => _recallWidget.PadAccept(),
+                PadAction.Forgot or PadAction.Right => _recallWidget.PadForgot(),
+                _ => false
+            };
+        }
+
+        if (_currentQuestion.IsSpelling)
+        {
+            if (pad == PadAction.Forgot && VocabConfig.Instance.ShowForgotButton)
+            {
+                OnSpellingForgot();
+                return true;
+            }
+            return false;   // 拼写题得打字，方向键/A 不接管
+        }
+
+        return pad switch
+        {
+            PadAction.Up => _choiceWidget.MoveCursor(-1),
+            PadAction.Down => _choiceWidget.MoveCursor(1),
+            PadAction.Accept => _choiceWidget.PadAccept(),
+            PadAction.Submit => _choiceWidget.TrySubmit(),
+            PadAction.Forgot => _choiceWidget.TryForgot(),
+            _ => false
+        };
     }
 
     private void OnListenPressed()

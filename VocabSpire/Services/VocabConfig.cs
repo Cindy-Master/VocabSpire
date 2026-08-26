@@ -173,6 +173,9 @@ public sealed class VocabConfig
     /// <summary>听力发音音量（0-100，独立于游戏音量）。</summary>
     public int TtsVolume { get; set; } = 80;
 
+    /// <summary>启用手柄操作答题面板（十字键/左摇杆选项，A 选中/提交，X 忘了，Y 提交多选）。默认开。</summary>
+    public bool GamepadEnabled { get; set; } = true;
+
     /// <summary>发音来源：自动（联网优先、失败回退本地）/ 仅联网 / 仅本地。默认自动。</summary>
     public TtsSource TtsSource { get; set; } = TtsSource.Auto;
 
@@ -358,6 +361,7 @@ public sealed class VocabConfig
             EnableMultiSelect = data.EnableMultiSelect ?? true;
             ShowForgotButton = data.ShowForgotButton ?? true;
             if (data.TtsSource is int ts) TtsSource = (TtsSource)Math.Clamp(ts, 0, 2);
+            GamepadEnabled = data.GamepadEnabled ?? true;
             EnableModeWeights = data.EnableModeWeights ?? false;
             if (data.WeightEnToCn is int wA) WeightEnToCn = wA;
             if (data.WeightCnToEn is int wB) WeightCnToEn = wB;
@@ -475,6 +479,7 @@ public sealed class VocabConfig
                 EnableMultiSelect = EnableMultiSelect,
                 ShowForgotButton = ShowForgotButton,
                 TtsSource = (int)TtsSource,
+                GamepadEnabled = GamepadEnabled,
                 EnableModeWeights = EnableModeWeights,
                 WeightEnToCn = WeightEnToCn,
                 WeightCnToEn = WeightCnToEn,
@@ -621,6 +626,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("tts_source")]
         public int? TtsSource { get; set; }
+
+        [JsonPropertyName("gamepad_enabled")]
+        public bool? GamepadEnabled { get; set; }
 
         [JsonPropertyName("enable_mode_weights")]
         public bool? EnableModeWeights { get; set; }

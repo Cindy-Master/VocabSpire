@@ -94,6 +94,7 @@ public partial class RecallCardWidget : VBoxContainer
         _rememberedBtn.Text = "  ✅  想起来了 (1)  ";
         _forgotBtn.Text = "  ❌  没想起来 (2)  ";
         _rateRow.Visible = false;
+        Services.GamepadInput.ResetAxisState();
 
         Visible = true;
     }
@@ -123,6 +124,24 @@ public partial class RecallCardWidget : VBoxContainer
         if (_answered || !_revealed || _question is null) return false;
         if (index != 0 && index != 1) return false;
         SelfRate(index == 0);
+        return true;
+    }
+
+    /// <summary>手柄：A 键 = 未翻面则翻面、已翻面则「想起来了」。</summary>
+    public bool PadAccept()
+    {
+        if (_answered || _question is null) return false;
+        if (!_revealed) { Reveal(); return true; }
+        SelfRate(true);
+        return true;
+    }
+
+    /// <summary>手柄：X 键 = 「没想起来」（未翻面时先翻面，避免没看答案就判错）。</summary>
+    public bool PadForgot()
+    {
+        if (_answered || _question is null) return false;
+        if (!_revealed) { Reveal(); return true; }
+        SelfRate(false);
         return true;
     }
 
