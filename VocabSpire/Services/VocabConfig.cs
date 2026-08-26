@@ -116,6 +116,34 @@ public sealed class VocabConfig
     /// 蒙对会让记忆引擎误判「已掌握」，主动认错的数据才准。默认开。</summary>
     public bool ShowForgotButton { get; set; } = true;
 
+    // ── 题型出题权重（勾选决定「出不出」，权重决定「出多少」）──
+    /// <summary>启用题型权重。关（默认）= 勾选的题型等概率随机（老行为）；开 = 按各自权重加权随机。</summary>
+    public bool EnableModeWeights { get; set; }
+
+    /// <summary>各题型权重（0-100，0=不出）。仅在 EnableModeWeights 为 true 时生效。
+    /// 例：拼写 20 / 其余 100 → 拼写出现频率约为其他题型的 1/5。</summary>
+    public int WeightEnToCn { get; set; } = 100;
+    public int WeightCnToEn { get; set; } = 100;
+    public int WeightSpell { get; set; } = 100;
+    public int WeightListen { get; set; } = 100;
+    public int WeightRecall { get; set; } = 100;
+
+    /// <summary>取某题型的权重；未启用权重时一律返回 1（等概率）。</summary>
+    public int WeightFor(QuizModeFlags mode)
+    {
+        if (!EnableModeWeights) return 1;
+        var w = mode switch
+        {
+            QuizModeFlags.EnglishToChinese => WeightEnToCn,
+            QuizModeFlags.ChineseToEnglish => WeightCnToEn,
+            QuizModeFlags.SpellEnglish     => WeightSpell,
+            QuizModeFlags.ListenToChinese  => WeightListen,
+            QuizModeFlags.RecallCard       => WeightRecall,
+            _ => 100
+        };
+        return Math.Clamp(w, 0, 100);
+    }
+
     /// <summary>上次看过更新弹窗的版本号。与当前 mod 版本不同时进游戏弹一次更新说明，然后记录 → 每版只弹一次。</summary>
     public string LastSeenChangelogVersion { get; set; } = "";
 
@@ -313,6 +341,12 @@ public sealed class VocabConfig
             AutoSpeakOnAnswer = data.AutoSpeakOnAnswer ?? true;
             EnableMultiSelect = data.EnableMultiSelect ?? true;
             ShowForgotButton = data.ShowForgotButton ?? true;
+            EnableModeWeights = data.EnableModeWeights ?? false;
+            if (data.WeightEnToCn is int wA) WeightEnToCn = wA;
+            if (data.WeightCnToEn is int wB) WeightCnToEn = wB;
+            if (data.WeightSpell is int wC) WeightSpell = wC;
+            if (data.WeightListen is int wD) WeightListen = wD;
+            if (data.WeightRecall is int wE) WeightRecall = wE;
             LastSeenChangelogVersion = data.LastSeenChangelogVersion ?? "";
             UiFontScale = Math.Clamp(data.UiFontScale ?? 1.0f, 0.7f, 1.6f);
             SpellingEasyMode = data.SpellingEasyMode;
@@ -423,6 +457,12 @@ public sealed class VocabConfig
                 AutoSpeakOnAnswer = AutoSpeakOnAnswer,
                 EnableMultiSelect = EnableMultiSelect,
                 ShowForgotButton = ShowForgotButton,
+                EnableModeWeights = EnableModeWeights,
+                WeightEnToCn = WeightEnToCn,
+                WeightCnToEn = WeightCnToEn,
+                WeightSpell = WeightSpell,
+                WeightListen = WeightListen,
+                WeightRecall = WeightRecall,
                 LastSeenChangelogVersion = LastSeenChangelogVersion,
                 UiFontScale = UiFontScale,
                 SpellingEasyMode = SpellingEasyMode,
@@ -560,6 +600,24 @@ public sealed class VocabConfig
 
         [JsonPropertyName("show_forgot_button")]
         public bool? ShowForgotButton { get; set; }
+
+        [JsonPropertyName("enable_mode_weights")]
+        public bool? EnableModeWeights { get; set; }
+
+        [JsonPropertyName("weight_en_to_cn")]
+        public int? WeightEnToCn { get; set; }
+
+        [JsonPropertyName("weight_cn_to_en")]
+        public int? WeightCnToEn { get; set; }
+
+        [JsonPropertyName("weight_spell")]
+        public int? WeightSpell { get; set; }
+
+        [JsonPropertyName("weight_listen")]
+        public int? WeightListen { get; set; }
+
+        [JsonPropertyName("weight_recall")]
+        public int? WeightRecall { get; set; }
 
         [JsonPropertyName("last_seen_changelog_version")]
         public string? LastSeenChangelogVersion { get; set; }

@@ -355,6 +355,9 @@ public partial class VocabSettingsPanel : Control
             }
         }
 
+        // ── 题型出题权重（勾选决定「出不出」，权重决定「出多少」）──
+        BuildModeWeightSection(vbox);
+
         // 拼写复习开关
         _spellingReviewToggle = new CheckButton
         {
@@ -1537,6 +1540,69 @@ public partial class VocabSettingsPanel : Control
             }
         };
         AddChild(_fileDialog);
+    }
+
+    /// <summary>
+    /// 题型权重区：一个总开关 + 每题型 0-100 的滑块。
+    /// 勾选框决定「这个题型出不出」，权重决定「出多少」——例如拼写拉到 20、其余 100，
+    /// 拼写出现频率就约为其他题型的 1/5。总开关关闭时完全按老行为（勾选的题型等概率）。
+    /// </summary>
+    private void BuildModeWeightSection(VBoxContainer parent)
+    {
+        var cfg = VocabConfig.Instance;
+
+        var weightToggle = new CheckButton
+        {
+            Text = " 按权重出题（可让拼写少出、听力多出）",
+            ButtonPressed = cfg.EnableModeWeights
+        };
+        weightToggle.AddThemeFontSizeOverride("font_size", 13);
+        weightToggle.TooltipText = "关闭（默认）：勾选的题型等概率随机。开启：按下面每个题型的权重加权随机（权重 0 = 该题型不出，等于不勾选）。例：拼写 20、其余 100 → 拼写出现频率约为其他题型的 1/5。";
+        parent.AddChild(weightToggle);
+
+        var weightBox = new VBoxContainer { Visible = cfg.EnableModeWeights };
+        weightBox.AddThemeConstantOverride("separation", 2);
+        parent.AddChild(weightBox);
+
+        weightToggle.Toggled += on =>
+        {
+            VocabConfig.Instance.EnableModeWeights = on;
+            VocabConfig.Instance.Save();
+            weightBox.Visible = on;
+        };
+
+        var rows = new (string label, System.Func<int> get, System.Action<int> set)[]
+        {
+            ("英→中",   () => VocabConfig.Instance.WeightEnToCn, v => VocabConfig.Instance.WeightEnToCn = v),
+            ("中→英",   () => VocabConfig.Instance.WeightCnToEn, v => VocabConfig.Instance.WeightCnToEn = v),
+            ("拼写",     () => VocabConfig.Instance.WeightSpell,  v => VocabConfig.Instance.WeightSpell  = v),
+            ("听力",     () => VocabConfig.Instance.WeightListen, v => VocabConfig.Instance.WeightListen = v),
+            ("回忆卡片", () => VocabConfig.Instance.WeightRecall, v => VocabConfig.Instance.WeightRecall = v),
+        };
+
+        foreach (var (label, get, set) in rows)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            weightBox.AddChild(row);
+
+            var nameLabel = GameTheme.MakeLabel(label, 13, White);
+            nameLabel.CustomMinimumSize = new Vector2(90, 0);
+            row.AddChild(nameLabel);
+
+            var spin = new SpinBox
+            {
+                MinValue = 0, MaxValue = 100, Step = 5,
+                Value = get(),
+                CustomMinimumSize = new Vector2(100, 0)
+            };
+            var setter = set;
+            spin.ValueChanged += v => { setter((int)v); VocabConfig.Instance.Save(); };
+            row.AddChild(spin);
+        }
+
+        weightBox.AddChild(GameTheme.MakeLabel(
+            "权重只影响「勾选了的题型」之间的比例；没勾的题型不会因为权重高就出现", 16, DimGrey));
     }
 
     private void SaveQuizModes()

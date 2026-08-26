@@ -143,8 +143,8 @@ public sealed class QuizGenerator
         if (flags.HasFlag(QuizModeFlags.SpellEnglish)) modes.Add(QuizModeFlags.SpellEnglish);
         if (flags.HasFlag(QuizModeFlags.RecallCard)) modes.Add(QuizModeFlags.RecallCard);
 
-        var chosen = modes[_random.Next(modes.Count)];
         var cfg = VocabConfig.Instance;
+        var chosen = PickWeighted(modes, cfg);
 
         // 强制拼写：仅当用户已勾选「拼写」题型时才允许把题改成拼写
         // —— 题型勾选范围 是 上界，强制拼写不能扩大用户的题型范围。
@@ -181,6 +181,27 @@ public sealed class QuizGenerator
         }
 
         return chosen;
+    }
+
+    /// <summary>
+    /// 从候选题型里加权随机抽一个。未启用题型权重时 WeightFor 一律返回 1 → 退化为等概率（老行为）。
+    /// 权重全 0（用户把所有勾选题型都拉到 0）时同样退化为等概率，避免出不了题。
+    /// </summary>
+    private QuizModeFlags PickWeighted(List<QuizModeFlags> modes, VocabConfig cfg)
+    {
+        if (modes.Count == 1) return modes[0];
+
+        var total = 0;
+        foreach (var m in modes) total += cfg.WeightFor(m);
+        if (total <= 0) return modes[_random.Next(modes.Count)];
+
+        var roll = _random.Next(total);
+        foreach (var m in modes)
+        {
+            roll -= cfg.WeightFor(m);
+            if (roll < 0) return m;
+        }
+        return modes[^1];
     }
 
     private int GetEffectiveOptionCount(int baseCount, int tier)
