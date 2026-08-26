@@ -176,6 +176,9 @@ public sealed class VocabConfig
     /// <summary>启用手柄操作答题面板（十字键/左摇杆选项，A 选中/提交，X 忘了，Y 提交多选）。默认开。</summary>
     public bool GamepadEnabled { get; set; } = true;
 
+    /// <summary>手柄操作引导条是否已弹过（只在第一次检测到手柄时提示一次，之后不再打扰）。</summary>
+    public bool GamepadHintShown { get; set; }
+
     /// <summary>发音来源：自动（联网优先、失败回退本地）/ 仅联网 / 仅本地。默认自动。</summary>
     public TtsSource TtsSource { get; set; } = TtsSource.Auto;
 
@@ -362,6 +365,7 @@ public sealed class VocabConfig
             ShowForgotButton = data.ShowForgotButton ?? true;
             if (data.TtsSource is int ts) TtsSource = (TtsSource)Math.Clamp(ts, 0, 2);
             GamepadEnabled = data.GamepadEnabled ?? true;
+            GamepadHintShown = data.GamepadHintShown ?? false;
             EnableModeWeights = data.EnableModeWeights ?? false;
             if (data.WeightEnToCn is int wA) WeightEnToCn = wA;
             if (data.WeightCnToEn is int wB) WeightCnToEn = wB;
@@ -480,6 +484,7 @@ public sealed class VocabConfig
                 ShowForgotButton = ShowForgotButton,
                 TtsSource = (int)TtsSource,
                 GamepadEnabled = GamepadEnabled,
+                GamepadHintShown = GamepadHintShown,
                 EnableModeWeights = EnableModeWeights,
                 WeightEnToCn = WeightEnToCn,
                 WeightCnToEn = WeightCnToEn,
@@ -629,6 +634,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("gamepad_enabled")]
         public bool? GamepadEnabled { get; set; }
+
+        [JsonPropertyName("gamepad_hint_shown")]
+        public bool? GamepadHintShown { get; set; }
 
         [JsonPropertyName("enable_mode_weights")]
         public bool? EnableModeWeights { get; set; }

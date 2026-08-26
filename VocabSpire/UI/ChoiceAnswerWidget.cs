@@ -17,6 +17,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     private readonly List<Button> _optionSpeakers = new();        // 每个选项的发音按钮
     private Button _submitBtn = null!;
     private Button _forgotBtn = null!;
+    private Label _padHint = null!;      // 手柄键位提示（没插手柄时整行隐藏）
     private readonly HashSet<int> _selected = new();
 
     private QuizQuestion? _currentQuestion;
@@ -90,6 +91,10 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _forgotBtn.TooltipText = "想不起来时点这里：直接判错并显示正确答案，不用瞎猜。可在设置中关闭。";
         _forgotBtn.Pressed += OnForgot;
         submitRow.AddChild(_forgotBtn);
+
+        _padHint = GameTheme.MakeLabel("", 12, GameTheme.MidGray, HorizontalAlignment.Center);
+        _padHint.Visible = false;
+        AddChild(_padHint);
     }
 
     /// <summary>显示一道选择题。onAnswered(correct, selectedIndices) 在用户按提交后被调用。</summary>
@@ -131,6 +136,12 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _wasForgot = false;
         _cursor = -1;
         Services.GamepadInput.ResetAxisState();
+
+        // 手柄提示：插了手柄才显示，键鼠玩家看不到
+        _padHint.Visible = Services.GamepadInput.IsPresent();
+        if (_padHint.Visible)
+            _padHint.Text = Services.GamepadInput.HintChoice(question.IsMultiSelect, VocabConfig.Instance.ShowForgotButton);
+
         Visible = true;
     }
 
@@ -325,6 +336,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         if (_currentQuestion is null) return;
 
         RevealDetails();
+        _padHint.Visible = false;
         foreach (var btn in _optionButtons) btn.Disabled = true;
 
         // 答完自动朗读本题单词（选择题：QuizPanel 与篝火复习共用此处）；固定选择题题干是中文不朗读

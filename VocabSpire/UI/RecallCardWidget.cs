@@ -21,6 +21,7 @@ public partial class RecallCardWidget : VBoxContainer
     private HBoxContainer _rateRow = null!;
     private Button _rememberedBtn = null!;
     private Button _forgotBtn = null!;
+    private Label _padHint = null!;
 
     private QuizQuestion? _question;
     private Action<bool>? _onAnswered;
@@ -73,6 +74,10 @@ public partial class RecallCardWidget : VBoxContainer
         _forgotBtn.CustomMinimumSize = new Vector2(220, 52);
         _forgotBtn.Pressed += () => SelfRate(false);
         _rateRow.AddChild(_forgotBtn);
+
+        _padHint = GameTheme.MakeLabel("", 12, GameTheme.MidGray, HorizontalAlignment.Center);
+        _padHint.Visible = false;
+        AddChild(_padHint);
     }
 
     /// <summary>显示一张回忆卡片。onAnswered(remembered) 在玩家自评后调用。</summary>
@@ -95,6 +100,8 @@ public partial class RecallCardWidget : VBoxContainer
         _forgotBtn.Text = "  ❌  没想起来 (2)  ";
         _rateRow.Visible = false;
         Services.GamepadInput.ResetAxisState();
+        _padHint.Visible = Services.GamepadInput.IsPresent();
+        if (_padHint.Visible) _padHint.Text = Services.GamepadInput.HintRecall(false);
 
         Visible = true;
     }
@@ -155,6 +162,7 @@ public partial class RecallCardWidget : VBoxContainer
         _hintLabel.Visible = false;
         _revealBtn.Visible = false;
         _rateRow.Visible = true;
+        if (_padHint.Visible) _padHint.Text = Services.GamepadInput.HintRecall(true);
     }
 
     private void SelfRate(bool remembered)
@@ -166,6 +174,7 @@ public partial class RecallCardWidget : VBoxContainer
         _rememberedBtn.Disabled = true;
         _forgotBtn.Disabled = true;
         _rateRow.Visible = false;
+        _padHint.Visible = false;
 
         // 与选择题一致：判定完成后自动朗读本词（固定选择题条目不会走回忆卡片，无需判 IsFixedChoice）
         if (VocabConfig.Instance.AutoSpeakOnAnswer)

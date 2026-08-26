@@ -91,6 +91,39 @@ public static class GamepadInput
         return PadAction.None;
     }
 
+    /// <summary>当前是否插着手柄（没插就别给键鼠玩家显示手柄提示，白占一行）。</summary>
+    public static bool IsPresent()
+    {
+        if (!VocabConfig.Instance.GamepadEnabled) return false;
+        try { return Godot.Input.GetConnectedJoypads().Count > 0; }
+        catch { return false; }
+    }
+
+    // 提示文案统一在这里生成，答题面板/篝火复习/各答题组件共用，改键位只改一处。
+    // 用 [A] 而不是 Ⓐ：游戏字体不一定有 Enclosed Alphanumerics 字形，缺字会显示成方块。
+
+    /// <summary>选择题提示。</summary>
+    public static string HintChoice(bool multiSelect, bool showForgot)
+    {
+        var s = "🎮 ↑↓/摇杆 选项 · [A] " + (multiSelect ? "选中" : "选中再按提交");
+        if (multiSelect) s += " · [Y] 提交";
+        if (showForgot) s += " · [X] 忘了";
+        return s;
+    }
+
+    /// <summary>回忆卡片提示（分翻面前/后）。</summary>
+    public static string HintRecall(bool revealed) => revealed
+        ? "🎮 [A] 想起来了 · [X] 没想起来"
+        : "🎮 [A] 显示答案";
+
+    /// <summary>拼写题提示 —— 手柄打不了字，只给「忘了」这一条出路。</summary>
+    public static string HintSpelling(bool showForgot) => showForgot
+        ? "🎮 拼写题需键盘输入 · [X] 忘了"
+        : "🎮 拼写题需键盘输入";
+
+    /// <summary>已作答（等待继续）时的提示。</summary>
+    public static string HintContinue() => "🎮 [A] 继续";
+
     /// <summary>面板关闭时清掉摇杆状态，避免下次开面板时残留「还没回中」而吃掉第一次输入。</summary>
     public static void ResetAxisState() => AxisState.Clear();
 }

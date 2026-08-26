@@ -23,6 +23,7 @@ public partial class RestSiteReviewPanel : Control
     private LineEdit _spellingInput = null!;
     private Button _spellingSubmitBtn = null!;
     private Button _nextBtn = null!;
+    private Label _padHint = null!;
     private Button _skipBtn = null!;
     private Label _skipConfirmLabel = null!;
     private Button _skipConfirmYes = null!;
@@ -151,6 +152,10 @@ public partial class RestSiteReviewPanel : Control
         _feedbackLabel = GameTheme.MakeLabel("", 18, White, HorizontalAlignment.Center);
         mainVBox.AddChild(_feedbackLabel);
 
+        _padHint = GameTheme.MakeLabel("", 12, GameTheme.MidGray, HorizontalAlignment.Center);
+        _padHint.Visible = false;
+        mainVBox.AddChild(_padHint);
+
         var btnCenter = new CenterContainer();
         mainVBox.AddChild(btnCenter);
         _nextBtn = new Button
@@ -269,6 +274,7 @@ public partial class RestSiteReviewPanel : Control
 
                 if (quiz.IsRecall)
                 {
+                    _padHint.Visible = false;
                     _choiceWidget.Hide();
                     _spellingContainer.Visible = false;
                     _recallWidget.ShowQuestion(quiz, OnReviewRecallAnswered);
@@ -283,10 +289,14 @@ public partial class RestSiteReviewPanel : Control
                     _spellingSubmitBtn.Disabled = false;
                     _spellingForgotBtn.Visible = VocabConfig.Instance.ShowForgotButton;
                     _spellingForgotBtn.Disabled = false;
+                    _padHint.Visible = Services.GamepadInput.IsPresent();
+                    if (_padHint.Visible)
+                        _padHint.Text = Services.GamepadInput.HintSpelling(VocabConfig.Instance.ShowForgotButton);
                     _spellingInput.CallDeferred(LineEdit.MethodName.GrabFocus);
                 }
                 else
                 {
+                    _padHint.Visible = false;
                     _recallWidget.Hide();
                     _spellingContainer.Visible = false;
                     _choiceWidget.ShowQuestion(quiz, OnReviewChoiceAnswered);
@@ -337,6 +347,8 @@ public partial class RestSiteReviewPanel : Control
 
     private void ShowNextButton()
     {
+        _padHint.Visible = Services.GamepadInput.IsPresent();
+        if (_padHint.Visible) _padHint.Text = Services.GamepadInput.HintContinue();
         _nextBtn.Visible = true;
         var contKey = KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey);
         _nextBtn.Text = _currentIndex >= _records.Count - 1
@@ -400,6 +412,7 @@ public partial class RestSiteReviewPanel : Control
     private void Complete()
     {
         Visible = false;
+        _padHint.Visible = false;
         _onComplete?.Invoke();
         _onComplete = null;
     }

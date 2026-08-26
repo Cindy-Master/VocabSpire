@@ -28,6 +28,7 @@ public static class CombatEndHandler
         BattleStreakHud.CreateIfNeeded();
         // 前几局战斗开始时提示玩家：按快捷键可打开设置、配置奖励/惩罚/词库等。
         UI.EntryHintToast.MaybeShow();
+        UI.EntryHintToast.MaybeShowGamepadHint();
     }
 
     private static void OnCombatEnded(CombatRoom _)

@@ -25,6 +25,7 @@ public partial class QuizPanel : Control
     private Button _spellingSubmitBtn = null!;
     private Button _spellingForgotBtn = null!;
     private Button _confirmButton = null!;
+    private Label _padHint = null!;      // 拼写题 / 已作答时的手柄提示（选择题与回忆卡片由各自组件负责）
     private HBoxContainer _listenContainer = null!;
     private Button _listenBtn = null!;
     private Button _listenPlayTop = null!;
@@ -175,6 +176,11 @@ public partial class QuizPanel : Control
         _statsLabel = GameTheme.MakeLabel("", 12, TextGrey, HorizontalAlignment.Center);
         mainVBox.AddChild(_statsLabel);
 
+        // 手柄提示（没插手柄时整行隐藏）
+        _padHint = GameTheme.MakeLabel("", 12, GameTheme.MidGray, HorizontalAlignment.Center);
+        _padHint.Visible = false;
+        mainVBox.AddChild(_padHint);
+
         // 继续按钮
         var confirmContainer = new CenterContainer();
         mainVBox.AddChild(confirmContainer);
@@ -287,6 +293,10 @@ public partial class QuizPanel : Control
             }
         }
 
+        _padHint.Visible = question.IsSpelling && Services.GamepadInput.IsPresent();
+        if (_padHint.Visible)
+            _padHint.Text = Services.GamepadInput.HintSpelling(VocabConfig.Instance.ShowForgotButton);
+
         _feedbackLabel.Text = "";
         _confirmButton.Text = $"  继续 ({KeyBindButton.KeyName(VocabConfig.Instance.ContinueKey)})  ";
         _confirmButton.Visible = false;
@@ -344,6 +354,7 @@ public partial class QuizPanel : Control
             _promptLabel.Text = _currentQuestion.TargetWord.English;
 
         UpdateStats();
+        ShowContinuePadHint();
         _confirmButton.Visible = true;
     }
 
@@ -376,6 +387,7 @@ public partial class QuizPanel : Control
         RecordToRunTracker(remembered, remembered ? "" : "（没想起来）", _currentQuestion.CorrectText);
 
         UpdateStats();
+        ShowContinuePadHint();
         _confirmButton.Visible = true;
     }
 
@@ -405,6 +417,7 @@ public partial class QuizPanel : Control
         RecordToRunTracker(false, "（忘了）", _currentQuestion.CorrectText);
 
         UpdateStats();
+        ShowContinuePadHint();
         _confirmButton.Visible = true;
     }
 
@@ -443,6 +456,7 @@ public partial class QuizPanel : Control
         RecordToRunTracker(_lastCorrect, userInput, _currentQuestion.CorrectText);
 
         UpdateStats();
+        ShowContinuePadHint();
         _confirmButton.Visible = true;
     }
 
@@ -511,6 +525,7 @@ public partial class QuizPanel : Control
     private void CloseQuiz(bool correct)
     {
         Visible = false;
+        _padHint.Visible = false;
         _onAnswered?.Invoke(correct);
         _currentQuestion = null;
         _onAnswered = null;
@@ -631,6 +646,13 @@ public partial class QuizPanel : Control
             PadAction.Forgot => _choiceWidget.TryForgot(),
             _ => false
         };
+    }
+
+    /// <summary>作答完成后把提示切成「[A] 继续」（三种题型共用）。</summary>
+    private void ShowContinuePadHint()
+    {
+        _padHint.Visible = Services.GamepadInput.IsPresent();
+        if (_padHint.Visible) _padHint.Text = Services.GamepadInput.HintContinue();
     }
 
     private void OnListenPressed()
