@@ -312,6 +312,7 @@ public sealed class VocabConfig
             OptionPlayAudio = data.OptionPlayAudio ?? true;   // 老存档无此字段 → 默认开
             AutoSpeakOnAnswer = data.AutoSpeakOnAnswer ?? true;
             EnableMultiSelect = data.EnableMultiSelect ?? true;
+            ShowForgotButton = data.ShowForgotButton ?? true;
             LastSeenChangelogVersion = data.LastSeenChangelogVersion ?? "";
             UiFontScale = Math.Clamp(data.UiFontScale ?? 1.0f, 0.7f, 1.6f);
             SpellingEasyMode = data.SpellingEasyMode;
@@ -421,6 +422,7 @@ public sealed class VocabConfig
                 OptionPlayAudio = OptionPlayAudio,
                 AutoSpeakOnAnswer = AutoSpeakOnAnswer,
                 EnableMultiSelect = EnableMultiSelect,
+                ShowForgotButton = ShowForgotButton,
                 LastSeenChangelogVersion = LastSeenChangelogVersion,
                 UiFontScale = UiFontScale,
                 SpellingEasyMode = SpellingEasyMode,
@@ -555,6 +557,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("enable_multi_select")]
         public bool? EnableMultiSelect { get; set; }
+
+        [JsonPropertyName("show_forgot_button")]
+        public bool? ShowForgotButton { get; set; }
 
         [JsonPropertyName("last_seen_changelog_version")]
         public string? LastSeenChangelogVersion { get; set; }
