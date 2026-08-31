@@ -390,9 +390,14 @@ public static class MultiPlayerPatch
 /// </summary>
 internal static class NetProtocol
 {
-    /// <summary>'V''S' —— 自定义段起始标识。</summary>
-    internal const uint Magic = 0x5653;
-    internal const int MagicBits = 16;
+    /// <summary>自定义段起始标识：'V''S' + 协议版本。32 位是为了把「在别人的数据里被误匹配」
+    /// 的概率压到 1/2^32（16 位在几百比特的包里并非不可能撞上）。改协议时递增末字节。</summary>
+    internal const uint Magic = 0x56530001;
+    internal const int MagicBits = 32;
+
+    /// <summary>扫描上限。包里没有本 mod 数据时（对端没装 / 旧版），扫到上限即放弃，
+    /// 不至于一路读到越界。正常情况下 0 bit 就命中，根本走不到这里。</summary>
+    internal const int MaxScanBits = 4096;
 }
 
 [HarmonyPatch(typeof(NetPlayCardAction), nameof(NetPlayCardAction.Serialize))]
@@ -445,6 +450,36 @@ public static class NetPlayCardSerializePatch
 [HarmonyPatch(typeof(NetPlayCardAction), nameof(NetPlayCardAction.Deserialize))]
 public static class NetPlayCardDeserializePatch
 {
+    /// <summary>
+    /// 在数据包剩余部分里定位本 mod 的自定义段：用 32 位滑动窗口逐 bit 找魔数。
+    /// 找到时 reader 恰好停在魔数之后（即 payload 起点），返回 true。
+    ///
+    /// 为什么要扫而不是直接读：本 mod 的数据是追加在包尾的，位置取决于自己的 Postfix
+    /// 排在第几个执行。声明 Priority.Last 已能让两端次序一致，但万一还有别的 mod 也占了
+    /// Last、两端加载顺序又不同，位置就会漂移 —— 扫描让读端无论对方插在前面还是后面
+    /// 都能对齐，真正做到不依赖执行次序。
+    ///
+    /// 注意：扫描会推进 reader 的共享位置，所以本 mod 必须是最后一个读的（Priority.Last）——
+    /// 否则会吃掉排在后面的 mod 还没读的数据。这也是那个 attribute 不能去掉的原因。
+    /// </summary>
+    private static bool TryLocateSegment(PacketReader reader, out int scannedBits)
+    {
+        scannedBits = 0;
+        uint window = 0;
+
+        for (var i = 0; i < NetProtocol.MagicBits; i++)
+            window = (window << 1) | (reader.ReadBool() ? 1u : 0u);
+        if (window == NetProtocol.Magic) return true;
+
+        while (scannedBits < NetProtocol.MaxScanBits)
+        {
+            window = (window << 1) | (reader.ReadBool() ? 1u : 0u);
+            scannedBits++;
+            if (window == NetProtocol.Magic) return true;
+        }
+        return false;
+    }
+
     [HarmonyPriority(Priority.Last)]
     public static void Postfix(PacketReader reader)
     {
@@ -453,15 +488,20 @@ public static class NetPlayCardDeserializePatch
             QuizState.ResetCardLevel();
 
             var startBit = reader.BitPosition;
-            var magic = reader.ReadUInt(NetProtocol.MagicBits);
-            if (magic != NetProtocol.Magic)
+            if (!TryLocateSegment(reader, out var scanned))
             {
-                // 位置没对上：对端没装本 mod / 版本不同 / 还有别的 mod 也占了 Last。
-                // 整段放弃 —— 宁可这张牌不同步，也不能把别人的比特当成答题结果应用。
-                Log.Warn($"[VocabSpire][Net RECV] bit {startBit} 处未找到本 mod 标识" +
-                         $"（读到 0x{magic:X4}，应为 0x{NetProtocol.Magic:X4}）：对端可能未装本 mod、" +
-                         "版本不一致，或有其他 mod 也在此数据包尾追加数据。本次答题同步已跳过。");
+                // 扫遍剩余数据都没找到本 mod 的标识 —— 对端没装本 mod、或版本不一致。
+                // 整段放弃：宁可这张牌不同步，也不能把别人的比特当成答题结果应用到战斗里。
+                Log.Warn($"[VocabSpire][Net RECV] 从 bit {startBit} 起扫描 {scanned} bit 未找到本 mod 标识" +
+                         "：对端可能未装本 mod 或版本不一致。本次答题同步已跳过。");
                 return;
+            }
+            if (scanned > 0)
+            {
+                // 位置不在预期处但扫到了 —— 说明有别的 mod 也在这个包里写了数据、且它排在我们前面。
+                // 靠扫描已经正确对齐，功能不受影响；记一笔便于日后排查。
+                Log.Info($"[VocabSpire][Net RECV] 本 mod 数据段不在预期位置，向后扫描 {scanned} bit 后对齐" +
+                         "（有其他 mod 也在此包内追加数据，属正常情况）。");
             }
 
             if (reader.ReadBool()) { QuizState.SkipEffect = true; QuizState.SkipCardExtras = true; }
