@@ -459,9 +459,50 @@ public static class NetPlayCardDeserializePatch
     /// Last、两端加载顺序又不同，位置就会漂移 —— 扫描让读端无论对方插在前面还是后面
     /// 都能对齐，真正做到不依赖执行次序。
     ///
-    /// 注意：扫描会推进 reader 的共享位置，所以本 mod 必须是最后一个读的（Priority.Last）——
-    /// 否则会吃掉排在后面的 mod 还没读的数据。这也是那个 attribute 不能去掉的原因。
+    /// 扫描会推进 reader 的共享位置，但读完后 Postfix 会把位置还原（见 RestoreBitPosition），
+    /// 所以不会吃掉排在后面的 mod 尚未读取的数据 —— 本 mod 读自己的段，读完原样奉还。
     /// </summary>
+    /// <summary>
+    /// PacketReader.BitPosition 的写入器（该属性是 public int { get; private set; }，
+    /// setter 方法存在、只是不可访问）。拿不到时为 null —— 那种情况下本 mod 就只能
+    /// 依赖「自己是最后一个读的」，见 Postfix 里的降级处理。
+    /// </summary>
+    private static readonly Action<PacketReader, int>? SetBitPosition = CreateBitPositionSetter();
+
+    private static Action<PacketReader, int>? CreateBitPositionSetter()
+    {
+        try
+        {
+            var setter = AccessTools.PropertySetter(typeof(PacketReader), nameof(PacketReader.BitPosition));
+            if (setter is null)
+            {
+                Log.Warn("[VocabSpire][Net] 未找到 PacketReader.BitPosition 的 setter，" +
+                         "读取位置将无法还原（本 mod 仍会最后读，不影响自身功能）。");
+                return null;
+            }
+            return (Action<PacketReader, int>)setter.CreateDelegate(typeof(Action<PacketReader, int>));
+        }
+        catch (System.Exception ex)
+        {
+            Log.Warn($"[VocabSpire][Net] 创建 BitPosition 写入器失败（{ex.GetType().Name}: {ex.Message}），" +
+                     "读取位置将无法还原。");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 把 reader 的读取位置还原到我们介入之前 —— 「读完自己的，多读的吐回去」。
+    /// 这样即使本 mod 不是最后一个读的，排在后面的 mod 看到的 reader 也和我们没来过一样。
+    /// </summary>
+    private static void RestoreBitPosition(PacketReader reader, int bit)
+    {
+        try { SetBitPosition?.Invoke(reader, bit); }
+        catch (System.Exception ex)
+        {
+            Log.Warn($"[VocabSpire][Net] 还原读取位置失败：{ex.Message}");
+        }
+    }
+
     private static bool TryLocateSegment(PacketReader reader, out int scannedBits)
     {
         scannedBits = 0;
@@ -483,6 +524,8 @@ public static class NetPlayCardDeserializePatch
     [HarmonyPriority(Priority.Last)]
     public static void Postfix(PacketReader reader)
     {
+        // 进入时的位置：读完后要原样还原回去
+        var entryBit = reader.BitPosition;
         try
         {
             QuizState.ResetCardLevel();
@@ -539,6 +582,12 @@ public static class NetPlayCardDeserializePatch
         catch (System.Exception ex)
         {
             Log.Error($"[VocabSpire] Deserialize failed: {ex.Message}");
+        }
+        finally
+        {
+            // 不管读成功、没找到、还是中途抛异常，都把位置还原成我们介入之前的样子，
+            // 让排在后面的 mod 读到的东西不受影响（真正的「让道」）。
+            RestoreBitPosition(reader, entryBit);
         }
     }
 }
