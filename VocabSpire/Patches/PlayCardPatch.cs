@@ -369,11 +369,42 @@ public static class MultiPlayerPatch
 /// 联机同步 —— NetPlayCardAction 序列化附带答题标志位 + 变长奖励数组。
 /// 协议：[skip][nocost][returnhand][rewardCount:4 bit] [(kind:4, amount:16) × N]
 /// </summary>
+/// <summary>
+/// 联机自定义数据的协议头。
+///
+/// VocabSpire 把答题结果（跳过效果/免费/回手/奖惩/重放）作为 Postfix 追加在游戏原生
+/// NetPlayCardAction 数据包的尾部，靠「写入顺序 = 读取顺序」这个隐式约定对齐位置。
+/// 该约定有个前提：本 mod 的 Postfix 在收发两端的执行次序必须一致。
+///
+/// Harmony 对同一方法的多个 Postfix 按 priority 排序，**只有 priority 相同时才退化成按
+/// mod 加载顺序**。此前本 mod 全部用默认 Normal，于是「谁先加载谁先写」——一旦和别的
+/// mod（如把自己排到很前的 RitsuLib）同场，两端位置就可能对不上，读出的比特是别人的数据：
+/// skip/returnhand 被误置、奖励数量读成离谱值，进而整包读爆。玩家实测「VocabSpire 排在
+/// RitsuLib 前面才正常、排后面就暴毙」正是这个现象。
+///
+/// 修法两层：
+///   ① Serialize / Deserialize 两侧的 Postfix 都声明 Priority.Last —— 无论加载顺序如何，
+///      本 mod 永远最后写、最后读，位置在两端必然一致（这一层保证功能正常，不是降级）。
+///   ② 数据前置魔数 —— 万一还有 mod 也占了 Last 导致位置仍不对，读端能立刻发现并
+///      整段放弃，而不是把垃圾值当成答题结果应用到战斗里。
+/// </summary>
+internal static class NetProtocol
+{
+    /// <summary>'V''S' —— 自定义段起始标识。</summary>
+    internal const uint Magic = 0x5653;
+    internal const int MagicBits = 16;
+}
+
 [HarmonyPatch(typeof(NetPlayCardAction), nameof(NetPlayCardAction.Serialize))]
 public static class NetPlayCardSerializePatch
 {
+    // Priority.Last：本 Postfix 永远最后执行 → 自定义段总在包尾，且与读端次序一致。
+    // 不声明的话就是默认 Normal，多 mod 同场时次序由加载顺序决定（见 NetProtocol 注释）。
+    [HarmonyPriority(Priority.Last)]
     public static void Postfix(PacketWriter writer)
     {
+        var startBit = writer.BitPosition;
+        writer.WriteUInt(NetProtocol.Magic, NetProtocol.MagicBits);
         writer.WriteBool(QuizState.SkipEffect);
         writer.WriteBool(QuizState.NoCost);
         writer.WriteBool(QuizState.ReturnToHand);
@@ -406,18 +437,33 @@ public static class NetPlayCardSerializePatch
         var punishDesc = pCount == 0 ? "none"
             : string.Join(",", QuizState.PendingPunishments.Take(pCount).Select(p => $"{(RewardType)p.Kind}x{p.Amount}"));
         Log.Info($"[VocabSpire][Net SEND] skip={QuizState.SkipEffect} nocost={QuizState.NoCost} " +
-                 $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}] punishments=[{punishDesc}]");
+                 $"returnhand={QuizState.ReturnToHand} rewards=[{rewardsDesc}] punishments=[{punishDesc}] " +
+                 $"(自定义段 bit {startBit}..{writer.BitPosition})");
     }
 }
 
 [HarmonyPatch(typeof(NetPlayCardAction), nameof(NetPlayCardAction.Deserialize))]
 public static class NetPlayCardDeserializePatch
 {
+    [HarmonyPriority(Priority.Last)]
     public static void Postfix(PacketReader reader)
     {
         try
         {
             QuizState.ResetCardLevel();
+
+            var startBit = reader.BitPosition;
+            var magic = reader.ReadUInt(NetProtocol.MagicBits);
+            if (magic != NetProtocol.Magic)
+            {
+                // 位置没对上：对端没装本 mod / 版本不同 / 还有别的 mod 也占了 Last。
+                // 整段放弃 —— 宁可这张牌不同步，也不能把别人的比特当成答题结果应用。
+                Log.Warn($"[VocabSpire][Net RECV] bit {startBit} 处未找到本 mod 标识" +
+                         $"（读到 0x{magic:X4}，应为 0x{NetProtocol.Magic:X4}）：对端可能未装本 mod、" +
+                         "版本不一致，或有其他 mod 也在此数据包尾追加数据。本次答题同步已跳过。");
+                return;
+            }
+
             if (reader.ReadBool()) { QuizState.SkipEffect = true; QuizState.SkipCardExtras = true; }
             if (reader.ReadBool()) QuizState.NoCost = true;
             if (reader.ReadBool()) QuizState.ReturnToHand = true;
@@ -562,6 +608,10 @@ public static class GetResultLocationPatch
         PatchAudit.Record("答错回手", $"{ResultPileApi.V0109} (v0.109+ 形态)", count);
     }
 
+    // Priority.Last：答错回手是玩家答错的强制结果，必须压过其他 mod 对归堆的修改
+    // （如 RitsuLib 的 model capability 也 Postfix 改同一个 __result）。不声明的话
+    // 谁生效取决于 mod 加载顺序。仅在 ReturnToHand=true 时改动，平时不干预任何人。
+    [HarmonyPriority(Priority.Last)]
     public static void Postfix(ref CardLocation __result)
     {
         if (QuizState.ReturnToHand)
@@ -587,6 +637,10 @@ public static class GetResultPileTypePatch
         PatchAudit.Record("答错回手", $"{ResultPileApi.V0107} (≤v0.107 形态)", count);
     }
 
+    // Priority.Last：答错回手是玩家答错的强制结果，必须压过其他 mod 对归堆的修改
+    // （如 RitsuLib 的 model capability 也 Postfix 改同一个 __result）。不声明的话
+    // 谁生效取决于 mod 加载顺序。仅在 ReturnToHand=true 时改动，平时不干预任何人。
+    [HarmonyPriority(Priority.Last)]
     public static void Postfix(ref PileType __result)
     {
         if (QuizState.ReturnToHand)
@@ -621,6 +675,10 @@ public static class GetResultPileTypeAndPositionPatch
         PatchAudit.Record("答错回手", $"{ResultPileApi.V0108} (v0.108 形态)", count);
     }
 
+    // Priority.Last：答错回手是玩家答错的强制结果，必须压过其他 mod 对归堆的修改
+    // （如 RitsuLib 的 model capability 也 Postfix 改同一个 __result）。不声明的话
+    // 谁生效取决于 mod 加载顺序。仅在 ReturnToHand=true 时改动，平时不干预任何人。
+    [HarmonyPriority(Priority.Last)]
     public static void Postfix(ref (PileType, CardPilePosition) __result)
     {
         if (QuizState.ReturnToHand)
