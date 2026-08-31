@@ -518,16 +518,48 @@ public static class NetPlayCardDeserializePatch
         }
     }
 
+    /// <summary>对端没带本 mod 数据时的提示 —— 每局只说一次，避免每收一张牌刷一行。
+    /// 这种情况必然导致双方状态分歧（一端按答题结果跳过了卡牌效果，另一端毫不知情照常执行），
+    /// 所以说明必须写清楚「双方版本要一致」，而不是含糊地记一句读取失败。</summary>
+    private static bool _peerMismatchWarned;
+
+    internal static void ResetPeerMismatchWarning() => _peerMismatchWarned = false;
+
+    private static void WarnPeerMismatchOnce(string detail, PacketReader reader, int entryBit)
+    {
+        if (_peerMismatchWarned) return;
+        _peerMismatchWarned = true;
+        var totalBits = (reader.Buffer?.Length ?? 0) * 8;
+        Log.Warn($"[VocabSpire][Net RECV] {detail} —— 对端发来的打牌数据里没有找到本 mod 的答题结果。" +
+                 $"诊断：进入时 bit={entryBit}，包总长={totalBits} bit，剩余={totalBits - entryBit} bit。" +
+                 "把这里的 bit 区间与对端日志中 [Net SEND] 的「自定义段 bit A..B」对拍：" +
+                 "① 对端若压根没有 SEND 记录 → 对端未装本 mod 或未开启；" +
+                 "② 对端有 SEND 且区间与此处相差不大 → 双方版本不一致（协议不同）；" +
+                 "③ 对端有 SEND 但区间与此处差很远 → 原生数据长度两端就不同，" +
+                 "通常是联机双方安装的 mod 集合不一致（mod 会改变 ModelDb 与 modelId 编码），请让双方装完全相同的 mod。" +
+                 "本条及之后同类提示不再重复输出。");
+    }
+
     private static bool TryLocateSegment(PacketReader reader, out int scannedBits)
     {
         scannedBits = 0;
-        uint window = 0;
 
+        // 先算清楚还剩多少 bit 可读 —— 对端若没装本 mod（或版本早于 v2.7.31，还没有魔数），
+        // 这个包里根本没有我们的数据段，闷头扫会一路读到包尾、在 BitSerializationUtil 里数组越界。
+        // 实测日志：ActionEnqueuedMessage 每条动作是独立小包，越界异常每收一张牌就抛一次。
+        var remaining = (reader.Buffer?.Length ?? 0) * 8 - reader.BitPosition;
+        var need = NetProtocol.MagicBits + NetProtocol.TagBits;
+        if (remaining < need) return false;
+
+        // 最多只能扫到「刚好还能读下完整段头」的位置
+        var maxScan = Math.Min(NetProtocol.MaxScanBits, remaining - need);
+
+        uint window = 0;
         for (var i = 0; i < NetProtocol.MagicBits; i++)
             window = (window << 1) | (reader.ReadBool() ? 1u : 0u);
         if (window == NetProtocol.Magic) return true;
 
-        while (scannedBits < NetProtocol.MaxScanBits)
+        while (scannedBits < maxScan)
         {
             window = (window << 1) | (reader.ReadBool() ? 1u : 0u);
             scannedBits++;
@@ -552,8 +584,7 @@ public static class NetPlayCardDeserializePatch
                 // 此时必须把位置还原：扫描已经推进了 reader，而这个包里根本没有我们的数据，
                 // 一个 bit 都不该被我们消费掉，否则游戏读后续内容时会错位。
                 RestoreBitPosition(reader, entryBit);
-                Log.Warn($"[VocabSpire][Net RECV] 从 bit {startBit} 起扫描 {scanned} bit 未找到本 mod 标识" +
-                         "：对端可能未装本 mod 或版本不一致。本次答题同步已跳过，读取位置已还原。");
+                WarnPeerMismatchOnce($"从 bit {startBit} 起扫描 {scanned} bit 未找到本 mod 的数据标识", reader, entryBit);
                 return;
             }
             // 段标识校验：确认扫到的这一段确实属于当前这条动作。
@@ -563,8 +594,7 @@ public static class NetPlayCardDeserializePatch
             if (tag != expected)
             {
                 RestoreBitPosition(reader, entryBit);
-                Log.Warn($"[VocabSpire][Net RECV] 扫到的数据段不属于本动作（段标识 {tag}，本动作卡牌 {expected}）" +
-                         "：本条动作没有携带答题数据（对端可能是旧版本），已跳过并还原读取位置。");
+                WarnPeerMismatchOnce($"扫到的数据段不属于本动作（段标识 {tag}，本动作卡牌 {expected}）", reader, entryBit);
                 return;
             }
 
