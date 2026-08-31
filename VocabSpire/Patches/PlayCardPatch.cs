@@ -541,71 +541,57 @@ public static class NetPlayCardDeserializePatch
     }
 
     /// <summary>
-    /// 从数据包的**物理末尾**反向定位本 mod 的数据段。
+    /// 在指定 bit 位置尝试匹配「魔数 + 本动作归属标识」。
     ///
-    /// 为什么需要这条兜底：正向扫描是从「原生字段读完的位置」往后找，一旦两端读出的原生长度
-    /// 不一致（联机双方 mod 集合不同时，ModelDb 内容不同会改变 modelId 的编码，其他 mod 也可能
-    /// 改动同一批数据的编码），起点就偏了、往后怎么扫都扫不到，即便对端确实写了数据。
-    /// 而我们的段总是追加在原生数据之后，所以从包尾往前找一定能撞上它 —— 这条路径完全不依赖
-    /// 原生字段有多长，是「双方 mod 集合不同也要能联机」的关键。
-    ///
-    /// 魔数(32) + 归属标识(32) 双重匹配，误判概率极低；找到后返回载荷起点。
+    /// ⚠ 必须用 ReadUInt 读，不能自己逐 bit 拼：PacketWriter.WriteUInt / PacketReader.ReadUInt
+    /// 走的是 BinaryPrimitives 的**小端序**（ReadUInt 末尾 ReadUInt32LittleEndian），
+    /// 而逐 bit 拼窗口是大端序，两者位序相反、魔数永远对不上。
+    /// v2.7.31~2.7.32 的正向扫描正是这么写的，导致联机同步从加入魔数起就一直读不到对端数据
+    /// （日志表现为「偏移 0 bit 却正向未命中」）。
     /// </summary>
-    private static bool TryLocateFromTail(PacketReader reader, uint expectedTag,
-        out int payloadStart, out int headStart)
+    private static bool MatchesAt(PacketReader reader, int pos, uint expectedTag)
     {
-        payloadStart = -1;
-        headStart = -1;
-        if (SetBitPosition is null) return false;          // 没有写入器就没法跳转，放弃
+        if (SetBitPosition is null) return false;
+        SetBitPosition(reader, pos);
+        if (reader.ReadUInt(NetProtocol.MagicBits) != NetProtocol.Magic) return false;
+        return reader.ReadUInt(NetProtocol.TagBits) == expectedTag;
+    }
+
+    /// <summary>
+    /// 定位本动作的数据段：先从进入位置往后找（常态下第一次就命中，零扫描），
+    /// 再从数据包物理末尾往前找。后者不依赖原生字段读了多长，是「联机双方 mod 集合不同、
+    /// 两端原生长度不一致」时仍能取到数据的兜底。两条路都用 MatchesAt，位序一致。
+    /// </summary>
+    private static bool TryLocate(PacketReader reader, uint expectedTag, int entryBit,
+        out int payloadStart, out int headStart, out bool viaTail, out int scanned)
+    {
+        payloadStart = -1; headStart = -1; viaTail = false; scanned = 0;
+        if (SetBitPosition is null) return false;
 
         var total = (reader.Buffer?.Length ?? 0) * 8;
         var head = NetProtocol.MagicBits + NetProtocol.TagBits;
+        if (total < head) return false;
 
-        // 下限不能卡在「进入位置」：两端原生长度不一致时，本 mod 的段可能正好落在
-        // 进入位置之**前**（接收端把原生字段读多了），卡住就永远找不到。
-        // 一路回扫到包首（受 MaxScanBits 约束），正确性由归属标识保证 —— 扫到别条动作
-        // 的段时标识对不上，会被跳过。
+        // ① 正向：进入位置本身 → 往后（别的 mod 也在包里追加数据时会有偏移）
+        var fwdLimit = Math.Min(total - head, entryBit + NetProtocol.MaxScanBits);
+        for (var p = entryBit; p <= fwdLimit; p++, scanned++)
+        {
+            if (!MatchesAt(reader, p, expectedTag)) continue;
+            headStart = p; payloadStart = p + head;
+            return true;
+        }
+
+        // ② 反向：从包尾往前 —— 段可能落在进入位置之前（接收端把原生字段读多了）
         var lowest = Math.Max(0, total - NetProtocol.MaxScanBits);
-
         for (var p = total - head; p >= lowest; p--)
         {
-            SetBitPosition(reader, p);
-            if (reader.ReadUInt(NetProtocol.MagicBits) != NetProtocol.Magic) continue;
-            if (reader.ReadUInt(NetProtocol.TagBits) != expectedTag) continue;
-            headStart = p;
-            payloadStart = p + head;
+            if (!MatchesAt(reader, p, expectedTag)) continue;
+            headStart = p; payloadStart = p + head; viaTail = true;
             return true;
         }
         return false;
     }
 
-    private static bool TryLocateSegment(PacketReader reader, out int scannedBits)
-    {
-        scannedBits = 0;
-
-        // 先算清楚还剩多少 bit 可读 —— 对端若没装本 mod（或版本早于 v2.7.31，还没有魔数），
-        // 这个包里根本没有我们的数据段，闷头扫会一路读到包尾、在 BitSerializationUtil 里数组越界。
-        // 实测日志：ActionEnqueuedMessage 每条动作是独立小包，越界异常每收一张牌就抛一次。
-        var remaining = (reader.Buffer?.Length ?? 0) * 8 - reader.BitPosition;
-        var need = NetProtocol.MagicBits + NetProtocol.TagBits;
-        if (remaining < need) return false;
-
-        // 最多只能扫到「刚好还能读下完整段头」的位置
-        var maxScan = Math.Min(NetProtocol.MaxScanBits, remaining - need);
-
-        uint window = 0;
-        for (var i = 0; i < NetProtocol.MagicBits; i++)
-            window = (window << 1) | (reader.ReadBool() ? 1u : 0u);
-        if (window == NetProtocol.Magic) return true;
-
-        while (scannedBits < maxScan)
-        {
-            window = (window << 1) | (reader.ReadBool() ? 1u : 0u);
-            scannedBits++;
-            if (window == NetProtocol.Magic) return true;
-        }
-        return false;
-    }
 
     [HarmonyPriority(Priority.Last)]
     public static void Postfix(ref NetPlayCardAction __instance, PacketReader reader)
@@ -616,42 +602,23 @@ public static class NetPlayCardDeserializePatch
         {
             QuizState.ResetCardLevel();
 
-            var startBit = reader.BitPosition;
             var expectedTag = __instance.card.CombatCardIndex;
-            var viaTail = false;
-            var located = false;
 
-            // ① 正向：段紧跟在原生数据之后 —— 两端原生长度一致时的常态，扫描量通常为 0。
-            //    扫到魔数还要校验归属标识：一包多条动作时，若本动作没带段，正向会撞上
-            //    下一条动作的段，标识对不上就说明「这不是我的」，交给 ② 再找一次。
-            if (TryLocateSegment(reader, out var scanned))
-            {
-                if (reader.ReadUInt(NetProtocol.TagBits) == expectedTag) located = true;
-            }
-
-            // ② 反向：从数据包物理末尾回扫，只认「魔数 + 本动作归属标识」。
-            //    这条路径完全不依赖原生字段读了多长 —— 联机双方 mod 集合不同时，
-            //    两端对原生字段的解析长度可能不一致、起点就偏了，正向怎么扫都扫不到，
-            //    但段本身还在包里，从尾部找一定能撞上。
-            if (!located)
+            if (!TryLocate(reader, expectedTag, entryBit,
+                    out var payloadStart, out var headStart, out var viaTail, out var scanned))
             {
                 RestoreBitPosition(reader, entryBit);
-                if (TryLocateFromTail(reader, expectedTag, out var payloadStart, out var headStart))
-                {
-                    SetBitPosition!(reader, payloadStart);
-                    viaTail = true;
-                    located = true;
-                    Log.Info($"[VocabSpire][Net RECV] 正向未命中，已从包尾反向定位到本 mod 数据段" +
-                             $"（段头 bit {headStart}，进入时 bit {entryBit}，偏移 {headStart - entryBit} bit）。" +
-                             "偏移不为 0 通常说明联机双方安装的 mod 集合不同，导致原生字段两端长度不一致。");
-                }
-            }
-
-            if (!located)
-            {
-                RestoreBitPosition(reader, entryBit);
-                WarnPeerMismatchOnce($"正向扫描 {scanned} bit、反向回扫均未找到本动作的数据段", reader, entryBit);
+                WarnPeerMismatchOnce($"正向与反向均未找到本动作的数据段（扫描 {scanned} bit）", reader, entryBit);
                 return;
+            }
+
+            SetBitPosition!(reader, payloadStart);
+            var offset = headStart - entryBit;
+            if (offset != 0 || viaTail)
+            {
+                Log.Info($"[VocabSpire][Net RECV] 数据段不在预期位置：段头 bit {headStart}，进入时 bit {entryBit}，" +
+                         $"偏移 {offset} bit（{(viaTail ? "由包尾反向定位" : "正向扫描")}）。" +
+                         "偏移不为 0 通常是别的 mod 也在此包内追加了数据，或联机双方 mod 集合不同导致两端原生字段长度不一致。");
             }
 
             if (reader.ReadBool()) { QuizState.SkipEffect = true; QuizState.SkipCardExtras = true; }
