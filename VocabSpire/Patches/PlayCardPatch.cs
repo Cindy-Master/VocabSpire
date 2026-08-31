@@ -398,6 +398,14 @@ internal static class NetProtocol
     /// <summary>扫描上限。包里没有本 mod 数据时（对端没装 / 旧版），扫到上限即放弃，
     /// 不至于一路读到越界。正常情况下 0 bit 就命中，根本走不到这里。</summary>
     internal const int MaxScanBits = 4096;
+
+    /// <summary>段标识位宽 —— 写入 NetCombatCard.CombatCardIndex（卡牌实例唯一 id，两端一致）。
+    ///
+    /// 为什么必须有：一个数据包里可能连续装多条 PlayCardAction（游戏用 ReadList 之类连续读）。
+    /// 若某条动作的包里没有本 mod 的段（对端是旧版、或那张牌没触发答题），扫描就会一路扫过去
+    /// **抓到下一条动作的段**，读走属于别人的答题结果、还把读取位置推到错误的地方。
+    /// 加上这个标识后，每段都能自证「我属于哪条动作」：对不上就说明扫过界了，立即还原并跳过。</summary>
+    internal const int TagBits = 32;
 }
 
 [HarmonyPatch(typeof(NetPlayCardAction), nameof(NetPlayCardAction.Serialize))]
@@ -406,10 +414,11 @@ public static class NetPlayCardSerializePatch
     // Priority.Last：本 Postfix 永远最后执行 → 自定义段总在包尾，且与读端次序一致。
     // 不声明的话就是默认 Normal，多 mod 同场时次序由加载顺序决定（见 NetProtocol 注释）。
     [HarmonyPriority(Priority.Last)]
-    public static void Postfix(PacketWriter writer)
+    public static void Postfix(ref NetPlayCardAction __instance, PacketWriter writer)
     {
         var startBit = writer.BitPosition;
         writer.WriteUInt(NetProtocol.Magic, NetProtocol.MagicBits);
+        writer.WriteUInt(__instance.card.CombatCardIndex, NetProtocol.TagBits);   // 段归属标识
         writer.WriteBool(QuizState.SkipEffect);
         writer.WriteBool(QuizState.NoCost);
         writer.WriteBool(QuizState.ReturnToHand);
@@ -491,8 +500,14 @@ public static class NetPlayCardDeserializePatch
     }
 
     /// <summary>
-    /// 把 reader 的读取位置还原到我们介入之前 —— 「读完自己的，多读的吐回去」。
-    /// 这样即使本 mod 不是最后一个读的，排在后面的 mod 看到的 reader 也和我们没来过一样。
+    /// 把 reader 的读取位置还原到我们介入之前。
+    ///
+    /// ⚠ 只在「没找到自己的数据段」或「读取过程抛异常」时才可以调用。
+    /// 成功读完自己的段时**绝不能**还原 —— PacketReader 是流式共享的，游戏用
+    /// ReadList&lt;T&gt; 之类连续读多项，每一项都靠位置自然前进来定位下一项。
+    /// 我们写进包里的自定义段必须被消费掉，位置停在段尾，游戏后续读取才正确；
+    /// 一旦还原，游戏会把本 mod 的自定义段当成下一项数据重新解析，直接导致联机数据不同步。
+    /// （v2.7.31 曾在 finally 里无条件还原，正是此因造成开启奖励后必然 desync。）
     /// </summary>
     private static void RestoreBitPosition(PacketReader reader, int bit)
     {
@@ -522,7 +537,7 @@ public static class NetPlayCardDeserializePatch
     }
 
     [HarmonyPriority(Priority.Last)]
-    public static void Postfix(PacketReader reader)
+    public static void Postfix(ref NetPlayCardAction __instance, PacketReader reader)
     {
         // 进入时的位置：读完后要原样还原回去
         var entryBit = reader.BitPosition;
@@ -533,12 +548,26 @@ public static class NetPlayCardDeserializePatch
             var startBit = reader.BitPosition;
             if (!TryLocateSegment(reader, out var scanned))
             {
-                // 扫遍剩余数据都没找到本 mod 的标识 —— 对端没装本 mod、或版本不一致。
-                // 整段放弃：宁可这张牌不同步，也不能把别人的比特当成答题结果应用到战斗里。
+                // 没找到本 mod 的标识 —— 对端没装本 mod、或版本不一致。
+                // 此时必须把位置还原：扫描已经推进了 reader，而这个包里根本没有我们的数据，
+                // 一个 bit 都不该被我们消费掉，否则游戏读后续内容时会错位。
+                RestoreBitPosition(reader, entryBit);
                 Log.Warn($"[VocabSpire][Net RECV] 从 bit {startBit} 起扫描 {scanned} bit 未找到本 mod 标识" +
-                         "：对端可能未装本 mod 或版本不一致。本次答题同步已跳过。");
+                         "：对端可能未装本 mod 或版本不一致。本次答题同步已跳过，读取位置已还原。");
                 return;
             }
+            // 段标识校验：确认扫到的这一段确实属于当前这条动作。
+            // 一包多动作时，若本动作没有我们的段，扫描会撞上下一条动作的段 —— 靠这里挡住。
+            var tag = reader.ReadUInt(NetProtocol.TagBits);
+            var expected = __instance.card.CombatCardIndex;
+            if (tag != expected)
+            {
+                RestoreBitPosition(reader, entryBit);
+                Log.Warn($"[VocabSpire][Net RECV] 扫到的数据段不属于本动作（段标识 {tag}，本动作卡牌 {expected}）" +
+                         "：本条动作没有携带答题数据（对端可能是旧版本），已跳过并还原读取位置。");
+                return;
+            }
+
             if (scanned > 0)
             {
                 // 位置不在预期处但扫到了 —— 说明有别的 mod 也在这个包里写了数据、且它排在我们前面。
@@ -581,13 +610,9 @@ public static class NetPlayCardDeserializePatch
         }
         catch (System.Exception ex)
         {
-            Log.Error($"[VocabSpire] Deserialize failed: {ex.Message}");
-        }
-        finally
-        {
-            // 不管读成功、没找到、还是中途抛异常，都把位置还原成我们介入之前的样子，
-            // 让排在后面的 mod 读到的东西不受影响（真正的「让道」）。
+            // 读到一半出错：位置停在不确定的地方，还原回去交给游戏，别让它接着读错位的数据
             RestoreBitPosition(reader, entryBit);
+            Log.Error($"[VocabSpire] Deserialize failed: {ex.Message}（读取位置已还原）");
         }
     }
 }
