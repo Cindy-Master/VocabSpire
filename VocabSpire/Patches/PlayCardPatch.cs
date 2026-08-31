@@ -509,11 +509,25 @@ public static class ReturnPileState
     internal static bool PatchActive;
 }
 
-[HarmonyPatch]
-public static class GetResultPileTypePatch
+/// <summary>
+/// 「这张牌打完去哪个牌堆」的游戏 API —— 游戏已经改过两次名字和签名：
+///   ≤0.107   GetResultPileTypeForCardPlay()            → PileType
+///    0.108   GetResultPileTypeAndPositionForCardPlay() → (PileType, CardPilePosition)
+///   0.109+   GetResultLocationForCardPlay()            → CardLocation（含 pileType 字段）
+///
+/// 原本用「方法名含 ResultPileType」的模糊匹配来抗改名，实测抗不住：0.109 把名字里的
+/// ResultPileType 整段换成了 ResultLocation，匹配数当场归零、答错回手静默失效。
+/// 现改为逐代「精确方法名 + 精确返回类型」匹配 —— 命中哪代挂哪个补丁；三代全落空说明
+/// 游戏又改了 API，由挂载审计明确报出来，而不是继续静默降级。
+/// </summary>
+internal static class ResultPileApi
 {
-    /// <summary>模糊匹配：遍历 CardModel 及子类，名字含 filter、无参、返回类型匹配的方法。</summary>
-    internal static IEnumerable<MethodBase> FindResultPileMethods(System.Type returnType)
+    internal const string V0109 = "GetResultLocationForCardPlay";
+    internal const string V0108 = "GetResultPileTypeAndPositionForCardPlay";
+    internal const string V0107 = "GetResultPileTypeForCardPlay";
+
+    /// <summary>在 CardModel 及其所有子类里找「该精确名字 + 无参 + 该返回类型」的方法（含子类 override）。</summary>
+    internal static IEnumerable<MethodBase> Find(string exactName, System.Type returnType)
     {
         var baseType = typeof(CardModel);
         var flags = BindingFlags.Instance | BindingFlags.NonPublic
@@ -521,27 +535,56 @@ public static class GetResultPileTypePatch
         foreach (var type in baseType.Assembly.GetTypes())
         {
             if (!baseType.IsAssignableFrom(type)) continue;
-            foreach (var m in type.GetMethods(flags))
-            {
-                if (!m.Name.Contains("ResultPileType")) continue;
-                if (m.Name.Contains("TurnEnd")) continue;   // 排除回合结束在手效果的归堆（GetResultPileTypeForOnTurnEndInHandEffect），与打牌无关
-                if (m.GetParameters().Length != 0) continue;
-                if (m.ReturnType != returnType) continue;
-                yield return m;
-            }
+            var m = type.GetMethod(exactName, flags, null, System.Type.EmptyTypes, null);
+            if (m is null || m.ReturnType != returnType) continue;
+            yield return m;
         }
     }
+}
 
+/// <summary>
+/// 答错回手（v0.109+ 形态）—— 归堆方法改名为 GetResultLocationForCardPlay，
+/// 返回 CardLocation（结构体，pileType 字段即牌堆）。与 0.108 / ≤0.107 两个补丁类共存，
+/// 各自 TargetMethods 在别代游戏上为空 → Harmony 抛异常 → 由 Plugin 逐类隔离兜住。
+/// </summary>
+[HarmonyPatch]
+public static class GetResultLocationPatch
+{
     static IEnumerable<MethodBase> TargetMethods()
     {
         var count = 0;
-        foreach (var m in FindResultPileMethods(typeof(PileType)))
+        foreach (var m in ResultPileApi.Find(ResultPileApi.V0109, typeof(CardLocation)))
         {
             count++;
             yield return m;
         }
         if (count > 0) ReturnPileState.PatchActive = true;
-        Log.Info($"[VocabSpire] Patched {count} ResultPileType(→PileType) methods (≤v0.107 形态).");
+        PatchAudit.Record("答错回手", $"{ResultPileApi.V0109} (v0.109+ 形态)", count);
+    }
+
+    public static void Postfix(ref CardLocation __result)
+    {
+        if (QuizState.ReturnToHand)
+        {
+            // 同下：能力牌/复制牌原结果是 None，不改成 Hand 会被移出战斗（凭空消失）
+            __result.pileType = PileType.Hand;
+        }
+    }
+}
+
+[HarmonyPatch]
+public static class GetResultPileTypePatch
+{
+    static IEnumerable<MethodBase> TargetMethods()
+    {
+        var count = 0;
+        foreach (var m in ResultPileApi.Find(ResultPileApi.V0107, typeof(PileType)))
+        {
+            count++;
+            yield return m;
+        }
+        if (count > 0) ReturnPileState.PatchActive = true;
+        PatchAudit.Record("答错回手", $"{ResultPileApi.V0107} (≤v0.107 形态)", count);
     }
 
     public static void Postfix(ref PileType __result)
@@ -569,13 +612,13 @@ public static class GetResultPileTypeAndPositionPatch
     static IEnumerable<MethodBase> TargetMethods()
     {
         var count = 0;
-        foreach (var m in GetResultPileTypePatch.FindResultPileMethods(typeof((PileType, CardPilePosition))))
+        foreach (var m in ResultPileApi.Find(ResultPileApi.V0108, typeof((PileType, CardPilePosition))))
         {
             count++;
             yield return m;
         }
         if (count > 0) ReturnPileState.PatchActive = true;
-        Log.Info($"[VocabSpire] Patched {count} ResultPileType(→元组) methods (v0.108+ 形态).");
+        PatchAudit.Record("答错回手", $"{ResultPileApi.V0108} (v0.108 形态)", count);
     }
 
     public static void Postfix(ref (PileType, CardPilePosition) __result)
@@ -633,7 +676,7 @@ public static class OnPlaySkipPatch
             yield return method;
         }
 
-        Log.Info($"[VocabSpire] Patched {count} OnPlay methods.");
+        PatchAudit.Record("答错跳过卡牌效果", "CardModel 子类 OnPlay", count, PatchImportance.Critical);
     }
 
     public static bool Prefix(object __instance, ref Task __result)
@@ -739,7 +782,7 @@ public static class EnchantmentAfflictionSkipPatch
             yield return method;
         }
 
-        Log.Info($"[VocabSpire] Patched {count} Enchantment/Affliction OnPlay methods (skip on wrong answer).");
+        PatchAudit.Record("答错跳过附魔/词缀效果", "Enchantment/Affliction OnPlay", count);
     }
 
     public static bool Prefix(object __instance, ref Task __result)

@@ -36,11 +36,15 @@ public static class Plugin
             }
             catch (System.Exception ex)
             {
-                // 双版本兼容下这是预期行为：如 GetResultPileTypePatch(≤0.107) 与
-                // GetResultPileTypeAndPositionPatch(0.108+) 总有一个在当前版本无目标方法。
-                Log.Warn($"[VocabSpire] 补丁 {type.Name} 未挂载（当前游戏版本无对应方法，对应功能由兼容补丁接管或禁用）: {ex.Message}");
+                // 多版本兼容下这是预期行为：答错回手有 ≤0.107 / 0.108 / 0.109+ 三代补丁类，
+                // 在任一版本上总有两代找不到目标方法。真正的故障由 PatchAudit 按「功能」归组判断：
+                // 同一功能三代全落空才算不可用，单代落空是正常的版本分支。
+                PatchAudit.RecordFailure(FeatureOf(type), type.Name, ex.Message);
+                Log.Warn($"[VocabSpire] 补丁 {type.Name} 未挂载: {ex.Message}");
             }
         }
+
+        PatchAudit.LogReport();
 
         CombatEndHandler.Subscribe();
 
@@ -104,6 +108,18 @@ public static class Plugin
             Log.Error($"[VocabSpire] Failed to register dependency resolver: {ex.Message}");
         }
     }
+
+    /// <summary>补丁类名 → 功能名。让「挂载失败」和「挂载成功」的记录能归到同一功能下
+    /// （答错回手有三代补丁类，任一代成功即视为该功能可用）。未登记的类按类名单列。</summary>
+    private static string FeatureOf(System.Type type) => type.Name switch
+    {
+        "GetResultLocationPatch" or "GetResultPileTypePatch" or "GetResultPileTypeAndPositionPatch" => "答错回手",
+        "OnPlaySkipPatch" => "答错跳过卡牌效果",
+        "EnchantmentAfflictionOnPlaySkipPatch" => "答错跳过附魔/词缀效果",
+        "ReplayCountPatch" => "重放本牌奖励",
+        "SinglePlayerPatch" => "打牌拦截(单机)",
+        _ => type.Name
+    };
 }
 
 /// <summary>
@@ -149,3 +165,4 @@ public partial class InputListener : Node
         }
     }
 }
+
