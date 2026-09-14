@@ -98,6 +98,14 @@ public partial class RecallCardWidget : VBoxContainer
         _revealBtn.Disabled = false;
         _rememberedBtn.Text = "  ✅  想起来了 (1)  ";
         _forgotBtn.Text = "  ❌  没想起来 (2)  ";
+
+        // 必须解禁：上一题自评时 SelfRate 把这两个按钮置成了 Disabled，而这里若不重置，
+        // 从第二题起翻面后两个按钮就一直是灰的、点不动。
+        // 该 bug 的特征是「鼠标点不动但键盘 1/2 仍然有效」—— 键盘走 HandleKeyOption，
+        // 那条路径不看 Disabled，所以容易被误当成「点太快卡住了」。
+        _rememberedBtn.Disabled = false;
+        _forgotBtn.Disabled = false;
+
         _rateRow.Visible = false;
         Services.GamepadInput.ResetAxisState();
         _padHint.Visible = Services.GamepadInput.IsPresent();
