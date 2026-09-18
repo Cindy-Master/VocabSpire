@@ -17,6 +17,10 @@ public partial class RunSummaryPanel : Control
     private VBoxContainer _listContainer = null!;
     private OptionButton _filterSelector = null!;
     private Button _closeBtn = null!;
+    private ScrollContainer _scroll = null!;
+
+    /// <summary>手柄上下键每次滚动的像素数。</summary>
+    private const int PadScrollStep = 90;
 
     private RunQuizSummary? _summary;
     private System.Collections.Generic.List<RunQuizRecord> _filteredRecords = new();
@@ -129,16 +133,16 @@ public partial class RunSummaryPanel : Control
 
     private void BuildList(VBoxContainer parent)
     {
-        var scroll = new ScrollContainer
+        _scroll = new ScrollContainer
         {
             SizeFlagsVertical = SizeFlags.ExpandFill,
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
-        parent.AddChild(scroll);
+        parent.AddChild(_scroll);
 
         _listContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _listContainer.AddThemeConstantOverride("separation", 2);
-        scroll.AddChild(_listContainer);
+        _scroll.AddChild(_listContainer);
     }
 
     private void RefreshFilter()
@@ -237,11 +241,37 @@ public partial class RunSummaryPanel : Control
     public override void _Input(InputEvent @event)
     {
         if (!Visible) return;
+
+        // 手柄：上下滚动记录列表，A / Y 关闭（题型筛选下拉仍需鼠标，手柄不接管）
+        var pad = Services.GamepadInput.Translate(@event);
+        switch (pad)
+        {
+            case Services.PadAction.Up:
+                ScrollByPad(-PadScrollStep);
+                GetViewport().SetInputAsHandled();
+                return;
+            case Services.PadAction.Down:
+                ScrollByPad(PadScrollStep);
+                GetViewport().SetInputAsHandled();
+                return;
+            case Services.PadAction.Accept:
+            case Services.PadAction.Submit:
+                Visible = false;
+                GetViewport().SetInputAsHandled();
+                return;
+        }
+
         if (@event is InputEventKey { Pressed: true } key && key.Keycode == Key.Escape)
         {
             Visible = false;
             GetViewport().SetInputAsHandled();
         }
+    }
+
+    /// <summary>手柄滚动记录列表。ScrollContainer.ScrollVertical 是像素值，负数无意义故夹到 0。</summary>
+    private void ScrollByPad(int delta)
+    {
+        _scroll.ScrollVertical = Mathf.Max(0, _scroll.ScrollVertical + delta);
     }
 
     public static void Create()
