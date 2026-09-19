@@ -376,6 +376,9 @@ def main():
     ap.add_argument("--prefix", default=None, help="输出文件名前缀，默认取 apkg 文件名")
     ap.add_argument("--name", default=None, help="词库显示名，默认同 prefix")
     ap.add_argument("--source", default="", help="写进 description 的出处说明")
+    ap.add_argument("--src-name", default=None,
+                    help="description 里显示的来源文件名。Anki 导出的文件名常是时间戳"
+                         "（_生物_-20260918203440.apkg），内置发布时用这个换成人看得懂的名字")
     ap.add_argument("--max-stem", type=int, default=320,
                     help="题干字数上限，超过的整条丢弃（0=不限）。默认 320，见 finalize 里的说明")
     args = ap.parse_args()
@@ -383,6 +386,7 @@ def main():
     prefix = args.prefix or re.sub(r"[^\w\u4e00-\u9fff-]", "_",
                                    os.path.splitext(os.path.basename(args.apkg))[0])
     display = args.name or prefix
+    src_name = args.src_name or os.path.basename(args.apkg)
     os.makedirs(args.out_dir, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -423,7 +427,7 @@ def main():
             continue
         all_words.extend(final)
         path = os.path.join(args.out_dir, prefix + "_" + kind + ".json")
-        desc = "%d 题（%s）。由 %s 转换。" % (len(final), label[kind], os.path.basename(args.apkg))
+        desc = "%d 题（%s）。由 %s 转换。" % (len(final), label[kind], src_name)
         if args.source:
             desc += " 来源：" + args.source
         size = write_bank(path, display + "·" + label[kind], desc, final)
@@ -432,7 +436,7 @@ def main():
     if len(written) > 1:
         path = os.path.join(args.out_dir, prefix + "_all.json")
         desc = "%d 题（选择题 + 填空题 + 问答题 合并）。由 %s 转换。" % (
-            len(all_words), os.path.basename(args.apkg))
+            len(all_words), src_name)
         if args.source:
             desc += " 来源：" + args.source
         size = write_bank(path, display, desc, all_words)
