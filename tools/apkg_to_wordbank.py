@@ -63,7 +63,9 @@ PURE_INT = re.compile(r"^\d{1,4}$")
 # 「有效内容」判定：至少含一个 CJK 汉字 / 假名 / 拉丁字母数字，否则是 ";" "——" 这类残渣。
 # 末尾那串判断符号（✓ × √ 等）必须留着：判断题的答案就是孤零零一个符号，只按汉字字母过滤
 # 会把整批判断题误杀（实测这一条救回 46 张填空判断卡）。
-MEANINGFUL = re.compile(r"[\u4e00-\u9fff\u3040-\u30ffA-Za-z0-9\u2713\u2714\u221a\u00d7\u2717\u2718\u25cb\u25cf\u25ef\u2b55\u274c]")
+# 全角字母数字（０-９ Ａ-Ｚ ａ-ｚ）同样必须收：日语词库里 ＣＤ、Ｔシャツ 这类外来语词条用的
+# 就是全角拉丁字母，只认半角会把它们判成无实义（实测误杀 2 条）。
+MEANINGFUL = re.compile(r"[\u4e00-\u9fff\u3040-\u30ffA-Za-z0-9\uff10-\uff19\uff21-\uff3a\uff41-\uff5a\u2713\u2714\u221a\u00d7\u2717\u2718\u25cb\u25cf\u25ef\u2b55\u274c]")
 
 
 # ── 文本清洗 ──────────────────────────────────────────────────────────────
@@ -133,6 +135,60 @@ def split_cloze_cards(raw):
 
 # ── notetype 识别 ─────────────────────────────────────────────────────────
 
+# ── vocab 策略的字段名词典 ────────────────────────────────────────────────
+# 只放「角色词」，语言名（日文/英文…）也算角色词 —— 词表牌组的作者几乎总会把列叫成
+# 「日文 / 释义」「単語 / 意味」「Word / Meaning」这类，靠名字认比靠内容猜可靠得多。
+VOCAB_WORD_NAMES = (
+    "日文", "日语", "英文", "英语", "韩文", "韓文", "法文", "德文", "西文", "俄文", "原文",
+    "单词", "單詞", "词条", "詞條", "生词", "词头", "词汇", "表記", "表记", "見出", "见出", "単語",
+    "word", "term", "headword", "expression", "vocab", "spelling", "lemma", "kanji",
+    "front", "正面",
+)
+# 「排序编号 / 课号 / 音频」这类必须挡住，否则会被当成单词列
+VOCAB_WORD_EXCLUDE = (
+    "编号", "編號", "序号", "序號", "课号", "課號", "lesson", "index", "id",
+    "音频", "音頻", "audio", "sound", "media", "图片", "圖片", "image",
+    "词性", "詞性", "品詞", "品词", "释义", "釋義", "翻译", "翻譯", "意味",
+    "例句", "example", "注释", "註釋", "备注", "備註",
+)
+VOCAB_DEF_NAMES = (
+    "释义", "釋義", "意思", "含义", "含義", "翻译", "翻譯", "解释", "解釋", "中文", "意味", "訳",
+    "definition", "meaning", "translation", "gloss", "back", "背面",
+)
+VOCAB_DEF_EXCLUDE = ("音频", "音頻", "audio", "sound", "image", "例句", "example")
+VOCAB_READ_NAMES = (
+    "假名", "仮名", "かな", "読み", "读音", "讀音", "注音", "音标", "音標", "发音", "發音",
+    "ipa", "phonetic", "pinyin", "拼音", "reading", "furigana", "romaji", "yomi", "kana",
+)
+VOCAB_READ_EXCLUDE = ("音频", "音頻", "audio", "sound", "media", "例句", "example")
+VOCAB_POS_NAMES = ("词性", "詞性", "品詞", "品词", "pos", "part of speech")
+
+# Anki 的注音（furigana）语法：一段 = 「表层[读音]」，多段用半角空格分隔。
+# 例：韓国[かんこく] 人[じん] → 表层 韓国人、读音 かんこくじん
+FURIGANA_SEG = re.compile(r"^([^\s\[\]]+)\[([^\]]*)\]$")
+
+
+def parse_furigana(s):
+    """
+    拆 Anki 注音语法 → (表层形, 读音)。没有注音时读音返回空串。
+    按半角空格切段：段是「汉字[かんじ]」就分别取两半，纯文本段（片假名、送假名）两边都用原文。
+    表层拼接时丢掉那些空格 —— 日语词内的空格在这个语法里就是注音分隔符，不是词的一部分
+    （实测某牌组 857/2150 条含空格，全部是分隔符，无一例外）。
+    """
+    surface, reading = [], []
+    for seg in s.split():
+        m = FURIGANA_SEG.match(seg)
+        if m:
+            surface.append(m.group(1))
+            reading.append(m.group(2))
+        else:
+            surface.append(seg)
+            reading.append(seg)
+    surf = "".join(surface)
+    read = "".join(reading)
+    return surf, ("" if read == surf else read)
+
+
 def name_index(fnames, keys, exclude=()):
     """返回首个「名字含 keys 之一且不含 exclude」的字段下标，没有则 -1。"""
     for i, f in enumerate(fnames):
@@ -165,10 +221,24 @@ def classify(fnames, rows):
         if answer_cols:
             return "qa", (qi, tuple(answer_cols))
 
+    # vocab：最常见的词表型（单词 + 释义 [+ 读音] [+ 词性]）。
+    # 这里**只认字段名、绝不按长度猜列** —— mod 内置的导入器就是靠「最短 + 越靠前」猜单词列，
+    # 遇到带「排序编号」列的牌组会把编号当单词（实测某日语牌组 2150 条全废，单词全变成 0000/0001）。
+    wi = name_index(fnames, VOCAB_WORD_NAMES, VOCAB_WORD_EXCLUDE)
+    di = name_index(fnames, VOCAB_DEF_NAMES, VOCAB_DEF_EXCLUDE)
+    if wi >= 0 and di >= 0 and wi != di:
+        ri = name_index(fnames, VOCAB_READ_NAMES, VOCAB_READ_EXCLUDE)
+        pi = name_index(fnames, VOCAB_POS_NAMES)
+        if ri in (wi, di):
+            ri = -1
+        if pi in (wi, di, ri):
+            pi = -1
+        return "vocab", (wi, di, ri, pi)
+
     return None, ()
 
 
-# ── 三种策略 ──────────────────────────────────────────────────────────────
+# ── 四种策略 ──────────────────────────────────────────────────────────────
 
 def parse_answer_index(raw, n):
     """Anki 侧的答案 → 0-based 索引。字母 A-H 按 0-based，数字优先按 1-based。"""
@@ -230,6 +300,46 @@ def from_cloze(rows, idx, stats):
             continue
         for stem, ans in cards:
             out.append({"english": stem, "chinese": [ans]})
+    return out
+
+
+def from_vocab(rows, idx, stats):
+    """
+    词表型 → {english: 单词, chinese: [释义], phonetic: 读音}。
+    读音优先取专门的读音列；没有这列时从单词列的 Anki 注音语法里拆出来。
+    词性拼到 phonetic 尾部而不是释义里：phonetic 在 mod 里只用于「显示在题干旁」
+    （QuizGenerator.cs:226/460），不参与答案判定，塞在这儿不会污染答案文本。
+    """
+    wi, di, ri, pi = idx
+    out = []
+    for parts in rows:
+        if max(wi, di) >= len(parts):
+            stats["vocab_字段不足"] += 1
+            continue
+
+        surface, furi = parse_furigana(clean_html(strip_cloze_markup(parts[wi])))
+        definition = clean_html(strip_cloze_markup(parts[di]))
+        if not surface or not definition:
+            stats["vocab_空单词或空释义"] += 1
+            continue
+
+        reading = clean_html(parts[ri]) if 0 <= ri < len(parts) else ""
+        if not reading:
+            reading = furi
+        reading = reading.strip()
+        pos = clean_html(parts[pi]).strip() if 0 <= pi < len(parts) else ""
+
+        if definition == surface and reading:
+            # 汉字圈语言的常态：日文汉字词的中文释义与写法完全相同（中国人→中国人、田中→田中）。
+            # 这种条目「问意思」毫无信息量，但「问读音」正是要背的东西 —— 改成考读音。
+            # 此时 phonetic 里绝不能再放读音：它会被显示在题干旁（QuizGenerator.cs:226），等于直接泄题。
+            definition = reading
+            phonetic = pos
+            stats["vocab_同形词改为考读音"] += 1
+        else:
+            phonetic = " ".join(x for x in (reading, pos) if x)
+
+        out.append({"english": surface, "chinese": [definition], "phonetic": phonetic})
     return out
 
 
@@ -309,12 +419,16 @@ def read_models(conn):
 
 # ── 词条后处理 ────────────────────────────────────────────────────────────
 
-def finalize(entries, stats, tag, max_stem):
-    """过滤垃圾 + 按题干去重（答案合并）。保持首次出现顺序。"""
+def finalize(entries, stats, tag, max_stem, min_stem=3):
+    """
+    过滤垃圾 + 按题干去重（答案合并）。保持首次出现顺序。
+    min_stem 对词表型必须放到 1：日语单词「私」「はい」只有 1-2 个字符，
+    照题库的 3 字下限会成批误杀（实测某日语牌组会被砍掉 100 多条）。
+    """
     order, merged = [], {}
     for e in entries:
         stem = e["english"].strip()
-        if not meaningful(stem, 3):
+        if not meaningful(stem, min_stem):
             stats[tag + "_题干太短或无实义"] += 1
             continue
         # 残留的 {{ }} 只会来自原始数据里写坏的挖空标记，这种条目答案不可信，直接扔
@@ -347,13 +461,19 @@ def finalize(entries, stats, tag, max_stem):
             stats[tag + "_无有效答案"] += 1
             continue
         key = ("P", stem)
+        phonetic = (e.get("phonetic") or "").strip()
         if key in merged:
             stats[tag + "_重复题干合并"] += 1
             for a in answers:
                 if a not in merged[key]["chinese"]:
                     merged[key]["chinese"].append(a)
+            if phonetic and not merged[key].get("phonetic"):
+                merged[key]["phonetic"] = phonetic
             continue
-        merged[key] = {"english": stem, "chinese": answers}
+        entry = {"english": stem, "chinese": answers}
+        if phonetic:
+            entry["phonetic"] = phonetic
+        merged[key] = entry
         order.append(key)
 
     return [merged[k] for k in order]
@@ -402,9 +522,10 @@ def main():
     print("=== " + os.path.basename(args.apkg) + " (" + which + ") ===")
     print("notetype 数=" + str(len(models)) + "  notes 总数=" + str(total_notes) + "\n")
 
-    buckets = {"choice": [], "cloze": [], "qa": []}
+    buckets = {"choice": [], "cloze": [], "qa": [], "vocab": []}
     stats = Counter()
-    handlers = {"choice": from_choice, "cloze": from_cloze, "qa": from_qa}
+    handlers = {"choice": from_choice, "cloze": from_cloze,
+                "qa": from_qa, "vocab": from_vocab}
     for mid, rows in sorted(rows_by_mid.items(), key=lambda kv: -len(kv[1])):
         mname, fnames = models.get(mid, ("(未知)", []))
         if not fnames:
@@ -419,24 +540,29 @@ def main():
         buckets[kind].extend(produced)
         print("   → 策略=%s  产出 %d 条（去重前）\n" % (kind, len(produced)))
 
-    label = {"choice": "选择题", "cloze": "填空题", "qa": "问答题"}
-    written, all_words = [], []
-    for kind in ("choice", "cloze", "qa"):
-        final = finalize(buckets[kind], stats, kind, args.max_stem)
+    label = {"choice": "选择题", "cloze": "填空题", "qa": "问答题", "vocab": "词汇"}
+    unit = {"choice": "题", "cloze": "题", "qa": "题", "vocab": "词"}
+    written, all_words, produced_kinds = [], [], []
+    for kind in ("choice", "cloze", "qa", "vocab"):
+        # 词表型单词可以只有 1 个字符（私 / はい），下限必须放开
+        final = finalize(buckets[kind], stats, kind, args.max_stem,
+                         min_stem=1 if kind == "vocab" else 3)
         if not final:
             continue
         all_words.extend(final)
+        produced_kinds.append(kind)
         path = os.path.join(args.out_dir, prefix + "_" + kind + ".json")
-        desc = "%d 题（%s）。由 %s 转换。" % (len(final), label[kind], src_name)
+        desc = "%d %s（%s）。由 %s 转换。" % (len(final), unit[kind], label[kind], src_name)
         if args.source:
             desc += " 来源：" + args.source
         size = write_bank(path, display + "·" + label[kind], desc, final)
         written.append((path, len(final), size))
 
+    # 只有一种策略出了东西时，分册本身就是全部，再出一份合并册纯属冗余
     if len(written) > 1:
         path = os.path.join(args.out_dir, prefix + "_all.json")
-        desc = "%d 题（选择题 + 填空题 + 问答题 合并）。由 %s 转换。" % (
-            len(all_words), src_name)
+        desc = "%d 条（%s 合并）。由 %s 转换。" % (
+            len(all_words), " + ".join(label[k] for k in produced_kinds), src_name)
         if args.source:
             desc += " 来源：" + args.source
         size = write_bank(path, display, desc, all_words)

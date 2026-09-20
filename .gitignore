@@ -60,3 +60,7 @@ sts2_decompiled_beta/
 sts2_decompiled_beta_v0105/
 sts2_decompiled_v0108/
 __pycache__/
+
+# Anki 牌组原始文件（体积大、版权属原作者，不入仓）
+*.apkg
+*.apk.1g
