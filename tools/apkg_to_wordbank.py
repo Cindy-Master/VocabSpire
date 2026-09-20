@@ -542,20 +542,25 @@ def main():
 
     label = {"choice": "选择题", "cloze": "填空题", "qa": "问答题", "vocab": "词汇"}
     unit = {"choice": "题", "cloze": "题", "qa": "题", "vocab": "词"}
-    written, all_words, produced_kinds = [], [], []
+    finals = {}
     for kind in ("choice", "cloze", "qa", "vocab"):
         # 词表型单词可以只有 1 个字符（私 / はい），下限必须放开
         final = finalize(buckets[kind], stats, kind, args.max_stem,
                          min_stem=1 if kind == "vocab" else 3)
-        if not final:
-            continue
+        if final:
+            finals[kind] = final
+
+    # 只出了一册时，显示名不加「·词汇」这类后缀 —— 没有第二册要区分，后缀纯属噪音
+    single = len(finals) == 1
+    written, all_words, produced_kinds = [], [], []
+    for kind, final in finals.items():
         all_words.extend(final)
         produced_kinds.append(kind)
         path = os.path.join(args.out_dir, prefix + "_" + kind + ".json")
         desc = "%d %s（%s）。由 %s 转换。" % (len(final), unit[kind], label[kind], src_name)
         if args.source:
             desc += " 来源：" + args.source
-        size = write_bank(path, display + "·" + label[kind], desc, final)
+        size = write_bank(path, display if single else display + "·" + label[kind], desc, final)
         written.append((path, len(final), size))
 
     # 只有一种策略出了东西时，分册本身就是全部，再出一份合并册纯属冗余
