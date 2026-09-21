@@ -768,7 +768,7 @@ public sealed class QuizGenerator
     /// </summary>
     private WordEntry SelectWeightedWord(List<WordEntry> words)
     {
-        long tick = VocabConfig.Instance.TotalAnswered;          // 全局调度时钟（题数，session 内）
+        long tick = VocabConfig.Instance.ScheduleTick;           // 调度时钟（不是玩家可见的总答题数，两者语义不同）
         long nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // 真实时间（毕业词跨天用）
         var recentSet = new HashSet<WordEntry>(_recentWords);
 

@@ -326,9 +326,10 @@ public sealed class VocabManager
 
     public void RecordAnswer(WordEntry word, bool correct)
     {
-        VocabConfig.Instance.TotalAnswered++;          // 全局 tick 前进（复用为间隔重复调度时钟）
+        VocabConfig.Instance.TotalAnswered++;          // 玩家可见统计：只在这里 +1，自愈逻辑不许碰
+        VocabConfig.Instance.ScheduleTick++;           // 间隔重复调度时钟：允许被自愈往前推
         if (correct) VocabConfig.Instance.TotalCorrect++;
-        long tick = VocabConfig.Instance.TotalAnswered;
+        long tick = VocabConfig.Instance.ScheduleTick;
 
         if (correct)
         {
@@ -423,6 +424,7 @@ public sealed class VocabManager
 
             Log.Info($"[VocabSpire] Loaded progress for {data.Count} words.");
             RepairScheduleClock();
+            RepairInflatedTotalAnswered();
         }
         catch (Exception ex)
         {
@@ -433,14 +435,18 @@ public sealed class VocabManager
     /// <summary>
     /// 修复「调度时钟落后于进度数据」的错位 —— 进度冻结（已掌握量不再增长）的根因。
     ///
-    /// DueTick 是「答到第几题时该复习」的绝对刻度，基准是 VocabConfig.TotalAnswered。
+    /// DueTick 是「答到第几题时该复习」的绝对刻度，基准是 VocabConfig.ScheduleTick。
     /// 但两者存在**不同文件**里（进度在 _word_progress.json、时钟在 vocabspire_config.json），
     /// 手动只拷进度、或重装 mod 导致 config 被重置时就会错位。实测案例：DueTick 已到 7942
     /// 而时钟只有 36 → 所有词判「还没到期」（权重降到 0.02/0.05）+ 学习中词数超过新词节流上限
     /// → 新词权重为 0 永不引入 → 看起来就是"进度一直不涨"。
     ///
-    /// 修法：把时钟推进到 max(DueTick)。相对间隔不变、到期判定立刻恢复正常；
-    /// 且跨设备累计答题数本就该是较大的那个，统计显示也更接近真实。
+    /// 修法：把时钟推进到 max(DueTick)。相对间隔不变、到期判定立刻恢复正常。
+    ///
+    /// ⚠ 只动 ScheduleTick，**绝不能动 TotalAnswered**：DueTick = 当时的 tick + 未来间隔，
+    /// 天生大于时钟，所以「maxDue > 时钟」这个条件只要答过一个词就成立。两者曾是同一个字段，
+    /// 于是每次启动游戏加载进度都会把玩家的累计答题数往前推一个间隔量（最多 +300），
+    /// 表现为「大退再进来总答题数暴涨、正确数不动」（v2.7.37 修复）。
     /// </summary>
     private void RepairScheduleClock()
     {
@@ -450,13 +456,50 @@ public sealed class VocabManager
                 if (w.DueTick > maxDue) maxDue = w.DueTick;
 
         var cfg = VocabConfig.Instance;
-        if (maxDue <= cfg.TotalAnswered) return;
+        if (maxDue <= cfg.ScheduleTick) return;
 
         var repaired = (int)Math.Min(maxDue, int.MaxValue);
-        Log.Warn($"[VocabSpire] 检测到调度时钟落后于进度数据（TotalAnswered={cfg.TotalAnswered} < maxDueTick={maxDue}）"
+        Log.Warn($"[VocabSpire] 检测到调度时钟落后于进度数据（ScheduleTick={cfg.ScheduleTick} < maxDueTick={maxDue}）"
                + $"，已自动推进到 {repaired} 修复。常见于跨设备手动拷贝 _word_progress.json 或重装 mod 后配置被重置；"
                + "若不修复，所有词会被判成「还没到期」且新词被节流挡住，掌握量将停止增长。");
-        cfg.TotalAnswered = repaired;
+        cfg.ScheduleTick = repaired;
+        cfg.Save();
+    }
+
+    /// <summary>
+    /// 一次性修正被旧版自愈推高的「总答题数」。
+    ///
+    /// v2.7.37 之前 TotalAnswered 兼任调度时钟，每次加载进度都会被推高一个间隔量，
+    /// 于是设置面板的「总答题」虚高、正确率被稀释。真实答题数可以从进度数据重算：
+    /// 每道题只记在一个 WordEntry 上，而 RebuildMergedBank 是复用原库的对象、每个词只归属一个库
+    /// （见该方法注释），所以「所有词 CorrectCount + WrongCount 之和」不会重复计数。
+    ///
+    /// 只在重算值**小于**当前值时替换（虚高才修），避免进度文件缺失时把正常统计清零。
+    /// 不变式：统计数字 == 进度数据里的答题次数之和。所以它不是「一次性迁移」而是每次加载都对齐 ——
+    /// 玩家删掉某个词库时那部分历史答题数也会随之减掉，这是符合预期的（进度没了，计数也不该留着）。
+    /// </summary>
+    private void RepairInflatedTotalAnswered()
+    {
+        long sum = 0, correctSum = 0;
+        foreach (var bank in _banks)
+            foreach (var w in bank.Words)
+            {
+                sum += w.CorrectCount + w.WrongCount;
+                correctSum += w.CorrectCount;
+            }
+
+        var cfg = VocabConfig.Instance;
+        if (sum <= 0) return;                        // 没有任何进度数据 → 无从重算，别动
+        if (sum >= cfg.TotalAnswered) return;        // 不虚高（或进度比配置新）→ 不动
+
+        // 正确数没被污染过，但夹一下以防重算后 分子 > 分母 出现 >100% 的正确率
+        var newCorrect = (int)Math.Min(cfg.TotalCorrect, Math.Max(correctSum, 0));
+        Log.Warn($"[VocabSpire] 修正被旧版推高的总答题数：{cfg.TotalAnswered} → {sum}"
+               + $"（按进度数据重算；正确数 {cfg.TotalCorrect} → {newCorrect}）。"
+               + "原因：v2.7.37 之前累计答题数与调度时钟共用一个字段，每次启动加载进度都会被往前推，"
+               + "表现为「大退再进来总答题数莫名增长而正确数不变」。");
+        cfg.TotalAnswered = (int)Math.Min(sum, int.MaxValue);
+        cfg.TotalCorrect = newCorrect;
         cfg.Save();
     }
 

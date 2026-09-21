@@ -255,8 +255,24 @@ public sealed class VocabConfig
     /// <summary>最大持有数（防止过强）。</summary>
     public int FreePassMaxStock { get; set; } = 5;
 
+    /// <summary>
+    /// 玩家可见的累计答题数（设置面板「总答题」、正确率的分母）。**只在 RecordAnswer 里 +1**，
+    /// 任何自愈 / 修复逻辑都不准碰它 —— 它是统计，不是时钟。
+    /// </summary>
     public int TotalAnswered { get; set; }
+
     public int TotalCorrect { get; set; }
+
+    /// <summary>
+    /// 间隔重复的调度时钟，与 <see cref="TotalAnswered"/> 同步前进但**语义完全不同**：
+    /// 它可以被 RepairScheduleClock 往前推来修「时钟落后于 DueTick」的错位，而统计数字不该因此变大。
+    ///
+    /// 为什么必须拆开（v2.7.37 修的 bug）：原先两者是同一个字段，而 DueTick = 当前 tick + 未来间隔，
+    /// 天生大于时钟，于是自愈的触发条件「maxDueTick &gt; 时钟」只要答过一个词就永远成立 ——
+    /// 每次启动游戏加载进度都会把它往前推一个间隔量（最多 +300），表现为
+    /// 「大退再进来，总答题数莫名暴涨、正确数不动、正确率被稀释」。
+    /// </summary>
+    public int ScheduleTick { get; set; }
 
     /// <summary>获取指定 Act 的有效答题模式。</summary>
     public QuizModeFlags GetModesForAct(int act)
@@ -334,6 +350,9 @@ public sealed class VocabConfig
             OptionCount = Math.Clamp(data.OptionCount, 2, 6);
             TotalAnswered = data.TotalAnswered;
             TotalCorrect = data.TotalCorrect;
+            // 老配置没有 schedule_tick：用当时的 TotalAnswered 接上，复习节奏一点不变
+            // （那个值可能已被旧自愈推高过，但作为时钟继续用是安全的 —— 只是统计得另外修正）
+            ScheduleTick = data.ScheduleTick ?? data.TotalAnswered;
             ShowCombatSummary = data.ShowCombatSummary;
             ShowRestSiteReview = data.ShowRestSiteReview;
             EntryHintShownCount = data.EntryHintShownCount;
@@ -515,6 +534,7 @@ public sealed class VocabConfig
                 FreePassMaxStock = FreePassMaxStock,
                 TotalAnswered = TotalAnswered,
                 TotalCorrect = TotalCorrect,
+                ScheduleTick = ScheduleTick,
                 EntryHintShownCount = EntryHintShownCount,
                 QuizOnAutoPlay = QuizOnAutoPlay
             };
@@ -740,5 +760,9 @@ public sealed class VocabConfig
 
         [JsonPropertyName("total_correct")]
         public int TotalCorrect { get; set; }
+
+        /// <summary>可空：老配置没这个字段，Load 时回退到 total_answered。</summary>
+        [JsonPropertyName("schedule_tick")]
+        public int? ScheduleTick { get; set; }
     }
 }

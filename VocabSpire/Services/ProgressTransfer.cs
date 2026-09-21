@@ -10,7 +10,7 @@ namespace VocabSpire.Services;
 ///
 /// 为什么不能直接拷 _word_progress.json（踩过的三个坑）：
 ///   1. 那里的 key 是「词库文件名::单词」，两台设备词库文件名不同 → 全部对不上、掌握度整个丢失；
-///   2. 复习调度依赖 VocabConfig.TotalAnswered 这个时钟，它在 vocabspire_config.json 里，只拷进度会错位；
+///   2. 复习调度依赖 VocabConfig.ScheduleTick 这个时钟，它在 vocabspire_config.json 里，只拷进度会错位；
 ///   3. 游戏运行时每答一题就整份重写进度文件，运行中拷进去会被内存里的旧数据覆盖。
 ///
 /// 本格式对症下药：bank 与 word 分字段存（词库名对不上可按单词兜底匹配）、带上调度时钟、
@@ -50,8 +50,16 @@ public static class ProgressTransfer
         [JsonPropertyName("version")] public int Version { get; set; } = FormatVersion;
         [JsonPropertyName("exportedAt")] public string ExportedAt { get; set; } = "";
         [JsonPropertyName("modVersion")] public string ModVersion { get; set; } = "";
+        /// <summary>玩家可见的累计答题数（统计）。v2.7.37 起才与调度时钟分离。</summary>
         [JsonPropertyName("totalAnswered")] public int TotalAnswered { get; set; }
+
         [JsonPropertyName("totalCorrect")] public int TotalCorrect { get; set; }
+
+        /// <summary>
+        /// 调度时钟。可空 —— v2.7.37 之前的文件没有这个字段，那时 totalAnswered 兼任时钟，
+        /// 其数值混着被自愈推高的量，只能当时钟用、不能当统计合并（否则把虚高传播过来）。
+        /// </summary>
+        [JsonPropertyName("scheduleTick")] public int? ScheduleTick { get; set; }
         [JsonPropertyName("entries")] public List<Entry> Entries { get; set; } = new();
     }
 
@@ -64,7 +72,8 @@ public static class ProgressTransfer
             ExportedAt = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ModVersion = ReadModVersion(),
             TotalAnswered = cfg.TotalAnswered,
-            TotalCorrect = cfg.TotalCorrect
+            TotalCorrect = cfg.TotalCorrect,
+            ScheduleTick = cfg.ScheduleTick
         };
 
         foreach (var bank in VocabManager.Instance.Banks)
@@ -91,13 +100,13 @@ public static class ProgressTransfer
 
         // 时钟兜底：本机 config 若已损坏（比数据里的 DueTick 还小），导出时就修正，
         // 避免把坏时钟传播到目标设备（实测遇到过 totalAnswered=36 / maxDueTick=7942 的档）
-        long maxDue = payload.TotalAnswered;
+        long maxDue = payload.ScheduleTick ?? 0;
         foreach (var e in payload.Entries)
             if (e.DueTick > maxDue) maxDue = e.DueTick;
-        if (maxDue > payload.TotalAnswered)
+        if (maxDue > (payload.ScheduleTick ?? 0))
         {
-            Log.Warn($"[VocabSpire] 导出时发现本机调度时钟偏小（{payload.TotalAnswered} < maxDueTick {maxDue}），已在导出文件中修正。");
-            payload.TotalAnswered = (int)Math.Min(maxDue, int.MaxValue);
+            Log.Warn($"[VocabSpire] 导出时发现本机调度时钟偏小（{payload.ScheduleTick} < maxDueTick {maxDue}），已在导出文件中修正。");
+            payload.ScheduleTick = (int)Math.Min(maxDue, int.MaxValue);   // 只修时钟，统计数字原样带走
         }
 
         var dir = VocabManager.Instance.GetWordBanksDirectory();
@@ -179,15 +188,25 @@ public static class ProgressTransfer
         // 加上 maxDueTick 这一项是必须的 —— 导出源设备的 config 可能本身就是坏的（实测遇到
         // totalAnswered=36 但 DueTick 已到 7942），只取前两者会把坏时钟原样传播过来，
         // 导致导入后所有词判「还没到期」+ 新词被节流挡死，掌握量冻结。
-        long maxDue = payload.TotalAnswered;
+        // 老文件（v2.7.37 之前）没有 scheduleTick，那时 totalAnswered 就是时钟，按时钟用
+        long fileTick = payload.ScheduleTick ?? payload.TotalAnswered;
+        long maxDue = fileTick;
         foreach (var e in payload.Entries)
             if (e.DueTick > maxDue) maxDue = e.DueTick;
 
         var cfg = VocabConfig.Instance;
-        var newTick = (int)Math.Min(Math.Max(cfg.TotalAnswered, maxDue), int.MaxValue);
-        if (newTick > cfg.TotalAnswered)
-            Log.Info($"[VocabSpire] 调度时钟 {cfg.TotalAnswered} → {newTick}（文件记录 {payload.TotalAnswered}，数据最大 DueTick {maxDue}）");
-        cfg.TotalAnswered = newTick;
+        var newTick = (int)Math.Min(Math.Max(cfg.ScheduleTick, maxDue), int.MaxValue);
+        if (newTick > cfg.ScheduleTick)
+            Log.Info($"[VocabSpire] 调度时钟 {cfg.ScheduleTick} → {newTick}（文件记录 {fileTick}，数据最大 DueTick {maxDue}）");
+        cfg.ScheduleTick = newTick;
+
+        // 统计只合并新格式文件：老文件的 totalAnswered 混着被自愈推高的量，
+        // 拿来取 max 会把虚高的数字传播到本机（正是本版要修的那个 bug）。
+        if (payload.ScheduleTick.HasValue)
+            cfg.TotalAnswered = Math.Max(cfg.TotalAnswered, payload.TotalAnswered);
+        else
+            Log.Info($"[VocabSpire] 该进度文件来自 v2.7.37 之前（无 scheduleTick），"
+                   + $"其 totalAnswered={payload.TotalAnswered} 混着调度时钟，已只用作时钟、不并入总答题统计。");
         cfg.TotalCorrect = Math.Max(cfg.TotalCorrect, payload.TotalCorrect);
         cfg.Save();
 
