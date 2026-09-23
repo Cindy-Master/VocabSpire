@@ -81,14 +81,24 @@ public static class Plugin
         // Harmony 对空 TargetMethods 是抛异常不是跳过）都会炸掉整个 mod 初始化（v0.108 手机版实锤）。
         // 逐类 Patch + 隔离：单个补丁失败只失去对应功能，其余照常。
         var types = GetLoadableTypes(Assembly.GetExecutingAssembly()).ToList();
-        DiagLog.Write($"  可加载类型 {types.Count} 个，开始逐类挂补丁");
+        // 只挑真正的补丁类来打诊断点：CreateClassProcessor 对没有 [HarmonyPatch] 的类型是空操作，
+        // 全记会刷出两百多行噪音。手机端实测进程会在这一步被 native 层直接终止（诊断文件里
+        // 连 Step 的「✗ 失败」都没有，说明不是托管异常），所以必须逐个打点才能定位到是哪个类。
+        // DiagLog 每行都是「打开→写→关闭」，进程猝死也不丢 —— 最后一行就是凶手。
+        var patchClasses = types
+            .Where(t => t.GetCustomAttributes(typeof(HarmonyPatch), true).Length > 0)
+            .ToList();
+        DiagLog.Write($"  可加载类型 {types.Count} 个，其中补丁类 {patchClasses.Count} 个");
         var patched = 0;
         foreach (var type in types)
         {
+            var isPatchClass = type.GetCustomAttributes(typeof(HarmonyPatch), true).Length > 0;
+            if (isPatchClass) DiagLog.Write($"    ▸ {type.Name}");
             try
             {
                 _harmony.CreateClassProcessor(type).Patch();
                 patched++;
+                if (isPatchClass) DiagLog.Write($"    ✓ {type.Name}");
             }
             catch (System.Exception ex)
             {
