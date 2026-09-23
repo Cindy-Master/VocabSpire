@@ -73,6 +73,10 @@ public static class SinglePlayerPatch
         ResourceInfo resources,
         bool skipCardPileVisuals)
     {
+        // 按需挂载该卡的 OnPlay（仅按需模式下生效）。必须在这里 —— OnPlayWrapper 的 Prefix
+        // 早于内部对 OnPlay 的调用，来得及；批量模式下这是空操作。
+        OnPlayPatchGate.Ensure(__instance);
+
         var cardName = __instance.GetType().Name;
         var isMp = GameBridge.IsMultiplayer();
         Log.Info($"[VocabSpire][SP] OnPlayWrapper Prefix ENTER: card={cardName} isMp={isMp} " +
@@ -306,6 +310,9 @@ public static class MultiPlayerPatch
 {
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
+        // 按需挂载该卡的 OnPlay（仅按需模式下生效；批量模式下是空操作）
+        OnPlayPatchGate.Ensure(__instance);
+
         // 入口诊断：让我们一眼看到 TryManualPlay 是否被触发，以及被各种条件 short-circuit
         var cardName = __instance.GetType().Name;
         var isMp = GameBridge.IsMultiplayer();
@@ -905,6 +912,100 @@ public static class PowerCardFlyVfxSkipPatch
 /// 拦截所有 CardModel 子类的 OnPlay —— 答错跳过；正确（有奖励）则施加奖励。
 /// </summary>
 [HarmonyPatch]
+/// <summary>
+/// 「答错跳过卡牌效果」的挂载策略闸门。
+///
+/// 为什么要它：CardModel.OnPlay 是 protected virtual 且每张卡都重写，要跳过效果就得逐个 patch
+/// —— v0.99.1 有 546 个、v0.111 有 564 个。PC 上一次性挂完毫无问题，但手机版（Android + Mono）
+/// 实测在这一步进程被 native 层直接终止：诊断文件停在「可加载类型 242 个，开始逐类挂补丁」，
+/// 连托管异常都没有（Step 的「✗ 失败」一个字没写），logcat 里也没有 am_crash。
+/// 静态分析已排除了几种猜测 —— apk 里的 0Harmony 同为 2.4.2.0 且平台支持比 PC 版更全
+/// （Arm64Arch / x86_64Arch / DynDll 后端都在），MonoMod 的 Android libc shim
+/// （libmonomod_android_libc_shim.so）也打进包了。所以不是「Harmony 在这平台不可用」，
+/// 剩下最可能的就是一次性 detour 五百多个方法的规模本身（每个 detour 都要申请可执行内存）。
+///
+/// 于是按需挂载：启动时一个都不挂，等玩家真打出某张牌，才 patch 那张牌的 OnPlay。
+/// 一局实际会碰到的卡型远少于全库，且分散在整局游戏里，不会有瞬时峰值。
+/// </summary>
+internal static class OnPlayPatchGate
+{
+    /// <summary>按需模式。Android 默认开（那里批量挂载会崩）；PC 默认关（保持久经验证的老行为）。</summary>
+    internal static bool OnDemand { get; } = DecideOnDemand();
+
+    private static readonly HashSet<MethodBase> Patched = new();
+    private static readonly object Lock = new();
+    private static int _patchedCount;
+    private static int _failedCount;
+
+    private static bool DecideOnDemand()
+    {
+        // 标记文件可强制覆盖，便于在任一平台做 A/B 对照（不必重新打包）：
+        //   vocabspire_ondemand.txt → 强制按需    vocabspire_batchpatch.txt → 强制批量
+        try
+        {
+            foreach (var dir in DiagLog.ExternalDirs())
+            {
+                if (File.Exists(Path.Combine(dir, "vocabspire_batchpatch.txt"))) return false;
+                if (File.Exists(Path.Combine(dir, "vocabspire_ondemand.txt"))) return true;
+            }
+        }
+        catch { /* 探测失败就按平台默认 */ }
+
+        try { return Godot.OS.GetName() == "Android"; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// 确保这张牌的 OnPlay 已被 patch。在 OnPlayWrapper 的 Prefix 里调用 ——
+    /// 那时 OnPlay 还没执行，来得及。同一方法只 patch 一次。
+    /// </summary>
+    internal static void Ensure(object? cardInstance)
+    {
+        if (!OnDemand || cardInstance is null) return;
+
+        var method = FindOnPlay(cardInstance.GetType());
+        if (method is null) return;
+
+        lock (Lock)
+        {
+            if (!Patched.Add(method)) return;
+        }
+
+        var harmony = Plugin.HarmonyInstance;
+        if (harmony is null) return;
+
+        try
+        {
+            harmony.Patch(method,
+                prefix: new HarmonyMethod(typeof(OnPlaySkipPatch).GetMethod(nameof(OnPlaySkipPatch.Prefix))),
+                postfix: new HarmonyMethod(typeof(OnPlaySkipPatch).GetMethod(nameof(OnPlaySkipPatch.Postfix))));
+            _patchedCount++;
+            if (_patchedCount <= 5 || _patchedCount % 25 == 0)
+                DiagLog.Write($"  [按需] 已挂 OnPlay 补丁 {_patchedCount} 个（最新: {method.DeclaringType?.Name}）");
+        }
+        catch (Exception ex)
+        {
+            _failedCount++;
+            Log.Error($"[VocabSpire] 按需挂载 {method.DeclaringType?.Name}.OnPlay 失败: {ex.Message}");
+            DiagLog.Write($"  [按需] 挂载失败 #{_failedCount} {method.DeclaringType?.Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>沿继承链找真正会被执行的那个 OnPlay 声明（子类没重写就用基类的）。</summary>
+    private static MethodInfo? FindOnPlay(System.Type type)
+    {
+        var paramTypes = new[] { typeof(PlayerChoiceContext), typeof(CardPlay) };
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic
+                  | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        for (var t = type; t is not null && typeof(CardModel).IsAssignableFrom(t); t = t.BaseType)
+        {
+            var m = t.GetMethod("OnPlay", flags, null, paramTypes, null);
+            if (m is not null) return m;
+        }
+        return null;
+    }
+}
+
 public static class OnPlaySkipPatch
 {
     static IEnumerable<MethodBase> TargetMethods()

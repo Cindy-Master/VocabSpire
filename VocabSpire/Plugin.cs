@@ -14,6 +14,9 @@ namespace VocabSpire;
 public static class Plugin
 {
     private static Harmony? _harmony;
+
+    /// <summary>供按需挂载用（OnPlayPatchGate 在打牌时现场 patch 需要它）。</summary>
+    internal static Harmony? HarmonyInstance => _harmony;
     private static InputListener? _inputListener;
 
     /// <summary>
@@ -93,6 +96,18 @@ public static class Plugin
         foreach (var type in types)
         {
             var isPatchClass = type.GetCustomAttributes(typeof(HarmonyPatch), true).Length > 0;
+
+            // 按需模式下不在启动时批量挂 OnPlay —— 那是手机端进程被终止的位置
+            // （546 个方法一次性 detour）。改由 OnPlayPatchGate 在打牌时按卡型现场挂。
+            if (isPatchClass && Patches.OnPlayPatchGate.OnDemand
+                && type == typeof(Patches.OnPlaySkipPatch))
+            {
+                DiagLog.Write($"    ⏭ {type.Name} 跳过批量挂载（按需模式）");
+                Services.PatchAudit.Record("答错跳过卡牌效果", "按需挂载（打牌时逐卡）", 1,
+                    Services.PatchImportance.Critical);
+                continue;
+            }
+
             if (isPatchClass) DiagLog.Write($"    ▸ {type.Name}");
             try
             {

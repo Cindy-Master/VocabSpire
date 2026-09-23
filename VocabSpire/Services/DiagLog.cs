@@ -90,6 +90,9 @@ public static class DiagLog
         return null;
     }
 
+    /// <summary>外部可读目录候选（供放置 A/B 开关标记文件用，见 OnPlayPatchGate）。</summary>
+    internal static IEnumerable<string> ExternalDirs() => CandidateDirs();
+
     private static IEnumerable<string> CandidateDirs()
     {
         var pkg = AndroidPackageName();
