@@ -257,7 +257,7 @@ public static class ProgressTransfer
     {
         try
         {
-            var dir = Path.GetDirectoryName(typeof(ProgressTransfer).Assembly.Location) ?? ".";
+            var dir = VocabManager.ModDirectory;
             var src = Path.Combine(dir, "_word_progress.json");
             if (!File.Exists(src)) return "";
             var dst = Path.Combine(dir, $"_word_progress.backup_{DateTime.Now:yyyyMMdd_HHmmss}.json");
@@ -275,7 +275,7 @@ public static class ProgressTransfer
     {
         try
         {
-            var dir = Path.GetDirectoryName(typeof(ProgressTransfer).Assembly.Location) ?? ".";
+            var dir = VocabManager.ModDirectory;
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "VocabSpire.json")));
             return doc.RootElement.GetProperty("version").GetString() ?? "";
         }

@@ -321,7 +321,7 @@ public sealed class VocabConfig
     {
         get
         {
-            var modDir = Path.GetDirectoryName(typeof(VocabConfig).Assembly.Location) ?? ".";
+            var modDir = VocabManager.ModDirectory;
             return Path.Combine(modDir, "vocabspire_config.json");
         }
     }

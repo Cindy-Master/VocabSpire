@@ -16,14 +16,44 @@ public static class Plugin
     private static Harmony? _harmony;
     private static InputListener? _inputListener;
 
+    /// <summary>
+    /// mod 入口。**这个方法绝不允许把异常抛回游戏的 mod 加载器** —— 抛出去的后果是整个游戏
+    /// 启动失败／闪退，玩家只看到「点开就退」，连日志都难拿到。
+    /// 所以每个阶段各自兜住：某一步失败只让对应功能缺失，游戏照常能玩、日志照常能读。
+    ///
+    /// 手机版（Android）尤其要这样：Assembly.Location 在某些部署形态下是空串，路径全部退化成
+    /// 相对当前工作目录，而那个目录在 Android 上通常不可写 —— Directory.CreateDirectory 直接抛，
+    /// 以前这一抛就是闪退。
+    /// </summary>
     public static void Initialize()
     {
-        RegisterDependencyResolver(); // 必须最先 —— 让随包的第三方依赖(ZstdSharp 等)能从 mod 目录加载
-        Log.Info("[VocabSpire] Initializing...");
+        Step("注册依赖解析器", RegisterDependencyResolver); // 要最先 —— 随包的第三方依赖(ZstdSharp 等)靠它加载
+        Step("打印启动横幅", () => Log.Info("[VocabSpire] Initializing..."));
+        Step("加载配置", () => VocabConfig.Instance.Load());
+        Step("加载词库", () => VocabManager.Instance.LoadAllBanks());
+        Step("挂载补丁与 UI", InitializeCore);
+    }
 
-        VocabConfig.Instance.Load();
-        VocabManager.Instance.LoadAllBanks();
+    /// <summary>跑一个初始化阶段，失败只记日志不外抛。</summary>
+    private static void Step(string what, System.Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (System.Exception ex)
+        {
+            // Log 本身也可能不可用（游戏侧未就绪），所以连日志都要包一层
+            try
+            {
+                Log.Error($"[VocabSpire] 初始化阶段「{what}」失败，该部分功能不可用，游戏不受影响: {ex}");
+            }
+            catch { /* 连日志都写不了就只能静默，总之不能把异常抛回加载器 */ }
+        }
+    }
 
+    private static void InitializeCore()
+    {
         _harmony = new Harmony("com.vocabspire.mod");
         // 不用 PatchAll：任何一个补丁类失败（如游戏版本改了 API、TargetMethods 找到 0 个方法——
         // Harmony 对空 TargetMethods 是抛异常不是跳过）都会炸掉整个 mod 初始化（v0.108 手机版实锤）。

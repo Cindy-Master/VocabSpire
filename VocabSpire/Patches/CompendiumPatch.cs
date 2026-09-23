@@ -74,9 +74,8 @@ public static class CompendiumPatch
                 if (iconRect is not null)
                 {
                     // 尝试加载自定义图标（用户可替换）
-                    var modDir = System.IO.Path.GetDirectoryName(
-                        typeof(CompendiumPatch).Assembly.Location) ?? ".";
-                    var customPath = System.IO.Path.Combine(modDir, "vocab_icon.png");
+                    var customPath = System.IO.Path.Combine(
+                        VocabSpire.Services.VocabManager.ModDirectory, "vocab_icon.png");
                     if (System.IO.File.Exists(customPath))
                     {
                         var img = new Image();

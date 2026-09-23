@@ -96,7 +96,7 @@ public static class ChangelogPopup
     {
         try
         {
-            var dir = Path.GetDirectoryName(typeof(ChangelogPopup).Assembly.Location) ?? ".";
+            var dir = VocabManager.ModDirectory;
             var json = File.ReadAllText(Path.Combine(dir, "VocabSpire.json"));
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("version").GetString() ?? "";

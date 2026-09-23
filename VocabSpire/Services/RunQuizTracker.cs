@@ -90,7 +90,7 @@ public sealed class RunQuizTracker
     {
         get
         {
-            var modDir = Path.GetDirectoryName(typeof(RunQuizTracker).Assembly.Location) ?? ".";
+            var modDir = VocabManager.ModDirectory;
             return Path.Combine(modDir, "_run_history.json");
         }
     }

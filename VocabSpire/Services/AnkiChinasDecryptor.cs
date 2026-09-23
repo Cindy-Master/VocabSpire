@@ -61,7 +61,7 @@ public static class AnkiChinasDecryptor
     /// <summary>AES 密钥缓存路径（按 _ck 前8字符分文件）。</summary>
     private static string GetCachePath(string ck)
     {
-        var dir = Path.GetDirectoryName(typeof(AnkiChinasDecryptor).Assembly.Location) ?? ".";
+        var dir = VocabManager.ModDirectory;
         return Path.Combine(dir, $".ankichinas_sk_{ck[..Math.Min(8, ck.Length)]}.cache");
     }
 

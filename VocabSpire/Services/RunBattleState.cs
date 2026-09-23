@@ -82,7 +82,7 @@ public sealed class RunBattleState
     {
         get
         {
-            var modDir = Path.GetDirectoryName(typeof(RunBattleState).Assembly.Location) ?? ".";
+            var modDir = VocabManager.ModDirectory;
             return Path.Combine(modDir, "_free_pass.json");
         }
     }

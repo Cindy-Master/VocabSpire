@@ -28,15 +28,62 @@ public sealed class VocabManager
 
     public string GetWordBanksDirectory()
     {
-        var modDir = Path.GetDirectoryName(typeof(VocabManager).Assembly.Location) ?? ".";
-        var wordbanksDir = Path.Combine(modDir, "wordbanks");
+        var wordbanksDir = Path.Combine(ModDirectory, "wordbanks");
 
-        if (!Directory.Exists(wordbanksDir))
+        // 不能让建目录失败往外抛：Android 上 mod 目录可能只读（甚至根本定位不到、退化成当前工作目录），
+        // 以前这里一抛就一路传回游戏的 mod 加载器 → 闪退。建不出来就当没有自定义词库，
+        // 内置词库仍能从 mod 目录读到。
+        try
         {
-            Directory.CreateDirectory(wordbanksDir);
+            if (!Directory.Exists(wordbanksDir))
+                Directory.CreateDirectory(wordbanksDir);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[VocabSpire] 无法创建词库目录「{wordbanksDir}」（{ex.GetType().Name}: {ex.Message}），"
+                   + "导入/编辑词库将不可用，内置词库不受影响。");
         }
 
         return wordbanksDir;
+    }
+
+    /// <summary>
+    /// mod 所在目录。Assembly.Location 在部分部署形态下是**空串**（单文件发布、某些 Android 打包），
+    /// Path.GetDirectoryName("") 返回 null，一路 ?? "." 退化成进程当前工作目录 ——
+    /// 那个目录在 Android 上通常不可写，是「装上就闪退」的一个常见来源。
+    /// 这里集中处理一次并留下日志，便于从日志一眼看出路径是否解析正确。
+    /// </summary>
+    public static string ModDirectory
+    {
+        get
+        {
+            if (_modDirectory is not null) return _modDirectory;
+            string dir;
+            try
+            {
+                dir = Path.GetDirectoryName(typeof(VocabManager).Assembly.Location) ?? "";
+            }
+            catch (Exception ex)
+            {
+                dir = "";
+                Log.Warn($"[VocabSpire] 读取程序集位置失败: {ex.GetType().Name}: {ex.Message}");
+            }
+            if (string.IsNullOrEmpty(dir))
+            {
+                dir = ".";
+                Log.Warn("[VocabSpire] 无法从 Assembly.Location 定位 mod 目录（返回空），"
+                       + $"退化为当前工作目录「{SafeCurrentDir()}」。词库与配置可能读写失败。");
+            }
+            _modDirectory = dir;
+            return dir;
+        }
+    }
+
+    private static string? _modDirectory;
+
+    private static string SafeCurrentDir()
+    {
+        try { return Directory.GetCurrentDirectory(); } catch { return "(未知)"; }
     }
 
     public void LoadAllBanks()
@@ -360,8 +407,7 @@ public sealed class VocabManager
     {
         get
         {
-            var modDir = Path.GetDirectoryName(typeof(VocabManager).Assembly.Location) ?? ".";
-            return Path.Combine(modDir, "_word_progress.json");
+            return Path.Combine(ModDirectory, "_word_progress.json");
         }
     }
 
