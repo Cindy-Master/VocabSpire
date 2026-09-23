@@ -51,15 +51,10 @@ public partial class VocabCollectionPanel : NSubmenu
     /// </summary>
     private static bool IsMastered(WordEntry w) => w.Streak >= MasteryThreshold || w.Box >= 3;
 
-    // NSubmenu 这两个成员的可见性跨版本反了：v0.99.1 是 public，v0.107+ 是 protected。
-    // CLR 不允许 override 收窄可访问性，同一份 IL 没法同时匹配两边 —— 所以靠编译符号分叉，
-    // v0.99 用 STS2_LEGACY 构建单独出一份 DLL。写错这个修饰符的症状是整个类 TypeLoadException，
-    // 于是词汇图鉴打不开（更早期还会连带 Plugin 的 GetTypes() 整体失败，见 GetLoadableTypes）。
-#if STS2_LEGACY
-    public override Control? InitialFocusedControl => _backBtn;
-#else
+    // 注：本类继承游戏的 NSubmenu，而 NSubmenu 这些成员的可见性跨游戏版本变过
+    // （v0.99.1 是 public，v0.107+ 是 protected），加上源生成器补的那组 override 也跟着变，
+    // 所以老游戏版本的构建直接排除本文件（见 csproj 的 LegacyGame 段），不在这里做条件编译。
     protected override Control? InitialFocusedControl => _backBtn;
-#endif
 
     public override void _Ready()
     {
@@ -68,11 +63,7 @@ public partial class VocabCollectionPanel : NSubmenu
         GameTheme.ApplyFontRecursive(this);
     }
 
-#if STS2_LEGACY
-    public override void ConnectSignals() { }
-#else
     protected override void ConnectSignals() { }
-#endif
 
     public override void OnSubmenuOpened()
     {
