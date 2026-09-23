@@ -28,7 +28,7 @@ public static class Plugin
         // 不用 PatchAll：任何一个补丁类失败（如游戏版本改了 API、TargetMethods 找到 0 个方法——
         // Harmony 对空 TargetMethods 是抛异常不是跳过）都会炸掉整个 mod 初始化（v0.108 手机版实锤）。
         // 逐类 Patch + 隔离：单个补丁失败只失去对应功能，其余照常。
-        foreach (var type in Assembly.GetExecutingAssembly().GetTypes())
+        foreach (var type in GetLoadableTypes(Assembly.GetExecutingAssembly()))
         {
             try
             {
@@ -111,6 +111,31 @@ public static class Plugin
 
     /// <summary>补丁类名 → 功能名。让「挂载失败」和「挂载成功」的记录能归到同一功能下
     /// （答错回手有三代补丁类，任一代成功即视为该功能可用）。未登记的类按类名单列。</summary>
+    /// <summary>
+    /// 安全地枚举本程序集的类型。
+    ///
+    /// 为什么不能直接 GetTypes()：只要程序集里有**一个**类型加载不了，GetTypes() 整体抛
+    /// ReflectionTypeLoadException —— 那么下面的逐类 try/catch 压根进不去，所有补丁一个都挂不上，
+    /// mod 整体失效。而「有类型加载不了」在跨游戏版本时是常态：某个补丁类的方法签名引用了
+    /// 新版本才有的类型（如 0.109+ 的 CardLocation），在老版本上该类就是加载不了的。
+    /// ReflectionTypeLoadException.Types 里成功的那些仍然可用，取出来继续即可。
+    /// </summary>
+    private static IEnumerable<System.Type> GetLoadableTypes(Assembly asm)
+    {
+        try
+        {
+            return asm.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            var ok = ex.Types.Where(t => t is not null).Select(t => t!).ToArray();
+            var failed = ex.Types.Length - ok.Length;
+            Log.Warn($"[VocabSpire] 本程序集有 {failed} 个类型在当前游戏版本上加载不了（跨版本属正常），"
+                   + $"其余 {ok.Length} 个继续挂载。首个原因: {ex.LoaderExceptions.FirstOrDefault()?.Message}");
+            return ok;
+        }
+    }
+
     private static string FeatureOf(System.Type type) => type.Name switch
     {
         "GetResultLocationPatch" or "GetResultPileTypePatch" or "GetResultPileTypeAndPositionPatch" => "答错回手",
@@ -130,7 +155,10 @@ public partial class InputListener : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
-        CallDeferred(MethodName.CreateUI);
+        // 用 Callable.From 而不是 CallDeferred(MethodName.CreateUI)：后者要靠 Godot 源生成器
+        // 生成的方法名常量 + 反射派发表，而老游戏版本的构建必须关掉生成器（见 csproj 里的
+        // DisableImplicitGodotGeneratorReferences 说明）。委托形式是纯 C#，两条构建线都能用。
+        Callable.From(CreateUI).CallDeferred();
     }
 
     private void CreateUI()
