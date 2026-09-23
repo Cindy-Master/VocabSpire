@@ -740,6 +740,14 @@ internal static class ResultPileApi
     internal const string V0108 = "GetResultPileTypeAndPositionForCardPlay";
     internal const string V0107 = "GetResultPileTypeForCardPlay";
 
+    /// <summary>
+    /// 第四代（更老）：v0.99.1 的手机移植版实测叫 GetResultPileType()，无 ForCardPlay 后缀，
+    /// 同样无参、返回 PileType —— 与 V0107 形态签名完全一致，所以复用同一个 Postfix。
+    /// （证据：v0.99.1 的 sts2.dll 里 CardModel 只有 public PileType GetResultPileType()，
+    ///  V0107/V0108/V0109 三个名字全都搜不到。）
+    /// </summary>
+    internal const string V0099 = "GetResultPileType";
+
     /// <summary>在 CardModel 及其所有子类里找「该精确名字 + 无参 + 该返回类型」的方法（含子类 override）。</summary>
     internal static IEnumerable<MethodBase> Find(string exactName, System.Type returnType)
     {
@@ -756,10 +764,15 @@ internal static class ResultPileApi
     }
 }
 
+#if !STS2_LEGACY
 /// <summary>
 /// 答错回手（v0.109+ 形态）—— 归堆方法改名为 GetResultLocationForCardPlay，
 /// 返回 CardLocation（结构体，pileType 字段即牌堆）。与 0.108 / ≤0.107 两个补丁类共存，
 /// 各自 TargetMethods 在别代游戏上为空 → Harmony 抛异常 → 由 Plugin 逐类隔离兜住。
+///
+/// STS2_LEGACY（v0.99 构建）下整类排除：那时 CardLocation 这个类型还不存在，而它出现在
+/// Postfix 的方法签名里 —— 编译不过，就算硬塞进去运行时也是 TypeLoadException。
+/// 老版本的归堆走 GetResultPileTypePatch 里的 V0099 分支。
 /// </summary>
 [HarmonyPatch]
 public static class GetResultLocationPatch
@@ -789,20 +802,29 @@ public static class GetResultLocationPatch
         }
     }
 }
+#endif
 
 [HarmonyPatch]
 public static class GetResultPileTypePatch
 {
     static IEnumerable<MethodBase> TargetMethods()
     {
+        // 两个名字签名相同（无参 → PileType），共用本类的 Postfix。同一局游戏只会命中一个：
+        // V0107 是 ≤0.107，V0099 是更老的 0.99 形态（手机移植版用的就是它）。
         var count = 0;
-        foreach (var m in ResultPileApi.Find(ResultPileApi.V0107, typeof(PileType)))
+        var hit = "";
+        foreach (var name in new[] { ResultPileApi.V0107, ResultPileApi.V0099 })
         {
-            count++;
-            yield return m;
+            foreach (var m in ResultPileApi.Find(name, typeof(PileType)))
+            {
+                count++;
+                if (hit.Length == 0) hit = name;
+                yield return m;
+            }
         }
         if (count > 0) ReturnPileState.PatchActive = true;
-        PatchAudit.Record("答错回手", $"{ResultPileApi.V0107} (≤v0.107 形态)", count);
+        PatchAudit.Record("答错回手",
+            $"{(hit.Length > 0 ? hit : ResultPileApi.V0107)} (≤v0.107 / v0.99 形态)", count);
     }
 
     // Priority.Last：答错回手是玩家答错的强制结果，必须压过其他 mod 对归堆的修改
