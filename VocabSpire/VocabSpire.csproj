@@ -10,6 +10,36 @@
 
   <!-- Directory.Build.props is auto-imported by SDK -->
 
+  <!--
+    老版本（v0.99 手机移植版）专用构建。用法：
+      dotnet build VocabSpire/VocabSpire.csproj -c Release -p:LegacyGame=true -p:STS2GamePath=<老版 dll 目录>
+    老版 dll 从手机版 apk 里取（assets/.godot/mono/publish/arm64/ 下的 sts2.dll + 0Harmony.dll
+    + GodotSharp.dll），提取脚本见 tools/extract_apk_assemblies.py。
+    产出的 DLL 与主线不通用 —— NSubmenu 成员可见性、归堆 API 名、CardLocation 是否存在都不同，
+    差异清单用 tools/apicheck 跑一遍就能拿到。
+  -->
+  <PropertyGroup Condition="'$(LegacyGame)' == 'true'">
+    <DefineConstants>$(DefineConstants);STS2_LEGACY</DefineConstants>
+    <!--
+      产物与主线彻底分开。必须直接覆盖 OutputPath —— Godot SDK 的 Sdk.props 是**无条件**设置它的
+      （BaseOutputPath 设了也没用），两条线若共用输出目录，后跑的那次会把前一次的 DLL 悄悄覆盖掉，
+      极易误发。obj 也要分开，否则两套 DefineConstants 共用中间目录会出 stale 产物。
+    -->
+    <OutputPath>$(GodotProjectDir).godot\mono\temp\bin-legacy\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>$(GodotProjectDir).godot\mono\temp\obj-legacy\$(Configuration)\</IntermediateOutputPath>
+    <!--
+      关掉 Godot 源生成器。
+      生成器会给每个「partial + 继承 GodotObject」的类补一组 override（InvokeGodotClassMethod /
+      HasGodotClassMethod / Get|SetGodotClassPropertyValue / Save|RestoreGodotObjectData）。
+      v0.111 的 SDK 生成 protected，而 v0.99.1 的游戏是用更早的 SDK 编译的、基类里那几个是 public
+      —— CLR 不允许 override 收窄可访问性，于是 VocabCollectionPanel 之类继承游戏节点的类全都编译不过。
+      本 mod 的 UI 一律是代码里 new 出来的节点、信号用 C# 委托接（btn.Pressed += ...），
+      不走「引擎按脚本反射调用」那条路，所以这组生成代码本就用不上，关掉无影响。
+      注意 GodotSharp.dll 两版 hash 完全相同 —— 差的只是构建期 SDK，不是 Godot 运行时。
+    -->
+    <DisableImplicitGodotGeneratorReferences>true</DisableImplicitGodotGeneratorReferences>
+  </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="sts2" Condition="Exists('$(STS2GamePath)\sts2.dll')">
       <HintPath>$(STS2GamePath)\sts2.dll</HintPath>
