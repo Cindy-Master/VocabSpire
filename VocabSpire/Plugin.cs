@@ -27,22 +27,32 @@ public static class Plugin
     /// </summary>
     public static void Initialize()
     {
+        // 第一件事就是开诊断文件：它落在外部可读目录，是手机端唯一能拿到的排障线索
+        // （godot.log 在应用私有目录，非 root + 非 debuggable 时谁都读不出来）。
+        try { DiagLog.BeginSession(ReadOwnVersion()); } catch { }
+
         Step("注册依赖解析器", RegisterDependencyResolver); // 要最先 —— 随包的第三方依赖(ZstdSharp 等)靠它加载
         Step("打印启动横幅", () => Log.Info("[VocabSpire] Initializing..."));
         Step("加载配置", () => VocabConfig.Instance.Load());
         Step("加载词库", () => VocabManager.Instance.LoadAllBanks());
         Step("挂载补丁与 UI", InitializeCore);
+
+        DiagLog.Write("=== Initialize() 全部阶段结束，mod 已交还控制权 ===");
     }
 
-    /// <summary>跑一个初始化阶段，失败只记日志不外抛。</summary>
+    /// <summary>跑一个初始化阶段，失败只记日志不外抛。每个阶段的进入/完成/失败都落进诊断文件。</summary>
     private static void Step(string what, System.Action action)
     {
+        DiagLog.Write($"→ 开始: {what}");
         try
         {
             action();
+            DiagLog.Write($"✓ 完成: {what}");
         }
         catch (System.Exception ex)
         {
+            // 诊断文件优先 —— 手机上 Log 写到的 godot.log 根本读不出来
+            DiagLog.Write($"✗ 失败: {what}{System.Environment.NewLine}{ex}");
             // Log 本身也可能不可用（游戏侧未就绪），所以连日志都要包一层
             try
             {
@@ -52,17 +62,33 @@ public static class Plugin
         }
     }
 
+    /// <summary>读自己的版本号（仅用于诊断文件头，失败无所谓）。</summary>
+    private static string ReadOwnVersion()
+    {
+        try
+        {
+            var json = File.ReadAllText(Path.Combine(VocabManager.ModDirectory, "VocabSpire.json"));
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("version").GetString() ?? "(未知)";
+        }
+        catch { return "(读不到 manifest)"; }
+    }
+
     private static void InitializeCore()
     {
         _harmony = new Harmony("com.vocabspire.mod");
         // 不用 PatchAll：任何一个补丁类失败（如游戏版本改了 API、TargetMethods 找到 0 个方法——
         // Harmony 对空 TargetMethods 是抛异常不是跳过）都会炸掉整个 mod 初始化（v0.108 手机版实锤）。
         // 逐类 Patch + 隔离：单个补丁失败只失去对应功能，其余照常。
-        foreach (var type in GetLoadableTypes(Assembly.GetExecutingAssembly()))
+        var types = GetLoadableTypes(Assembly.GetExecutingAssembly()).ToList();
+        DiagLog.Write($"  可加载类型 {types.Count} 个，开始逐类挂补丁");
+        var patched = 0;
+        foreach (var type in types)
         {
             try
             {
                 _harmony.CreateClassProcessor(type).Patch();
+                patched++;
             }
             catch (System.Exception ex)
             {
@@ -74,15 +100,22 @@ public static class Plugin
             }
         }
 
+        DiagLog.Write($"  补丁挂载完成：成功 {patched} / 共 {types.Count}");
         PatchAudit.LogReport();
 
+        DiagLog.Write("  订阅战斗结束事件");
         CombatEndHandler.Subscribe();
 
+        DiagLog.Write("  挂载输入监听节点");
         var root = GameBridge.GetUIRoot();
         if (root is not null)
         {
             _inputListener = new InputListener();
             root.CallDeferred(Node.MethodName.AddChild, _inputListener);
+        }
+        else
+        {
+            DiagLog.Write("  !! GetUIRoot() 返回 null —— 快捷键与所有面板都不会出现");
         }
 
         Log.Info($"[VocabSpire] Loaded! Banks: {VocabManager.Instance.Banks.Count}, " +
