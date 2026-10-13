@@ -64,6 +64,14 @@ public static class QuizState
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.OnPlayWrapper))]
 public static class SinglePlayerPatch
 {
+    // Priority.First：弹题门必须是这个方法上第一个执行的 Prefix。
+    // Harmony 2.4.2 实测：同一方法上一个 bool Prefix 返回 false 后，排在它后面的所有 bool Prefix
+    // 都会被跳过（void 的照跑）；而同优先级的先后由注册顺序、也就是 mod 加载顺序决定。
+    // 所以只要别的 mod 也在这里挂了会返回 false 的 Prefix 且先加载，我们的弹题就整个被吃掉 ——
+    // 玩家报告的「XX 先加载、本 mod 后加载就不弹题」正是这个机制。
+    // 排第一不会反过来吃掉别人：首次点击时我们拦下是为了先答题（这一下本就不是真正出牌），
+    // 答完题以 Bypass 重新调用时我们第一行就放行，其后各 mod 的 Prefix 照常执行一次。
+    [HarmonyPriority(Priority.First)]
     public static bool Prefix(
         CardModel __instance,
         ref Task __result,
@@ -308,6 +316,9 @@ public static class SinglePlayerPatch
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.TryManualPlay))]
 public static class MultiPlayerPatch
 {
+    // Priority.First：理由同 SinglePlayerPatch —— 别的 mod 在 TryManualPlay 上挂了会返回 false 的
+    // Prefix 且先加载时，我们这个 bool Prefix 会被 Harmony 整个跳过，联机下题目就不弹出。
+    [HarmonyPriority(Priority.First)]
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
         // 按需挂载该卡的 OnPlay（仅按需模式下生效；批量模式下是空操作）
