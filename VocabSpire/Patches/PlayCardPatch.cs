@@ -81,6 +81,8 @@ public static class SinglePlayerPatch
         ResourceInfo resources,
         bool skipCardPileVisuals)
     {
+        PatchOrderAudit.RunOnce();
+
         // 按需挂载该卡的 OnPlay（仅按需模式下生效）。必须在这里 —— OnPlayWrapper 的 Prefix
         // 早于内部对 OnPlay 的调用，来得及；批量模式下这是空操作。
         OnPlayPatchGate.Ensure(__instance);
@@ -321,6 +323,7 @@ public static class MultiPlayerPatch
     [HarmonyPriority(Priority.First)]
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
+        PatchOrderAudit.RunOnce();
         // 按需挂载该卡的 OnPlay（仅按需模式下生效；批量模式下是空操作）
         OnPlayPatchGate.Ensure(__instance);
 
