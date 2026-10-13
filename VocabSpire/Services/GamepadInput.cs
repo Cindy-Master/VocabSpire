@@ -1,4 +1,5 @@
 using Godot;
+using MegaCrit.Sts2.Core.Logging;
 
 namespace VocabSpire.Services;
 
@@ -180,7 +181,23 @@ public static class GamepadInput
 
         var duplicate = holders.Keys.Any(h => h != source);
         holders[source] = stillHeld;
-        return duplicate ? PadAction.None : action;
+        if (duplicate) return PadAction.None;
+        LogFirstUse(source, action);
+        return action;
+    }
+
+    // 已在日志里报过的通道（btn / axis / act）
+    private static readonly HashSet<string> LoggedChannels = new();
+
+    /// <summary>
+    /// 每条通道第一次被识别时写一行日志：玩家报「手柄没反应」时，godot.log 里有没有这行、
+    /// 是哪条通道，直接说明按键走的是 Godot 原生驱动还是 Steam Input。
+    /// </summary>
+    private static void LogFirstUse(string source, PadAction action)
+    {
+        var channel = source[..source.IndexOf(':')];
+        if (!LoggedChannels.Add(channel)) return;
+        Log.Info($"[VocabSpire][手柄] 首次识别到 {channel} 通道输入：{source} → {action}");
     }
 
     private static bool IsHeld(Func<bool> query)
