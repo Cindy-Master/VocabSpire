@@ -535,10 +535,13 @@ public partial class QuizPanel : Control
     {
         if (!Visible) return;
 
-        // 手柄优先：面板显示期间独占手柄输入，别让按键漏到背后的牌桌
+        // 手柄优先：面板显示期间独占手柄输入，别让按键漏到背后的牌桌。
+        // 认得的键不管这一下有没有用上（如多选题还没选就按 Y）都吞掉：联机答题不暂停，
+        // 漏出去的 Y 会被 NInputManager 翻译成 ui_confirm + ui_end_turn（默认映射同绑 Y），直接结束回合。
         var pad = Services.GamepadInput.Translate(@event);
-        if (pad != PadAction.None && HandlePad(pad))
+        if (pad != PadAction.None)
         {
+            HandlePad(pad);
             GetViewport().SetInputAsHandled();
             return;
         }
