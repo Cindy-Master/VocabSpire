@@ -421,9 +421,11 @@ public partial class RestSiteReviewPanel : Control
     {
         if (!Visible) return;
 
+        // 认得的手柄键一律吞掉（同 QuizPanel）：篝火不暂停，没用上的 A/Y 漏出去会被 NInputManager 翻译成 ui_select / ui_confirm 交给背后的界面
         var pad = Services.GamepadInput.Translate(@event);
-        if (pad != PadAction.None && HandlePad(pad))
+        if (pad != PadAction.None)
         {
+            HandlePad(pad);
             GetViewport().SetInputAsHandled();
             return;
         }
