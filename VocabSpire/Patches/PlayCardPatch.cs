@@ -368,7 +368,21 @@ public static class MultiPlayerPatch
                 QuizState.QuizActive = false;
                 SinglePlayerPatch.ApplyAnswerEffects(__instance, question, correct);
                 QuizState.Bypass = true;
-                __instance.TryManualPlay(target);
+                var played = __instance.TryManualPlay(target);
+
+                // 真正出牌这一下可能被拒：联机答题时游戏不暂停，期间回合可能结束、目标可能死掉、
+                // 牌可能离手；别的 mod 的 Prefix 也可能在此时拦下（我们排第一后它们在这一下才执行）。
+                // 拒了就没有 NetPlayCardAction、不会序列化也不会走 OnPlay，ApplyAnswerEffects 设下的
+                // 跳过效果/免费/回手/待发奖惩会原样留在 QuizState 里，串到下一张牌上 —— 必须在这里清掉。
+                // 答题本身照常算数：记忆引擎在 QuizPanel 作答时已记（VocabManager.RecordAnswer），
+                // 战斗内连对/容错/免错券在 ApplyAnswerEffects 里已记（BattleStateTracker.RecordAnswer），
+                // 都发生在出牌之前，与这一下出没出成无关。只清「本张牌」层面的待生效标志。
+                if (!played)
+                {
+                    Log.Warn($"[VocabSpire][MP] 答题后出牌被拒（{__instance.GetType().Name}），清理本张牌的待生效标志，避免串到下一张");
+                    QuizState.ResetCardLevel();
+                    QuizState.Bypass = false;
+                }
             }
             catch (System.Exception ex)
             {
