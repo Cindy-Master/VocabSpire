@@ -67,7 +67,10 @@
 
   <ItemGroup>
     <None Include="VocabSpire.json" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Resources\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 私人计量师题库及题库图片仅用于本机部署，不进入通用构建输出/发布包。 -->
+    <Content Include="Resources\**"
+             Exclude="Resources\question_images\**;Resources\wordbanks\一级计量师_实务.json;Resources\wordbanks\一级计量师_法规.json"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- 纯托管 zstd：解压新版 Anki collection.anki21b（无 native 依赖，可随 mod 部署） -->
