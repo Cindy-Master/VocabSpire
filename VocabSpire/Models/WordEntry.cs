@@ -2,6 +2,9 @@ namespace VocabSpire.Models;
 
 public sealed class WordEntry
 {
+    /// <summary>题库内稳定条目 ID；用于区分题干相同但选项/答案不同的固定题。</summary>
+    public string EntryId { get; init; } = "";
+
     public string English { get; init; } = "";
     public string Chinese { get; init; } = "";
     public string Phonetic { get; init; } = "";
@@ -17,8 +20,35 @@ public sealed class WordEntry
     /// <summary>固定选择题的正确选项索引（指向 Options）。普通单词条目为 -1。</summary>
     public int FixedCorrectIndex { get; init; } = -1;
 
+    /// <summary>固定多选题的全部正确选项索引。单选题可为空，继续使用 FixedCorrectIndex 兼容旧词库。</summary>
+    public List<int> FixedCorrectIndices { get; init; } = new();
+
+    /// <summary>作答后展示的题目解析。普通单词条目为空。</summary>
+    public string Explanation { get; init; } = "";
+
+    /// <summary>题目所属章节/知识点路径。</summary>
+    public string Category { get; init; } = "";
+
+    /// <summary>固定题题干中的本地图片路径。旧题库为空，不进入图片加载路径。</summary>
+    public List<string> QuestionImages { get; init; } = new();
+
+    /// <summary>固定题每个选项对应的本地图片路径列表，与 Options 按索引对齐。</summary>
+    public List<List<string>> OptionImages { get; init; } = new();
+
+    /// <summary>固定题解析中的本地图片路径。</summary>
+    public List<string> ExplanationImages { get; init; } = new();
+
+    /// <summary>固定题的有效正确答案索引；兼容旧版仅含 FixedCorrectIndex 的题库。</summary>
+    public IReadOnlyList<int> EffectiveFixedCorrectIndices => FixedCorrectIndices.Count > 0
+        ? FixedCorrectIndices
+        : (FixedCorrectIndex >= 0 ? new[] { FixedCorrectIndex } : Array.Empty<int>());
+
     /// <summary>是否为固定选择题条目（题干存 English、正确答案文本存 Chinese）。</summary>
-    public bool IsFixedChoice => Options.Count > 0 && FixedCorrectIndex >= 0 && FixedCorrectIndex < Options.Count;
+    public bool IsFixedChoice => Options.Count > 0
+        && EffectiveFixedCorrectIndices.Count > 0
+        && EffectiveFixedCorrectIndices.All(i => i >= 0 && i < Options.Count);
+
+    public bool IsFixedMultiSelect => IsFixedChoice && EffectiveFixedCorrectIndices.Count > 1;
 
     public int CorrectCount { get; set; }
     public int WrongCount { get; set; }

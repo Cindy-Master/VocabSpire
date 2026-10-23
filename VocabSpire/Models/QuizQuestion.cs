@@ -34,6 +34,16 @@ public sealed class QuizQuestion
     /// <summary>固定选择题（题库模式）：选项来自题库自带而非生成，题干/选项多为中文 → 发音/朗读功能跳过。</summary>
     public bool IsFixedChoice { get; init; }
 
+    /// <summary>作答后展示的题目解析。</summary>
+    public string Explanation { get; init; } = "";
+
+    /// <summary>题目所属章节/知识点路径。</summary>
+    public string Category { get; init; } = "";
+
+    public IReadOnlyList<string> QuestionImages { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<IReadOnlyList<string>> OptionImages { get; init; } = Array.Empty<IReadOnlyList<string>>();
+    public IReadOnlyList<string> ExplanationImages { get; init; } = Array.Empty<string>();
+
     public bool IsSpelling => Mode == QuizModeFlags.SpellEnglish;
     public bool IsListening => Mode == QuizModeFlags.ListenToChinese;
 

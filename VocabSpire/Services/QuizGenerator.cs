@@ -112,13 +112,23 @@ public sealed class QuizGenerator
     /// </summary>
     private QuizQuestion GenerateFixedChoiceQuestion(WordEntry target)
     {
-        var pairs = new List<(string option, bool correct)>();
+        var correctSet = target.EffectiveFixedCorrectIndices.ToHashSet();
+        var pairs = new List<(string option, bool correct, List<string> images)>();
         for (var i = 0; i < target.Options.Count; i++)
-            pairs.Add((target.Options[i], i == target.FixedCorrectIndex));
+            pairs.Add((target.Options[i], correctSet.Contains(i),
+                i < target.OptionImages.Count ? target.OptionImages[i] : new List<string>()));
         Shuffle(pairs);   // 乱序：每次出题选项顺序都随机
 
         var options = pairs.Select(p => p.option).ToList();
-        var correctIndex = pairs.FindIndex(p => p.correct);
+        var correctIndices = pairs.Select((p, i) => (p, i))
+            .Where(x => x.p.correct)
+            .Select(x => x.i)
+            .ToList();
+        var correctIndex = correctIndices[0];
+        var optionImages = pairs
+            .Select(p => (IReadOnlyList<string>)p.images.AsReadOnly())
+            .ToList()
+            .AsReadOnly();
 
         return new QuizQuestion
         {
@@ -127,8 +137,14 @@ public sealed class QuizGenerator
             Prompt = target.English,                 // 题干（含案例共用题干）
             Options = options.AsReadOnly(),
             CorrectIndex = correctIndex,
+            CorrectIndices = correctIndices.AsReadOnly(),
             CorrectText = target.Chinese,
-            IsFixedChoice = true
+            IsFixedChoice = true,
+            Explanation = target.Explanation,
+            Category = target.Category,
+            QuestionImages = target.QuestionImages.AsReadOnly(),
+            OptionImages = optionImages,
+            ExplanationImages = target.ExplanationImages.AsReadOnly()
         };
     }
 

@@ -35,6 +35,7 @@ public static class ProgressTransfer
     {
         [JsonPropertyName("bank")] public string Bank { get; set; } = "";
         [JsonPropertyName("word")] public string Word { get; set; } = "";
+        [JsonPropertyName("entryId")] public string EntryId { get; set; } = "";
         [JsonPropertyName("correct")] public int Correct { get; set; }
         [JsonPropertyName("wrong")] public int Wrong { get; set; }
         [JsonPropertyName("energyLost")] public int EnergyLost { get; set; }
@@ -87,6 +88,7 @@ public static class ProgressTransfer
                 {
                     Bank = bank.Id,
                     Word = w.English,
+                    EntryId = w.EntryId,
                     Correct = w.CorrectCount,
                     Wrong = w.WrongCount,
                     EnergyLost = w.EnergyLost,
@@ -147,19 +149,23 @@ public static class ProgressTransfer
 
         // 建索引：bank.Id → (word.lower → WordEntry)，以及 word.lower → 所有同名词条（跨库兜底）
         var byBank = new Dictionary<string, Dictionary<string, WordEntry>>(StringComparer.OrdinalIgnoreCase);
+        var byBankEntryId = new Dictionary<string, Dictionary<string, WordEntry>>(StringComparer.OrdinalIgnoreCase);
         var byWord = new Dictionary<string, List<WordEntry>>(StringComparer.OrdinalIgnoreCase);
         foreach (var bank in VocabManager.Instance.Banks)
         {
             var map = new Dictionary<string, WordEntry>(StringComparer.OrdinalIgnoreCase);
+            var idMap = new Dictionary<string, WordEntry>(StringComparer.OrdinalIgnoreCase);
             foreach (var w in bank.Words)
             {
                 var key = w.English.Trim();
                 if (key.Length == 0) continue;
                 map[key] = w;
+                if (!string.IsNullOrWhiteSpace(w.EntryId)) idMap[w.EntryId] = w;
                 if (!byWord.TryGetValue(key, out var list)) byWord[key] = list = new List<WordEntry>();
                 list.Add(w);
             }
             byBank[bank.Id] = map;
+            byBankEntryId[bank.Id] = idMap;
         }
 
         foreach (var e in payload.Entries)
@@ -168,7 +174,13 @@ public static class ProgressTransfer
             if (word.Length == 0) continue;
 
             var targets = new List<WordEntry>();
-            if (byBank.TryGetValue(e.Bank, out var map) && map.TryGetValue(word, out var exact))
+            if (!string.IsNullOrWhiteSpace(e.EntryId)
+                && byBankEntryId.TryGetValue(e.Bank, out var idMap)
+                && idMap.TryGetValue(e.EntryId, out var exactById))
+            {
+                targets.Add(exactById);       // 固定题优先按稳定 ID，题干相同也不会串进度
+            }
+            else if (byBank.TryGetValue(e.Bank, out var map) && map.TryGetValue(word, out var exact))
             {
                 targets.Add(exact);          // 词库名对得上 → 精确匹配
             }

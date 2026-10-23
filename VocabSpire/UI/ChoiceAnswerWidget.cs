@@ -13,10 +13,17 @@ public partial class ChoiceAnswerWidget : VBoxContainer
 {
     private VBoxContainer _optionsContainer = null!;
     private readonly List<Button> _optionButtons = new();
-    private readonly List<HBoxContainer> _optionRows = new();     // 每个选项一行（选项按钮 + 小喇叭）
+    private readonly List<HBoxContainer> _optionRows = new();     // 每个选项行（按钮 + 小喇叭 + 可选图片）
     private readonly List<Button> _optionSpeakers = new();        // 每个选项的发音按钮
+    private ScrollContainer _questionImageStrip = null!;
+    private HBoxContainer _questionImages = null!;
+    private readonly List<ScrollContainer> _optionImageStrips = new();
+    private readonly List<HBoxContainer> _optionImages = new();
     private Button _submitBtn = null!;
     private Button _forgotBtn = null!;
+    private RichTextLabel _explanationLabel = null!;
+    private ScrollContainer _explanationImageStrip = null!;
+    private HBoxContainer _explanationImages = null!;
     private Label _padHint = null!;      // 手柄键位提示（没插手柄时整行隐藏）
     private readonly HashSet<int> _selected = new();
 
@@ -52,6 +59,9 @@ public partial class ChoiceAnswerWidget : VBoxContainer
 
     private void BuildUI()
     {
+        _questionImageStrip = CreateImageStrip(190, out _questionImages);
+        AddChild(_questionImageStrip);
+
         _optionsContainer = new VBoxContainer();
         _optionsContainer.AddThemeConstantOverride("separation", 10);
         AddChild(_optionsContainer);
@@ -68,11 +78,35 @@ public partial class ChoiceAnswerWidget : VBoxContainer
             var spk = CreateSpeakerButton(i);
             row.AddChild(spk);
 
+            // 选项图与按钮同一行，避免四个带图选项纵向把弹窗撑出屏幕。
+            var imageStrip = CreateImageStrip(110, out var images);
+            imageStrip.CustomMinimumSize = new Vector2(260, 110);
+            row.AddChild(imageStrip);
+
             _optionsContainer.AddChild(row);
             _optionButtons.Add(btn);
             _optionSpeakers.Add(spk);
             _optionRows.Add(row);
+            _optionImageStrips.Add(imageStrip);
+            _optionImages.Add(images);
         }
+
+        // 固定题库解析：作答前隐藏，提交后显示。固定高度 + 内部滚动，避免长解析撑出屏幕。
+        _explanationLabel = new RichTextLabel
+        {
+            Visible = false,
+            BbcodeEnabled = false,
+            FitContent = false,
+            ScrollActive = true,
+            SelectionEnabled = true,
+            CustomMinimumSize = new Vector2(0, 170)
+        };
+        _explanationLabel.AddThemeFontSizeOverride("normal_font_size", 15);
+        _explanationLabel.AddThemeColorOverride("default_color", GameTheme.Cream);
+        AddChild(_explanationLabel);
+
+        _explanationImageStrip = CreateImageStrip(160, out _explanationImages);
+        AddChild(_explanationImageStrip);
 
         var submitRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         submitRow.AddThemeConstantOverride("separation", 12);
@@ -104,6 +138,10 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _onAnswered = onAnswered;
         _answered = false;
         _selected.Clear();
+        _explanationLabel.Visible = false;
+        _explanationLabel.Text = "";
+        SetImages(_explanationImageStrip, _explanationImages, Array.Empty<string>());
+        SetImages(_questionImageStrip, _questionImages, question.QuestionImages);
 
         // 只有中→英题的选项是英文单词，才显示发音小喇叭（且开关开启）；固定选择题选项是中文，不显示
         var showSpeakers = VocabConfig.Instance.OptionPlayAudio
@@ -118,6 +156,8 @@ public partial class ChoiceAnswerWidget : VBoxContainer
                 ResetStyle(_optionButtons[i]);
                 _optionSpeakers[i].Visible = showSpeakers;
                 _optionRows[i].Visible = true;
+                SetImages(_optionImageStrips[i], _optionImages[i],
+                    i < question.OptionImages.Count ? question.OptionImages[i] : Array.Empty<string>());
             }
             else
             {
@@ -156,6 +196,12 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _cursor = -1;
         _submitBtn.Visible = false;
         _forgotBtn.Visible = false;
+        _explanationLabel.Visible = false;
+        _explanationLabel.Text = "";
+        SetImages(_questionImageStrip, _questionImages, Array.Empty<string>());
+        SetImages(_explanationImageStrip, _explanationImages, Array.Empty<string>());
+        for (var i = 0; i < _optionImageStrips.Count; i++)
+            SetImages(_optionImageStrips[i], _optionImages[i], Array.Empty<string>());
     }
 
     /// <summary>父面板键盘事件转发：A-H / 1-8 → 切换对应选项。返回是否处理。</summary>
@@ -336,6 +382,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         if (_currentQuestion is null) return;
 
         RevealDetails();
+        RevealExplanation();
         _padHint.Visible = false;
         foreach (var btn in _optionButtons) btn.Disabled = true;
 
@@ -360,6 +407,71 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         }
     }
 
+    private void RevealExplanation()
+    {
+        if (_currentQuestion is null) return;
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_currentQuestion.Category))
+            parts.Add($"章节：{_currentQuestion.Category.Trim()}");
+        if (!string.IsNullOrWhiteSpace(_currentQuestion.Explanation))
+            parts.Add($"解析：\n{_currentQuestion.Explanation.Trim()}");
+        if (parts.Count == 0 && _currentQuestion.ExplanationImages.Count == 0) return;
+
+        _explanationLabel.Text = string.Join("\n\n", parts);
+        _explanationLabel.ScrollToLine(0);
+        _explanationLabel.Visible = parts.Count > 0;
+        SetImages(_explanationImageStrip, _explanationImages, _currentQuestion.ExplanationImages);
+    }
+
+    private static ScrollContainer CreateImageStrip(int height, out HBoxContainer imageContainer)
+    {
+        var strip = new ScrollContainer
+        {
+            Visible = false,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize = new Vector2(0, height)
+        };
+        imageContainer = new HBoxContainer();
+        imageContainer.AddThemeConstantOverride("separation", 8);
+        strip.AddChild(imageContainer);
+        return strip;
+    }
+
+    private static void SetImages(ScrollContainer strip, HBoxContainer container, IReadOnlyList<string> paths)
+    {
+        foreach (var child in container.GetChildren()) child.QueueFree();
+        strip.Visible = false;
+        if (paths.Count == 0) return;
+
+        foreach (var path in paths)
+        {
+            try
+            {
+                if (!File.Exists(path)) continue;
+                var image = Image.LoadFromFile(path);
+                if (image is null || image.IsEmpty()) continue;
+                var texture = ImageTexture.CreateFromImage(image);
+                var height = Math.Min(strip.CustomMinimumSize.Y - 8, image.GetHeight());
+                var width = image.GetHeight() > 0 ? height * image.GetWidth() / image.GetHeight() : height;
+                var view = new TextureRect
+                {
+                    Texture = texture,
+                    ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                    StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                    CustomMinimumSize = new Vector2(Math.Clamp(width, 80, 720), Math.Max(height, 80)),
+                    TooltipText = Path.GetFileName(path)
+                };
+                container.AddChild(view);
+            }
+            catch (Exception ex)
+            {
+                GD.PushWarning($"[VocabSpire] 题库图片加载失败：{path} - {ex.Message}");
+            }
+        }
+        strip.Visible = container.GetChildCount() > 0;
+    }
+
     private Button CreateSpeakerButton(int index)
     {
         var spk = GameTheme.MakeButton(" 🔊 ", 18, GameTheme.Gold);
@@ -380,7 +492,8 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         var btn = new Button
         {
             CustomMinimumSize = new Vector2(0, 50),
-            Alignment = HorizontalAlignment.Left
+            Alignment = HorizontalAlignment.Left,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
         btn.AddThemeStyleboxOverride("normal", MakeBtnStyle(BtnNormal));
         btn.AddThemeStyleboxOverride("hover", MakeBtnStyle(BtnHover));

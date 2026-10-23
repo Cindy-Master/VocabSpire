@@ -36,6 +36,7 @@ public partial class WordBankEditorPanel : Control
     // ── 选择题库模式 ──
     private const int MaxChoiceOptions = 8;          // A-H（与 QuizGenerator.MaxOptionCount / ChoiceAnswerWidget.Prefixes 一致）
     private bool _choiceMode;                        // 当前库类型（新建可切换；编辑按库内容判定）
+    private bool _multiChoiceAnswers;                // 仅含固定多选题的新格式库启用；旧固定单选库保持原下拉框体验
     private CheckButton _choiceModeToggle = null!;
     private Label _headerLabel = null!;
 
@@ -62,6 +63,7 @@ public partial class WordBankEditorPanel : Control
         _nameInput.Text = "";
         _descInput.Text = "";
         _choiceMode = false;
+        _multiChoiceAnswers = false;
         _choiceModeToggle.SetPressedNoSignal(false);
         _choiceModeToggle.Disabled = false;
         _data.Clear();
@@ -84,6 +86,7 @@ public partial class WordBankEditorPanel : Control
 
         // 库类型按内容判定并锁定（编辑时不允许切换，防误转丢数据）
         _choiceMode = bank.Words.Any(w => w.IsFixedChoice);
+        _multiChoiceAnswers = bank.Words.Any(w => w.IsFixedMultiSelect);
         _choiceModeToggle.SetPressedNoSignal(_choiceMode);
         _choiceModeToggle.Disabled = true;
 
@@ -94,7 +97,19 @@ public partial class WordBankEditorPanel : Control
             {
                 var opts = new List<string>(w.Options);
                 while (opts.Count < MaxChoiceOptions) opts.Add("");
-                _data.Add(new WordData { IsChoice = true, En = w.English, Options = opts, Answer = w.FixedCorrectIndex });
+                _data.Add(new WordData
+                {
+                    IsChoice = true,
+                    En = w.English,
+                    Options = opts,
+                    Answers = w.EffectiveFixedCorrectIndices.ToList(),
+                    Explanation = w.Explanation,
+                    Category = w.Category,
+                    EntryId = w.EntryId,
+                    QuestionImages = w.QuestionImages.ToList(),
+                    OptionImages = w.OptionImages.Select(images => images.ToList()).ToList(),
+                    ExplanationImages = w.ExplanationImages.ToList()
+                });
             }
             else
             {
@@ -107,7 +122,9 @@ public partial class WordBankEditorPanel : Control
         _page = 0;
         RenderPage();
         _statusLabel.Text = _choiceMode
-            ? $"共 {_data.Count} 题 · 每页 {PageSize} 行 · 每题：题干 + 选项 + 正确答案下拉。"
+            ? (_multiChoiceAnswers
+                ? $"共 {_data.Count} 题 · 每页 {PageSize} 行 · 答案支持 A 或 A,C 多选。"
+                : $"共 {_data.Count} 题 · 每页 {PageSize} 行 · 每题：题干 + 选项 + 正确答案下拉。")
             : $"共 {_data.Count} 词 · 每页 {PageSize} 行 · 改完点「保存并启用」写回该词库。";
     }
 
@@ -248,7 +265,9 @@ public partial class WordBankEditorPanel : Control
     {
         ClearRows();
         _headerLabel.Text = _choiceMode
-            ? "每题：题干  |  正确答案(下拉)  |  ✕ 删除；下方 A-E 选项（留空的选项自动忽略）"
+            ? (_multiChoiceAnswers
+                ? "每题：题干  |  正确答案（A 或 A,C） |  ✕ 删除；下方 A-H 选项（留空自动忽略）"
+                : "每题：题干  |  正确答案(下拉)  |  ✕ 删除；下方 A-E 选项（留空的选项自动忽略）")
             : "英文  |  中文释义 (多个用 ; 分隔)  |  音标 (可选)";
         var total = _data.Count;
         var pageCount = System.Math.Max(1, (total + PageSize - 1) / PageSize);
@@ -280,7 +299,9 @@ public partial class WordBankEditorPanel : Control
             if (row.IsChoice)
             {
                 d.Options = row.OptionInputs.Select(o => o.Text).ToList();
-                d.Answer = row.AnswerSel?.Selected ?? -1;
+                d.Answers = row.AnswerInput is not null
+                    ? ParseAnswerLetters(row.AnswerInput.Text)
+                    : new List<int> { row.AnswerSel?.Selected ?? 0 };
             }
             else
             {
@@ -342,7 +363,7 @@ public partial class WordBankEditorPanel : Control
         GameTheme.ApplyFontRecursive(row);
     }
 
-    /// <summary>选择题行：上行 = 题干 + 正确答案下拉 + 删除；下行 = A-E 选项输入框。</summary>
+    /// <summary>选择题行：旧单选库继续用答案下拉；含多选的新格式库使用 A/C 字母输入。</summary>
     private void AddChoiceRowWidget(WordData d)
     {
         var box = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -361,10 +382,27 @@ public partial class WordBankEditorPanel : Control
         en.AddThemeFontSizeOverride("font_size", 14);
         top.AddChild(en);
 
-        var ansSel = new OptionButton { CustomMinimumSize = new Vector2(96, 0), TooltipText = "正确答案" };
-        for (var i = 0; i < MaxChoiceOptions; i++) ansSel.AddItem($"答案 {(char)('A' + i)}", i);
-        ansSel.Selected = d.Answer >= 0 && d.Answer < MaxChoiceOptions ? d.Answer : 0;
-        top.AddChild(ansSel);
+        LineEdit? answerInput = null;
+        OptionButton? answerSel = null;
+        if (_multiChoiceAnswers)
+        {
+            answerInput = new LineEdit
+            {
+                CustomMinimumSize = new Vector2(120, 0),
+                Text = string.Join(",", d.Answers.Select(i => (char)('A' + i))),
+                PlaceholderText = "答案 A/C",
+                TooltipText = "单选填 A；多选填 A,C"
+            };
+            answerInput.AddThemeFontSizeOverride("font_size", 13);
+            top.AddChild(answerInput);
+        }
+        else
+        {
+            answerSel = new OptionButton { CustomMinimumSize = new Vector2(96, 0), TooltipText = "正确答案" };
+            for (var i = 0; i < MaxChoiceOptions; i++) answerSel.AddItem($"答案 {(char)('A' + i)}", i);
+            answerSel.Selected = d.Answers.Count > 0 ? d.Answers[0] : 0;
+            top.AddChild(answerSel);
+        }
         top.AddChild(MakeDeleteButton(box));
 
         var optRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -389,7 +427,15 @@ public partial class WordBankEditorPanel : Control
         box.AddChild(new HSeparator());
 
         _rowsContainer.AddChild(box);
-        _rows.Add(new RowWidgets { Row = box, IsChoice = true, En = en, OptionInputs = optionInputs, AnswerSel = ansSel });
+        _rows.Add(new RowWidgets
+        {
+            Row = box,
+            IsChoice = true,
+            En = en,
+            OptionInputs = optionInputs,
+            AnswerInput = answerInput,
+            AnswerSel = answerSel
+        });
 
         GameTheme.ApplyFontRecursive(box);
     }
@@ -419,12 +465,38 @@ public partial class WordBankEditorPanel : Control
 
             if (r.IsChoice)
             {
-                // 选择题行：压实非空选项，答案索引映射到压实后的位置
-                var answerText = r.Answer >= 0 && r.Answer < r.Options.Count ? r.Options[r.Answer].Trim() : "";
-                var opts = r.Options.Select(o => o.Trim()).Where(o => o.Length > 0).ToList();
-                var ans = string.IsNullOrEmpty(answerText) ? -1 : opts.IndexOf(answerText);
-                if (opts.Count < 2 || ans < 0) { skippedChoice++; continue; }   // 选项不足或答案指向空选项
-                words.Add(new { english = en, chinese = opts[ans], options = opts, answer = ans });
+                // 选择题行：压实非空选项，并按选项文本重新映射单选/多选答案。
+                var answerTexts = r.Answers
+                    .Where(i => i >= 0 && i < r.Options.Count)
+                    .Select(i => r.Options[i].Trim())
+                    .Where(s => s.Length > 0)
+                    .Distinct()
+                    .ToList();
+                var optionRows = r.Options
+                    .Select((text, index) => new
+                    {
+                        Text = text.Trim(),
+                        Images = index < r.OptionImages.Count ? r.OptionImages[index] : new List<string>()
+                    })
+                    .Where(x => x.Text.Length > 0)
+                    .ToList();
+                var opts = optionRows.Select(x => x.Text).ToList();
+                var answers = answerTexts.Select(text => opts.IndexOf(text)).Where(i => i >= 0).Distinct().Order().ToList();
+                if (opts.Count < 2 || answers.Count == 0) { skippedChoice++; continue; }
+                var item = new Dictionary<string, object>
+                {
+                    ["english"] = en,
+                    ["chinese"] = string.Join(" | ", answers.Select(i => opts[i])),
+                    ["options"] = opts,
+                    ["answer"] = answers.Count == 1 ? answers[0] : answers
+                };
+                if (!string.IsNullOrWhiteSpace(r.Explanation)) item["explanation"] = r.Explanation;
+                if (!string.IsNullOrWhiteSpace(r.Category)) item["category"] = r.Category;
+                if (!string.IsNullOrWhiteSpace(r.EntryId)) item["source_id"] = r.EntryId;
+                if (r.QuestionImages.Count > 0) item["question_images"] = r.QuestionImages;
+                if (optionRows.Any(x => x.Images.Count > 0)) item["option_images"] = optionRows.Select(x => x.Images).ToList();
+                if (r.ExplanationImages.Count > 0) item["explanation_images"] = r.ExplanationImages;
+                words.Add(item);
                 continue;
             }
 
@@ -537,7 +609,13 @@ public partial class WordBankEditorPanel : Control
         // ── 固定选择题行 ──
         public bool IsChoice;
         public List<string> Options = new();   // 最多 MaxChoiceOptions 项（空位表示未填）
-        public int Answer = -1;                // 正确选项索引（对应 Options 原始位置）
+        public List<int> Answers = new();       // 全部正确选项索引（对应 Options 原始位置）
+        public string Explanation = "";        // 编辑器暂不展示，但保存时原样保留
+        public string Category = "";           // 编辑器暂不展示，但保存时原样保留
+        public string EntryId = "";             // 稳定题目 ID，防止同题干条目共用进度
+        public List<string> QuestionImages = new();
+        public List<List<string>> OptionImages = new();
+        public List<string> ExplanationImages = new();
     }
 
     private sealed class RowWidgets
@@ -548,6 +626,14 @@ public partial class WordBankEditorPanel : Control
         public LineEdit? Cn;                              // 普通行
         public LineEdit? Phon;                            // 普通行
         public List<LineEdit> OptionInputs = new();       // 选择题行：A-E 选项
-        public OptionButton? AnswerSel;                   // 选择题行：正确答案下拉
+        public LineEdit? AnswerInput;                     // 选择题行：A 或 A,C
+        public OptionButton? AnswerSel;                   // 旧固定单选库：保持原答案下拉框
     }
+
+    private static List<int> ParseAnswerLetters(string raw) => raw.ToUpperInvariant()
+        .Where(c => c >= 'A' && c < 'A' + MaxChoiceOptions)
+        .Select(c => c - 'A')
+        .Distinct()
+        .Order()
+        .ToList();
 }

@@ -21,6 +21,9 @@ public static class FileParser
 
     private sealed class JsonWordEntryDto
     {
+        [JsonPropertyName("source_id")]
+        public string SourceId { get; set; } = "";
+
         [JsonPropertyName("english")]
         public string English { get; set; } = "";
 
@@ -37,6 +40,21 @@ public static class FileParser
         /// <summary>正确答案：数字索引（0-based；等于选项数时按 1-based 容错）或字母 "A"-"H"。</summary>
         [JsonPropertyName("answer")]
         public JsonElement Answer { get; set; }
+
+        [JsonPropertyName("explanation")]
+        public string Explanation { get; set; } = "";
+
+        [JsonPropertyName("category")]
+        public string Category { get; set; } = "";
+
+        [JsonPropertyName("question_images")]
+        public List<string>? QuestionImages { get; set; }
+
+        [JsonPropertyName("option_images")]
+        public List<List<string>>? OptionImages { get; set; }
+
+        [JsonPropertyName("explanation_images")]
+        public List<string>? ExplanationImages { get; set; }
     }
 
     public static WordBank? ParseJson(string filePath)
@@ -61,16 +79,24 @@ public static class FileParser
                         if (w.Options is { Count: >= 2 })
                         {
                             var opts = w.Options.Select(o => o.Trim()).Where(o => o.Length > 0).ToList();
-                            var ans = ParseJsonAnswer(w.Answer, opts.Count);
-                            if (ans >= 0)
+                            var answers = ParseJsonAnswers(w.Answer, opts.Count);
+                            if (answers.Count > 0)
                             {
+                                var correctText = string.Join(" | ", answers.Select(i => opts[i]));
                                 return new WordEntry
                                 {
+                                    EntryId = w.SourceId.Trim(),
                                     English = w.English.Trim(),
-                                    Chinese = opts[ans],
-                                    Definitions = new List<string> { opts[ans] },
+                                    Chinese = correctText,
+                                    Definitions = answers.Select(i => opts[i]).ToList(),
                                     Options = opts,
-                                    FixedCorrectIndex = ans
+                                    FixedCorrectIndex = answers[0],
+                                    FixedCorrectIndices = answers,
+                                    Explanation = w.Explanation.Trim(),
+                                    Category = w.Category.Trim(),
+                                    QuestionImages = ResolveMediaPaths(filePath, w.QuestionImages),
+                                    OptionImages = ResolveOptionMediaPaths(filePath, w.OptionImages, opts.Count),
+                                    ExplanationImages = ResolveMediaPaths(filePath, w.ExplanationImages)
                                 };
                             }
                             // 有 options 但答案无效 → 是坏掉的题，不要掉进单词解析产生垃圾词条
@@ -170,7 +196,8 @@ public static class FileParser
                         Chinese = opts[ans],
                         Definitions = new List<string> { opts[ans] },
                         Options = opts,
-                        FixedCorrectIndex = ans
+                        FixedCorrectIndex = ans,
+                        FixedCorrectIndices = new List<int> { ans }
                     });
                     continue;
                 }
@@ -307,7 +334,74 @@ public static class FileParser
         }
     }
 
+    /// <summary>
+    /// 解析固定题答案。数组数字明确按 0-based；单值继续遵循旧格式兼容规则；
+    /// 字符串支持 A、A,C、AC、A|C 等常见单选/多选写法。
+    /// </summary>
+    private static List<int> ParseJsonAnswers(JsonElement answer, int optionCount)
+    {
+        var result = new List<int>();
+        if (optionCount <= 0) return result;
+
+        if (answer.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in answer.EnumerateArray())
+            {
+                int index;
+                if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var zeroBased))
+                    index = zeroBased >= 0 && zeroBased < optionCount ? zeroBased : -1;
+                else
+                    index = ParseJsonAnswer(item, optionCount);
+                if (index >= 0 && !result.Contains(index)) result.Add(index);
+            }
+        }
+        else if (answer.ValueKind == JsonValueKind.String)
+        {
+            var raw = (answer.GetString() ?? "").Trim().ToUpperInvariant();
+            var letters = raw.Where(c => c >= 'A' && c <= 'H')
+                .Select(c => c - 'A')
+                .Where(i => i < optionCount)
+                .Distinct()
+                .ToList();
+            if (letters.Count > 0)
+                result.AddRange(letters);
+            else
+            {
+                var index = ParseAnswerIndex(raw, optionCount);
+                if (index >= 0) result.Add(index);
+            }
+        }
+        else
+        {
+            var index = ParseJsonAnswer(answer, optionCount);
+            if (index >= 0) result.Add(index);
+        }
+
+        result.Sort();
+        return result;
+    }
+
     private static string Truncate(string s, int n) => s.Length <= n ? s : s[..n] + "…";
+
+    private static List<string> ResolveMediaPaths(string jsonPath, IEnumerable<string>? paths)
+    {
+        if (paths is null) return new List<string>();
+        var baseDir = Path.GetDirectoryName(Path.GetFullPath(jsonPath)) ?? ".";
+        return paths
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => Path.IsPathRooted(p) ? p : Path.GetFullPath(Path.Combine(baseDir, p)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<List<string>> ResolveOptionMediaPaths(
+        string jsonPath, List<List<string>>? optionPaths, int optionCount)
+    {
+        var result = new List<List<string>>(optionCount);
+        for (var i = 0; i < optionCount; i++)
+            result.Add(ResolveMediaPaths(jsonPath, optionPaths is not null && i < optionPaths.Count ? optionPaths[i] : null));
+        return result;
+    }
 
     /// <summary>
     /// 解析选择题答案列 → 0-based 选项索引。与 ApkgImporter.ParseAnswerIndex 保持一致的语义：

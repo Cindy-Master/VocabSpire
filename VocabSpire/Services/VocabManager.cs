@@ -189,6 +189,12 @@ public sealed class VocabManager
         {
             foreach (var w in bank.Words)
             {
+                // 固定题库允许出现“相同题干、不同选项/答案”的题，不能套用单词库的按词去重。
+                if (w.IsFixedChoice && !string.IsNullOrWhiteSpace(w.EntryId))
+                {
+                    order.Add(w);
+                    continue;
+                }
                 var key = w.English.Trim().ToLowerInvariant();
                 if (string.IsNullOrEmpty(key)) continue;
                 if (seen.TryGetValue(key, out var owner))
@@ -271,13 +277,19 @@ public sealed class VocabManager
             {
                 if (w.IsFixedChoice)
                 {
-                    return new Dictionary<string, object>
+                    var choiceDto = new Dictionary<string, object>
                     {
                         ["english"] = w.English,
                         ["chinese"] = w.Chinese,
                         ["options"] = w.Options,
-                        ["answer"] = w.FixedCorrectIndex
+                        ["answer"] = w.IsFixedMultiSelect
+                            ? (object)w.EffectiveFixedCorrectIndices
+                            : w.FixedCorrectIndex
                     };
+                    if (!string.IsNullOrWhiteSpace(w.Explanation)) choiceDto["explanation"] = w.Explanation;
+                    if (!string.IsNullOrWhiteSpace(w.Category)) choiceDto["category"] = w.Category;
+                    if (!string.IsNullOrWhiteSpace(w.EntryId)) choiceDto["source_id"] = w.EntryId;
+                    return choiceDto;
                 }
                 return new Dictionary<string, object>
                 {
@@ -414,7 +426,7 @@ public sealed class VocabManager
     /// <summary>进度存档 key：按「词库 Id + 单词」隔离，避免多词库同名词（cet4/专升本都有 "core"）
     /// 共用一条记录、互相覆盖。:: 作分隔符（不会出现在词库 id 或单词里）。</summary>
     private static string ProgressKey(WordBank bank, WordEntry w)
-        => $"{bank.Id}::{w.English.ToLowerInvariant()}";
+        => $"{bank.Id}::{(string.IsNullOrWhiteSpace(w.EntryId) ? w.English.ToLowerInvariant() : "#" + w.EntryId)}";
 
     public void SaveProgress()
     {
