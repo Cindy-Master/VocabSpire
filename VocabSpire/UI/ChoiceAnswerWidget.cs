@@ -17,6 +17,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     private readonly List<Button> _optionSpeakers = new();        // 每个选项的发音按钮
     private ScrollContainer _questionImageStrip = null!;
     private HBoxContainer _questionImages = null!;
+    private Label _multiSelectHint = null!;
     private readonly List<ScrollContainer> _optionImageStrips = new();
     private readonly List<HBoxContainer> _optionImages = new();
     private Button _submitBtn = null!;
@@ -61,6 +62,14 @@ public partial class ChoiceAnswerWidget : VBoxContainer
     {
         _questionImageStrip = CreateImageStrip(190, out _questionImages);
         AddChild(_questionImageStrip);
+
+        _multiSelectHint = GameTheme.MakeLabel(
+            "⚠ 多选题：可选择多个答案，选完后点击提交",
+            16,
+            GameTheme.Gold,
+            HorizontalAlignment.Center);
+        _multiSelectHint.Visible = false;
+        AddChild(_multiSelectHint);
 
         _optionsContainer = new VBoxContainer();
         _optionsContainer.AddThemeConstantOverride("separation", 10);
@@ -142,6 +151,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _explanationLabel.Text = "";
         SetImages(_explanationImageStrip, _explanationImages, Array.Empty<string>());
         SetImages(_questionImageStrip, _questionImages, question.QuestionImages);
+        _multiSelectHint.Visible = question.IsMultiSelect;
 
         // 只有中→英题的选项是英文单词，才显示发音小喇叭（且开关开启）；固定选择题选项是中文，不显示
         var showSpeakers = VocabConfig.Instance.OptionPlayAudio
@@ -198,6 +208,7 @@ public partial class ChoiceAnswerWidget : VBoxContainer
         _forgotBtn.Visible = false;
         _explanationLabel.Visible = false;
         _explanationLabel.Text = "";
+        _multiSelectHint.Visible = false;
         SetImages(_questionImageStrip, _questionImages, Array.Empty<string>());
         SetImages(_explanationImageStrip, _explanationImages, Array.Empty<string>());
         for (var i = 0; i < _optionImageStrips.Count; i++)
