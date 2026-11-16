@@ -83,8 +83,8 @@ public static class SinglePlayerPatch
     {
         PatchOrderAudit.RunOnce();
 
-        // 按需挂载该卡的 OnPlay（仅按需模式下生效）。必须在这里 —— OnPlayWrapper 的 Prefix
-        // 早于内部对 OnPlay 的调用，来得及；批量模式下这是空操作。
+        // 按需挂载该卡的 OnPlay（同时兜底扩展角色）。必须在这里 —— OnPlayWrapper 的 Prefix
+        // 早于内部对 OnPlay 的调用，来得及；批量模式下只处理扩展角色。
         OnPlayPatchGate.Ensure(__instance);
 
         var cardName = __instance.GetType().Name;
@@ -324,7 +324,7 @@ public static class MultiPlayerPatch
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
         PatchOrderAudit.RunOnce();
-        // 按需挂载该卡的 OnPlay（仅按需模式下生效；批量模式下是空操作）
+        // 按需挂载该卡的 OnPlay（批量模式下也为扩展角色兜底）
         OnPlayPatchGate.Ensure(__instance);
 
         // 入口诊断：让我们一眼看到 TryManualPlay 是否被触发，以及被各种条件 short-circuit
@@ -937,10 +937,6 @@ public static class PowerCardFlyVfxSkipPatch
 }
 
 /// <summary>
-/// 拦截所有 CardModel 子类的 OnPlay —— 答错跳过；正确（有奖励）则施加奖励。
-/// </summary>
-[HarmonyPatch]
-/// <summary>
 /// 「答错跳过卡牌效果」的挂载策略闸门。
 ///
 /// 为什么要它：CardModel.OnPlay 是 protected virtual 且每张卡都重写，要跳过效果就得逐个 patch
@@ -989,21 +985,25 @@ internal static class OnPlayPatchGate
     /// </summary>
     internal static void Ensure(object? cardInstance)
     {
-        if (!OnDemand || cardInstance is null) return;
+        if (cardInstance is not CardModel card) return;
+        // 游戏原生卡牌在启动时批量挂载；扩展角色可能稍后才加载，首次打出时补挂。
+        if (!OnDemand && card.GetType().Assembly == typeof(CardModel).Assembly) return;
 
         var method = FindOnPlay(cardInstance.GetType());
         if (method is null) return;
+
+        var harmony = Plugin.HarmonyInstance;
+        if (harmony is null) return;
 
         lock (Lock)
         {
             if (!Patched.Add(method)) return;
         }
 
-        var harmony = Plugin.HarmonyInstance;
-        if (harmony is null) return;
-
         try
         {
+            // 扩展卡牌可能继承已批量挂载的原生实现，不能重复添加同一组补丁。
+            if (Harmony.GetPatchInfo(method)?.Owners.Contains(harmony.Id) == true) return;
             harmony.Patch(method,
                 prefix: new HarmonyMethod(typeof(OnPlaySkipPatch).GetMethod(nameof(OnPlaySkipPatch.Prefix))),
                 postfix: new HarmonyMethod(typeof(OnPlaySkipPatch).GetMethod(nameof(OnPlaySkipPatch.Postfix))));
@@ -1013,6 +1013,7 @@ internal static class OnPlayPatchGate
         }
         catch (Exception ex)
         {
+            lock (Lock) Patched.Remove(method); // 失败允许下次重试，避免永久漏挂。
             _failedCount++;
             Log.Error($"[VocabSpire] 按需挂载 {method.DeclaringType?.Name}.OnPlay 失败: {ex.Message}");
             DiagLog.Write($"  [按需] 挂载失败 #{_failedCount} {method.DeclaringType?.Name}: {ex.Message}");
@@ -1034,6 +1035,10 @@ internal static class OnPlayPatchGate
     }
 }
 
+/// <summary>
+/// 拦截所有 CardModel 子类的 OnPlay —— 答错跳过；正确（有奖励）则施加奖励。
+/// </summary>
+[HarmonyPatch]
 public static class OnPlaySkipPatch
 {
     static IEnumerable<MethodBase> TargetMethods()
@@ -1066,10 +1071,10 @@ public static class OnPlaySkipPatch
     }
 
     /// <summary>Postfix 用于在 OnPlay 完成（或被跳过）后触发批量奖励 / 惩罚。
-    /// 通过 Harmony 按参数名注入 PlayerChoiceContext —— 它是 OnPlay 的第 1 个参数，
+    /// 通过 Harmony 按位置注入 PlayerChoiceContext —— 它是 OnPlay 的第 1 个参数，
     /// 双端确定性的真 choice context，传给后续 reward / draw / power apply / discard 使用。
     /// __1 = OnPlay 第 2 个参数 CardPlay（按位置注入，避免各子类参数名不一致）。</summary>
-    public static void Postfix(object __instance, ref Task __result, PlayerChoiceContext choiceContext, CardPlay __1)
+    public static void Postfix(object __instance, ref Task __result, PlayerChoiceContext __0, CardPlay __1)
     {
         // 重放守卫：OnPlayWrapper 内部用 for 循环重复调 OnPlay（playCount = ReplayCount + 1，
         // 例如华彩 SwordSagePower 给主权之刃加重放）。若在第一次 OnPlay 后就复位 SkipEffect，
@@ -1110,7 +1115,7 @@ public static class OnPlaySkipPatch
         QuizState.PendingRewardTarget = null;
 
         var original = __result;
-        __result = ChainEffects(original, target, rewards, punishments, choiceContext);
+        __result = ChainEffects(original, target, rewards, punishments, __0);
     }
 
     private static async Task ChainEffects(Task original, Player? target,

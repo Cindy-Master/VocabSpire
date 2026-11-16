@@ -5,6 +5,9 @@ using System.Text;
 // 逐项检查 VocabSpire 依赖的游戏 API 在两个版本里的存在性与签名，输出对比表。
 // 只读元数据（MetadataLoadContext），不执行任何游戏代码。
 
+const BindingFlags All = BindingFlags.Public | BindingFlags.NonPublic
+                       | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+
 Console.OutputEncoding = Encoding.UTF8;
 if (args.Length < 2) { Console.WriteLine("用法: apicheck <老 sts2.dll> <新 sts2.dll>"); return 1; }
 
@@ -13,6 +16,52 @@ var newAsm = Load(args[1], out var newCtx);
 Console.WriteLine($"老版: {args[0]}");
 Console.WriteLine($"新版: {args[1]}\n");
 
+
+// 卡牌覆盖审计：apicheck <游戏 dll> <游戏 dll> --card-audit <构建的 VocabSpire.dll>
+// 只读元数据，避免初始化游戏引擎；返回非零表示存在漏挂或不兼容签名。
+if (args.Length >= 3 && args[2] == "--card-audit")
+{
+    var cardBase = newAsm.GetType("MegaCrit.Sts2.Core.Models.CardModel", true)!;
+    var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    var failures = new List<string>();
+    var cards = newAsm.GetTypes().Where(t => !t.IsAbstract && t.IsSubclassOf(cardBase)).ToList();
+    var methods = new HashSet<MethodInfo>();
+    foreach (var card in cards)
+    {
+        var method = card.GetMethod("OnPlay", flags);
+        var parameters = method?.GetParameters();
+        if (method is null || method.IsAbstract || method.ReturnType.FullName != "System.Threading.Tasks.Task"
+            || parameters?.Length != 2
+            || parameters[0].ParameterType.Name != "PlayerChoiceContext"
+            || parameters[1].ParameterType.Name != "CardPlay")
+            failures.Add($"{card.FullName}: OnPlay 签名不兼容");
+        else
+            methods.Add(method);
+    }
+    Console.WriteLine($"卡牌覆盖：{cards.Count} 个具体卡牌类型，{methods.Count} 个 OnPlay 实现");
+    Console.WriteLine("角色类型：" + string.Join("、", newAsm.GetTypes()
+        .Where(t => t.Namespace == "MegaCrit.Sts2.Core.Models.Characters" && !t.IsAbstract)
+        .Select(t => t.Name)));
+    if (args.Length >= 4)
+    {
+        var mod = newCtx.LoadFromAssemblyPath(Path.GetFullPath(args[3]));
+        var skip = mod.GetType("VocabSpire.Patches.OnPlaySkipPatch", true)!;
+        var gate = mod.GetType("VocabSpire.Patches.OnPlayPatchGate", true)!;
+        bool IsPatch(Type t) => t.GetCustomAttributesData()
+            .Any(a => a.AttributeType.FullName == "HarmonyLib.HarmonyPatch");
+        if (!IsPatch(skip)) failures.Add("OnPlaySkipPatch 缺失 HarmonyPatch 标记，启动时不会挂载");
+        if (IsPatch(gate)) failures.Add("辅助类 OnPlayPatchGate 不应被作为补丁类扫描");
+        var postfix = skip.GetMethod("Postfix")!;
+        var names = postfix.GetParameters().Select(p => p.Name).ToArray();
+        if (!names.Contains("__0") || !names.Contains("__1"))
+            failures.Add("OnPlay Postfix 未按位置注入，可能不兼容子类的参数命名");
+        Console.WriteLine("已核对构建产物的补丁标记与参数注入。");
+    }
+    foreach (var failure in failures) Console.WriteLine("失败：" + failure);
+    Console.WriteLine($"卡牌审计：{failures.Count} 项失败（不替代实机战斗验证）");
+    oldCtx.Dispose(); newCtx.Dispose();
+    return failures.Count == 0 ? 0 : 1;
+}
 
 // 查询模式: --grep <类型名片段>  / --members <类型全名>
 if (args.Length >= 3 && args[2] == "--grep")
@@ -136,8 +185,6 @@ static string TypeInfo2(Assembly a, string full)
     return $"✓ {kind}";
 }
 
-const BindingFlags All = BindingFlags.Public | BindingFlags.NonPublic
-                       | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 
 static string MethodInfo2(Assembly a, string typeFull, string name)
 {
